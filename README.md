@@ -1,6 +1,6 @@
 # 🌲 cs-skill-tree
 
-简体中文 | [English](README.en.md)
+简体中文 | [English](docs/README.en.md)
 
 **想做 AI、后端、操作系统，该学什么？按方向倒推的计算机学习路线。**
 
