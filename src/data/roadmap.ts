@@ -16,19 +16,136 @@ export interface Category {
   items: string[]
   /** 需要的能力块（只写最高层的，前置会自动带上） */
   requires: string[]
+  /** 需要的语言和工具 */
+  tools: string[]
+}
+
+export interface Tool {
+  id: string
+  name: string
 }
 
 export const CATEGORIES: Category[] = [
-  { id: 'hardware', name: '硬件', items: ['芯片设计', '嵌入式', '机器人'], requires: ['architecture', 'os'] },
-  { id: 'systems', name: '系统', items: ['操作系统', '编译器', '数据库内核'], requires: ['os', 'plc', 'architecture', 'distributed', 'swe'] },
-  { id: 'infra', name: '基础设施与数据', items: ['云原生', '运维', '大数据'], requires: ['distributed', 'math'] },
-  { id: 'ai', name: 'AI', items: ['模型训练', '推理部署', 'Agent 开发'], requires: ['ml', 'hpc', 'swe', 'network'] },
-  { id: 'apps', name: '应用', items: ['Web 前后端', '客户端', '游戏与多媒体'], requires: ['swe', 'database', 'network', 'os', 'graphics', 'hpc'] },
-  { id: 'security', name: '安全', items: ['漏洞挖掘', '逆向工程', '攻防对抗'], requires: ['security'] },
-  { id: 'other', name: '其他方向', items: ['区块链', '量子计算', '形式化验证'], requires: ['theory', 'plc', 'distributed', 'security', 'graphics'] },
+  {
+    id: 'hardware',
+    name: '硬件',
+    items: ['芯片设计', '嵌入式', '机器人'],
+    requires: ['architecture', 'os'],
+    tools: ['c', 'cpp', 'asm', 'verilog', 'python', 'vivado', 'ros'],
+  },
+  {
+    id: 'systems',
+    name: '系统',
+    items: ['操作系统', '编译器', '数据库内核'],
+    requires: ['os', 'compiler', 'architecture', 'distributed', 'swe'],
+    tools: ['c', 'cpp', 'rust', 'go', 'asm', 'shell', 'llvm', 'docker'],
+  },
+  {
+    id: 'infra',
+    name: '基础设施与数据',
+    items: ['云原生', '运维', '大数据'],
+    requires: ['distributed', 'swe', 'math'],
+    tools: ['go', 'java', 'python', 'sql', 'shell', 'pandas', 'spark', 'docker', 'k8s', 'nginx', 'postgres', 'redis', 'kafka', 'prometheus', 'terraform'],
+  },
+  {
+    id: 'ai',
+    name: 'AI',
+    items: ['模型训练', '推理部署', 'Agent 开发'],
+    requires: ['ml', 'hpc', 'swe', 'network'],
+    tools: ['python', 'cpp', 'typescript', 'numpy', 'pytorch', 'transformers', 'langchain', 'cuda', 'docker'],
+  },
+  {
+    id: 'apps',
+    name: '应用',
+    items: ['Web 前后端', '客户端', '游戏与多媒体'],
+    requires: ['swe', 'database', 'network', 'os', 'graphics', 'hpc'],
+    tools: [
+      'javascript', 'typescript', 'java', 'kotlin', 'swift', 'csharp', 'go', 'python', 'sql', 'cpp',
+      'react', 'vue', 'spring', 'django', 'fastapi', 'flutter', 'qt', 'godot',
+      'nodejs', 'nginx', 'postgres', 'redis', 'docker',
+    ],
+  },
+  {
+    id: 'security',
+    name: '安全',
+    items: ['漏洞挖掘', '逆向工程', '攻防对抗'],
+    requires: ['security', 'compiler'],
+    tools: ['c', 'asm', 'python', 'javascript', 'shell', 'wireshark', 'ghidra'],
+  },
+  {
+    id: 'other',
+    name: '其他方向',
+    items: ['区块链', '量子计算', '形式化验证'],
+    requires: ['theory', 'compiler', 'distributed', 'security'],
+    tools: ['solidity', 'rust', 'python'],
+  },
 ]
 
-// 从上往下显示
+// 工具层：具体的语言、框架和平台。被应用层直接用到。
+export const TOOL_GROUPS: { name: string; tools: Tool[] }[] = [
+  {
+    name: '编程语言',
+    tools: [
+      { id: 'c', name: 'C' },
+      { id: 'cpp', name: 'C++' },
+      { id: 'rust', name: 'Rust' },
+      { id: 'go', name: 'Go' },
+      { id: 'java', name: 'Java' },
+      { id: 'kotlin', name: 'Kotlin' },
+      { id: 'swift', name: 'Swift' },
+      { id: 'csharp', name: 'C#' },
+      { id: 'python', name: 'Python' },
+      { id: 'javascript', name: 'JavaScript' },
+      { id: 'typescript', name: 'TypeScript' },
+      { id: 'sql', name: 'SQL' },
+      { id: 'shell', name: 'Shell' },
+      { id: 'asm', name: '汇编' },
+      { id: 'verilog', name: 'Verilog' },
+      { id: 'solidity', name: 'Solidity' },
+    ],
+  },
+  {
+    name: '框架与库',
+    tools: [
+      { id: 'react', name: 'React' },
+      { id: 'vue', name: 'Vue' },
+      { id: 'spring', name: 'Spring' },
+      { id: 'django', name: 'Django' },
+      { id: 'fastapi', name: 'FastAPI' },
+      { id: 'flutter', name: 'Flutter' },
+      { id: 'qt', name: 'Qt' },
+      { id: 'godot', name: 'Godot' },
+      { id: 'numpy', name: 'NumPy' },
+      { id: 'pandas', name: 'pandas' },
+      { id: 'pytorch', name: 'PyTorch' },
+      { id: 'transformers', name: 'Transformers' },
+      { id: 'langchain', name: 'LangChain' },
+      { id: 'spark', name: 'Spark' },
+    ],
+  },
+  {
+    name: '平台与工具',
+    tools: [
+      { id: 'nodejs', name: 'Node.js' },
+      { id: 'docker', name: 'Docker' },
+      { id: 'k8s', name: 'Kubernetes' },
+      { id: 'nginx', name: 'Nginx' },
+      { id: 'postgres', name: 'PostgreSQL' },
+      { id: 'redis', name: 'Redis' },
+      { id: 'kafka', name: 'Kafka' },
+      { id: 'prometheus', name: 'Prometheus' },
+      { id: 'terraform', name: 'Terraform' },
+      { id: 'cuda', name: 'CUDA' },
+      { id: 'llvm', name: 'LLVM' },
+      { id: 'vivado', name: 'Vivado' },
+      { id: 'ros', name: 'ROS 2' },
+      { id: 'wireshark', name: 'Wireshark' },
+      { id: 'ghidra', name: 'Ghidra' },
+    ],
+  },
+]
+
+// 能力块，从上往下显示
 export const LAYERS: { name: string; blocks: Block[] }[] = [
   {
     name: '进阶层',
@@ -50,7 +167,7 @@ export const LAYERS: { name: string; blocks: Block[] }[] = [
       { id: 'os', name: '操作系统', items: ['进程与并发', '虚拟内存', '文件系统'], requires: ['organization'] },
       { id: 'network', name: '计算机网络', items: ['TCP/IP', 'HTTP', 'Socket 编程'], requires: ['os'] },
       { id: 'database', name: '数据库', items: ['SQL', '索引', '事务'], requires: ['dsa', 'os'] },
-      { id: 'plc', name: '编程语言与编译', items: ['类型系统', '语法解析', '解释器'], requires: ['dsa', 'organization'] },
+      { id: 'compiler', name: '编译原理', items: ['词法与语法分析', '类型系统', '代码生成'], requires: ['dsa', 'organization'] },
       { id: 'swe', name: '软件工程', items: ['阅读大型代码', '测试', '模块设计'], requires: ['programming', 'tooling'] },
     ],
   },
@@ -58,7 +175,7 @@ export const LAYERS: { name: string; blocks: Block[] }[] = [
     name: '基础层',
     blocks: [
       { id: 'math', name: '数学基础', items: ['离散数学', '线性代数', '概率论'], requires: [] },
-      { id: 'programming', name: '编程基础', items: ['C 语言', 'Python'], requires: [] },
+      { id: 'programming', name: '编程基础', items: ['变量与控制流', '函数与递归', '指针与内存'], requires: [] },
       { id: 'tooling', name: '工具链', items: ['Linux', 'Git', '调试器'], requires: [] },
     ],
   },

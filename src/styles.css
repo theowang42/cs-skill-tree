@@ -39,18 +39,28 @@ main {
 }
 
 h1 {
-  margin: 0 0 56px;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  margin: 0 0 64px;
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.tree-mark {
+  width: 56px;
+  height: 48px;
+  fill: currentColor;
 }
 
 /* 每一层：左边是层名，右边是方块，层与层之间用粗线隔开 */
 
 .layer {
   display: grid;
-  grid-template-columns: 96px 1fr;
+  grid-template-columns: 120px 1fr;
   gap: 24px;
   padding: 28px 0;
   border-top: 1px solid var(--text);
@@ -70,16 +80,46 @@ h1 {
   gap: 4px;
 }
 
+.name {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
 .num {
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
-.name {
+/* 工具层分成三组 */
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.group h3 {
+  margin: 0 0 8px;
   font-size: 13px;
+  font-weight: 600;
   color: var(--muted);
+}
+
+.row.tools {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+}
+
+.node.tool {
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .row {
@@ -159,8 +199,14 @@ button.node {
     align-items: baseline;
     gap: 10px;
   }
-  .num {
-    font-size: 24px;
+  .name {
+    font-size: 22px;
+  }
+  h1 {
+    font-size: 32px;
+  }
+  .row.tools {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
