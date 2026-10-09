@@ -173,10 +173,10 @@ export default function App() {
 
 // 第一次打开时的说明页：用一棵缩小的示意树讲清“先选方向，再看要学什么”
 const MINI_ROWS: { label: string; cells: number; lit: number[]; note?: string }[] = [
-  { label: '应用层', cells: 7, lit: [0], note: '① 先选一个方向' },
-  { label: '工具层', cells: 14, lit: [0, 3, 5, 8, 9] , note: '② 要用的工具会亮起' },
+  { label: '应用层', cells: 7, lit: [0], note: '← 点一个' },
+  { label: '工具层', cells: 14, lit: [0, 3, 5, 8, 9] },
   { label: '进阶层', cells: 7, lit: [1, 4] },
-  { label: '核心层', cells: 7, lit: [0, 1, 2, 3, 6], note: '③ 要学的能力会亮起' },
+  { label: '核心层', cells: 7, lit: [0, 1, 2, 3, 6] },
   { label: '基础层', cells: 3, lit: [0, 1, 2] },
 ]
 
@@ -190,43 +190,26 @@ function Intro({ onClose }: { onClose: () => void }) {
   return (
     <div className="intro-backdrop" onClick={onClose}>
       <div className="intro" role="dialog" aria-modal="true" aria-labelledby="intro-title" onClick={(e) => e.stopPropagation()}>
-        <p className="eyebrow">欢迎来到 🌲 cs-skill-tree</p>
-        <h2 id="intro-title">先选你想做的工作，再看需要学什么</h2>
-        <p className="intro-lead">这是一张以能力为导向的计算机地图。它不按课程排，而是从具体的开源方向倒推：要用哪些工具，要掌握哪些能力。</p>
+        <h2 id="intro-title">先选一个方向</h2>
 
-        <div className="intro-body">
-          <div className="mini" aria-hidden>
-            {MINI_ROWS.map((r) => (
-              <div key={r.label} className="mini-row">
-                <span className="mini-label">{r.label}</span>
-                <span className={r.cells > 7 ? 'mini-cells small' : 'mini-cells'}>
-                  {Array.from({ length: r.cells }, (_, i) => (
-                    <i key={i} className={r.lit.includes(i) ? 'on' : ''} />
-                  ))}
-                </span>
-                <span className="mini-note">{r.note}</span>
-              </div>
-            ))}
-          </div>
-
-          <ol className="steps">
-            <li>
-              <strong>在最上面的应用层选一个方向</strong>
-              <span>比如 AI、Web 应用、操作系统。按热度从左到右排列。</span>
-            </li>
-            <li>
-              <strong>下面变黑的格子就是你要学的</strong>
-              <span>工具层是要用的语言、框架和平台；下面三层是要掌握的能力，从基础到进阶。</span>
-            </li>
-            <li>
-              <strong>点任意一格看详情</strong>
-              <span>详情显示在左侧栏（手机上在页面最下方），有简短介绍、包含的内容，以及官网或公开课链接。</span>
-            </li>
-          </ol>
+        <div className="mini" aria-hidden>
+          {MINI_ROWS.map((r) => (
+            <div key={r.label} className="mini-row">
+              <span className="mini-label">{r.label}</span>
+              <span className={r.cells > 7 ? 'mini-cells small' : 'mini-cells'}>
+                {Array.from({ length: r.cells }, (_, i) => (
+                  <i key={i} className={r.lit.includes(i) ? 'on' : ''} />
+                ))}
+              </span>
+              <span className="mini-note">{r.note}</span>
+            </div>
+          ))}
         </div>
 
+        <p className="intro-tip">下面变黑的，就是你要学的。</p>
+
         <button className="intro-start" onClick={onClose} autoFocus>
-          开始：选一个方向
+          好的
         </button>
       </div>
     </div>
@@ -237,21 +220,7 @@ function Panel({ focus, onFocus, onCategory }: { focus: Focus; onFocus: (f: Focu
   if (!focus) {
     return (
       <div className="detail empty">
-        <p className="eyebrow">怎么用</p>
-        <ol className="steps">
-          <li>
-            <strong>在最上面的应用层选一个方向</strong>
-            <span>也就是你想做的工作，比如 AI、Web 应用、操作系统</span>
-          </li>
-          <li>
-            <strong>下面变黑的格子就是要学的</strong>
-            <span>工具层是要用的语言和工具，下面三层是要掌握的能力</span>
-          </li>
-          <li>
-            <strong>点任意一格看详情</strong>
-            <span>介绍、学习内容和链接会显示在左侧</span>
-          </li>
-        </ol>
+        <p className="empty-tip">先在右边最上面选一个方向。</p>
         <h4>试试热门方向</h4>
         <div className="chips">
           {CATEGORIES.slice(0, 3).map((c) => (
