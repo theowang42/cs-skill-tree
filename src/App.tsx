@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { CATEGORIES, LAYERS, TOOL_GROUPS, closure } from './data/roadmap'
 import { BLOCK_DETAILS, CATEGORY_DETAILS, TOOL_DETAILS, type Detail } from './data/details'
 import { ICONS, MONOGRAMS, STROKE_ICONS } from './data/icons'
@@ -9,6 +9,24 @@ type Focus = { kind: Kind; id: string } | null
 const BLOCKS = LAYERS.flatMap((l) => l.blocks.map((b) => ({ ...b, layer: l.name })))
 const TOOLS = TOOL_GROUPS.flatMap((g) => g.tools.map((t) => ({ ...t, group: g.name })))
 const VISITED_KEY = 'cs-skill-tree:visited'
+const INTRO_KEY = 'cs-skill-tree:intro-seen'
+
+// localStorage 在隐私模式等情况下可能不可用，读写都要兜底
+function hasFlag(key: string) {
+  try {
+    return localStorage.getItem(key) !== null
+  } catch {
+    return false
+  }
+}
+
+function setFlag(key: string) {
+  try {
+    localStorage.setItem(key, '1')
+  } catch {
+    // 存不了就只在本次访问里生效
+  }
+}
 const SHORT_GROUP: Record<string, string> = { 编程语言: '语言', 框架与库: '框架', 平台与工具: '平台' }
 
 function ToolIcon({ id }: { id: string }) {
@@ -60,13 +78,14 @@ export default function App() {
   const [activeCat, setActiveCat] = useState<string | null>(null)
   const [focus, setFocus] = useState<Focus>(null)
   // 第一次来的人还没点过应用层时，应用层方块会轻轻闪动提示
-  const [fresh, setFresh] = useState(() => {
-    try {
-      return localStorage.getItem(VISITED_KEY) === null
-    } catch {
-      return true
-    }
-  })
+  const [fresh, setFresh] = useState(() => !hasFlag(VISITED_KEY))
+  // 第一次打开时先弹出使用说明
+  const [intro, setIntro] = useState(() => !hasFlag(INTRO_KEY))
+
+  const closeIntro = () => {
+    setIntro(false)
+    setFlag(INTRO_KEY)
+  }
 
   const clickCategory = (id: string) => {
     if (activeCat === id) {
@@ -78,11 +97,7 @@ export default function App() {
     }
     if (fresh) {
       setFresh(false)
-      try {
-        localStorage.setItem(VISITED_KEY, '1')
-      } catch {
-        // 存不了就只在本次访问里生效
-      }
+      setFlag(VISITED_KEY)
     }
   }
 
@@ -145,8 +160,75 @@ export default function App() {
         <h1>
           <span aria-hidden>🌲</span> cs-skill-tree
         </h1>
+        <button className="help" onClick={() => setIntro(true)}>
+          使用说明
+        </button>
         <Panel focus={focus} onFocus={setFocus} onCategory={clickCategory} />
       </aside>
+
+      {intro && <Intro onClose={closeIntro} />}
+    </div>
+  )
+}
+
+// 第一次打开时的说明页：用一棵缩小的示意树讲清“先选方向，再看要学什么”
+const MINI_ROWS: { label: string; cells: number; lit: number[]; note?: string }[] = [
+  { label: '应用层', cells: 7, lit: [0], note: '① 先选一个方向' },
+  { label: '工具层', cells: 14, lit: [0, 3, 5, 8, 9] , note: '② 要用的工具会亮起' },
+  { label: '进阶层', cells: 7, lit: [1, 4] },
+  { label: '核心层', cells: 7, lit: [0, 1, 2, 3, 6], note: '③ 要学的能力会亮起' },
+  { label: '基础层', cells: 3, lit: [0, 1, 2] },
+]
+
+function Intro({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div className="intro-backdrop" onClick={onClose}>
+      <div className="intro" role="dialog" aria-modal="true" aria-labelledby="intro-title" onClick={(e) => e.stopPropagation()}>
+        <p className="eyebrow">欢迎来到 🌲 cs-skill-tree</p>
+        <h2 id="intro-title">先选你想做的工作，再看需要学什么</h2>
+        <p className="intro-lead">这是一张以能力为导向的计算机地图。它不按课程排，而是从具体的开源方向倒推：要用哪些工具，要掌握哪些能力。</p>
+
+        <div className="intro-body">
+          <div className="mini" aria-hidden>
+            {MINI_ROWS.map((r) => (
+              <div key={r.label} className="mini-row">
+                <span className="mini-label">{r.label}</span>
+                <span className={r.cells > 7 ? 'mini-cells small' : 'mini-cells'}>
+                  {Array.from({ length: r.cells }, (_, i) => (
+                    <i key={i} className={r.lit.includes(i) ? 'on' : ''} />
+                  ))}
+                </span>
+                <span className="mini-note">{r.note}</span>
+              </div>
+            ))}
+          </div>
+
+          <ol className="steps">
+            <li>
+              <strong>在最上面的应用层选一个方向</strong>
+              <span>比如 AI、Web 应用、操作系统。按热度从左到右排列。</span>
+            </li>
+            <li>
+              <strong>下面变黑的格子就是你要学的</strong>
+              <span>工具层是要用的语言、框架和平台；下面三层是要掌握的能力，从基础到进阶。</span>
+            </li>
+            <li>
+              <strong>点任意一格看详情</strong>
+              <span>详情显示在左侧栏（手机上在页面最下方），有简短介绍、包含的内容，以及官网或公开课链接。</span>
+            </li>
+          </ol>
+        </div>
+
+        <button className="intro-start" onClick={onClose} autoFocus>
+          开始：选一个方向
+        </button>
+      </div>
     </div>
   )
 }
@@ -167,7 +249,7 @@ function Panel({ focus, onFocus, onCategory }: { focus: Focus; onFocus: (f: Focu
           </li>
           <li>
             <strong>点任意一格看详情</strong>
-            <span>介绍、学习内容和链接会显示在这里</span>
+            <span>介绍、学习内容和链接会显示在左侧</span>
           </li>
         </ol>
         <h4>试试热门方向</h4>
@@ -232,7 +314,7 @@ function Panel({ focus, onFocus, onCategory }: { focus: Focus; onFocus: (f: Focu
     <div className="detail" key={`${focus.kind}-${focus.id}`}>
       <p className="eyebrow">{eyebrow}</p>
       <h2 className={focus.kind === 'tool' ? 'with-icon' : ''}>{title}</h2>
-      <p className="intro">{detail.intro}</p>
+      <p className="summary">{detail.intro}</p>
 
       <h4>包含</h4>
       <ul className="includes">
