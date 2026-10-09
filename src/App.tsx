@@ -212,6 +212,9 @@ function Panel({ focus, onFocus, onCategory }: { focus: Focus; onFocus: (f: Focu
   let title: ReactNode = null
   let detail: Detail
   let relations: { label: string; chips: ReactNode[] }[] = []
+  // 各类内容的小标题，用大白话
+  let labels = { includes: '', links: '' }
+  let note: ReactNode = null
 
   if (focus.kind === 'category') {
     const c = CATEGORIES.find((x) => x.id === focus.id)!
@@ -219,9 +222,10 @@ function Panel({ focus, onFocus, onCategory }: { focus: Focus; onFocus: (f: Focu
     eyebrow = '应用层 · 方向'
     title = c.name
     detail = CATEGORY_DETAILS[c.id]
+    labels = { includes: '具体可以做这些', links: '去看看真实的开源项目' }
     relations = [
-      { label: '需要的工具', chips: TOOLS.filter((t) => c.tools.includes(t.id)).map((t) => chip('tool', t.id, t.name)) },
-      { label: '需要的能力', chips: BLOCKS.filter((b) => blocks.has(b.id)).map((b) => chip('block', b.id, b.name)) },
+      { label: '会用到的工具', chips: TOOLS.filter((t) => c.tools.includes(t.id)).map((t) => chip('tool', t.id, t.name)) },
+      { label: '需要先学会的能力', chips: BLOCKS.filter((b) => blocks.has(b.id)).map((b) => chip('block', b.id, b.name)) },
     ]
   } else if (focus.kind === 'tool') {
     const t = TOOLS.find((x) => x.id === focus.id)!
@@ -236,15 +240,26 @@ function Panel({ focus, onFocus, onCategory }: { focus: Focus; onFocus: (f: Focu
       </>
     )
     detail = TOOL_DETAILS[t.id]
-    relations = [{ label: '用在', chips: CATEGORIES.filter((c) => c.tools.includes(t.id)).map((c) => chip('category', c.id, c.name)) }]
+    labels = { includes: '学它主要学这些', links: '官方入口' }
+    relations = [{ label: '这些方向会用到它', chips: CATEGORIES.filter((c) => c.tools.includes(t.id)).map((c) => chip('category', c.id, c.name)) }]
   } else {
     const b = BLOCKS.find((x) => x.id === focus.id)!
     eyebrow = `${b.layer} · 能力`
     title = b.name
     detail = BLOCK_DETAILS[b.id]
+    labels = { includes: '会学到', links: '推荐公开课' }
+    note = (
+      <p className="note">
+        课程主要参考{' '}
+        <a href="https://csdiy.wiki/" target="_blank" rel="noreferrer">
+          CS 自学指南（csdiy.wiki）
+        </a>
+        ，那里有更多课程和学习建议。
+      </p>
+    )
     relations = [
-      { label: '前置能力', chips: b.requires.map((r) => chip('block', r, BLOCKS.find((x) => x.id === r)!.name)) },
-      { label: '用到它的方向', chips: CATEGORIES.filter((c) => closure(c.requires).has(b.id)).map((c) => chip('category', c.id, c.name)) },
+      { label: '学之前最好先会', chips: b.requires.map((r) => chip('block', r, BLOCKS.find((x) => x.id === r)!.name)) },
+      { label: '学会了可以去做', chips: CATEGORIES.filter((c) => closure(c.requires).has(b.id)).map((c) => chip('category', c.id, c.name)) },
     ]
   }
 
@@ -254,14 +269,14 @@ function Panel({ focus, onFocus, onCategory }: { focus: Focus; onFocus: (f: Focu
       <h2 className={focus.kind === 'tool' ? 'with-icon' : ''}>{title}</h2>
       <p className="summary">{detail.intro}</p>
 
-      <h4>包含</h4>
+      <h4>{labels.includes}</h4>
       <ul className="includes">
         {detail.includes.map((x) => (
           <li key={x}>{x}</li>
         ))}
       </ul>
 
-      <h4>链接</h4>
+      <h4>{labels.links}</h4>
       <ul className="links">
         {detail.links.map((l) => (
           <li key={l.url}>
@@ -271,6 +286,7 @@ function Panel({ focus, onFocus, onCategory }: { focus: Focus; onFocus: (f: Focu
           </li>
         ))}
       </ul>
+      {note}
 
       {relations
         .filter((r) => r.chips.length > 0)
