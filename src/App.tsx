@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import { CATEGORIES, LAYERS, TOOL_GROUPS, closure } from './data/roadmap'
 import { BLOCK_DETAILS, CATEGORY_DETAILS, TOOL_DETAILS, type Detail } from './data/details'
 import { ICONS, MONOGRAMS, STROKE_ICONS } from './data/icons'
@@ -9,7 +9,6 @@ type Focus = { kind: Kind; id: string } | null
 const BLOCKS = LAYERS.flatMap((l) => l.blocks.map((b) => ({ ...b, layer: l.name })))
 const TOOLS = TOOL_GROUPS.flatMap((g) => g.tools.map((t) => ({ ...t, group: g.name })))
 const VISITED_KEY = 'cs-skill-tree:visited'
-const INTRO_KEY = 'cs-skill-tree:intro-seen'
 
 // localStorage 在隐私模式等情况下可能不可用，读写都要兜底
 function hasFlag(key: string) {
@@ -27,6 +26,12 @@ function setFlag(key: string) {
     // 存不了就只在本次访问里生效
   }
 }
+
+// 点亮动画：选中方向后，从工具层到基础层逐层亮起，同一行内从左到右
+const LAYER_STEP = 220
+const CELL_STEP = 25
+const delay = (layer: number, index: number) => ({ '--d': `${layer * LAYER_STEP + index * CELL_STEP}ms` }) as CSSProperties
+
 const SHORT_GROUP: Record<string, string> = { 编程语言: '语言', 框架与库: '框架', 平台与工具: '平台' }
 
 function ToolIcon({ id }: { id: string }) {
@@ -51,13 +56,12 @@ function ToolIcon({ id }: { id: string }) {
   return <span className="icon mono">{MONOGRAMS[id]}</span>
 }
 
-function Layer({ num, name, hint, children, className = '' }: { num: number; name: string; hint: string; children: ReactNode; className?: string }) {
+function Layer({ num, name, children, className = '' }: { num: number; name: string; children: ReactNode; className?: string }) {
   return (
     <section className={`layer ${className}`}>
       <header>
         <span className="name">{name}</span>
         <span className="num">L{num}</span>
-        <span className="hint">{hint}</span>
       </header>
       <div className="content">{children}</div>
     </section>
@@ -77,14 +81,12 @@ function Items({ items }: { items: string[] }) {
 export default function App() {
   const [activeCat, setActiveCat] = useState<string | null>(null)
   const [focus, setFocus] = useState<Focus>(null)
-  // 第一次来的人还没点过应用层时，应用层方块会轻轻闪动提示
-  const [fresh, setFresh] = useState(() => !hasFlag(VISITED_KEY))
-  // 第一次打开时先弹出使用说明
-  const [intro, setIntro] = useState(() => !hasFlag(INTRO_KEY))
+  // 新手引导：第一次来时圈出应用层并给一句提示，选过方向或点“知道了”后不再出现
+  const [guide, setGuide] = useState(() => !hasFlag(VISITED_KEY))
 
-  const closeIntro = () => {
-    setIntro(false)
-    setFlag(INTRO_KEY)
+  const closeGuide = () => {
+    setGuide(false)
+    setFlag(VISITED_KEY)
   }
 
   const clickCategory = (id: string) => {
@@ -95,10 +97,7 @@ export default function App() {
       setActiveCat(id)
       setFocus({ kind: 'category', id })
     }
-    if (fresh) {
-      setFresh(false)
-      setFlag(VISITED_KEY)
-    }
+    if (guide) closeGuide()
   }
 
   const cat = CATEGORIES.find((c) => c.id === activeCat)
@@ -113,8 +112,8 @@ export default function App() {
   return (
     <div className="page">
       <main className="tree">
-        <Layer num={total} name="应用层" hint="① 先选方向" className="layer-apps">
-          <div className={fresh ? 'row beckon' : 'row'}>
+        <Layer num={total} name="应用层" className={guide ? 'layer-apps spotlight' : 'layer-apps'}>
+          <div className="row">
             {CATEGORIES.map((c) => (
               <button key={c.id} className={cls('category', c.id, activeCat === c.id, 'app')} onClick={() => clickCategory(c.id)}>
                 <strong>{c.name}</strong>
@@ -122,15 +121,27 @@ export default function App() {
               </button>
             ))}
           </div>
+          {guide && (
+            <div className="coach" role="note">
+              <span>在这里选一个方向，下面变黑的就是你要学的。</span>
+              <button onClick={closeGuide}>知道了</button>
+            </div>
+          )}
         </Layer>
 
-        <Layer num={total - 1} name="工具层" hint="② 要用的工具">
-          {TOOL_GROUPS.map((g) => (
+        <Layer num={total - 1} name="工具层">
+          {TOOL_GROUPS.map((g, gi) => (
             <div key={g.name} className="group">
               <h3>{SHORT_GROUP[g.name]}</h3>
               <div className="row tools">
-                {g.tools.map((t) => (
-                  <button key={t.id} className={cls('tool', t.id, litTools.has(t.id), 'tool')} onClick={() => setFocus({ kind: 'tool', id: t.id })} title={t.name}>
+                {g.tools.map((t, ti) => (
+                  <button
+                    key={t.id}
+                    className={cls('tool', t.id, litTools.has(t.id), 'tool')}
+                    style={delay(0, gi * 3 + ti)}
+                    onClick={() => setFocus({ kind: 'tool', id: t.id })}
+                    title={t.name}
+                  >
                     <ToolIcon id={t.id} />
                     <span className="tool-name" style={{ '--len': t.name.length } as CSSProperties}>
                       {t.name}
@@ -143,10 +154,15 @@ export default function App() {
         </Layer>
 
         {LAYERS.map((layer, i) => (
-          <Layer key={layer.name} num={LAYERS.length - i} name={layer.name} hint="③ 要学的能力">
+          <Layer key={layer.name} num={LAYERS.length - i} name={layer.name}>
             <div className="row">
-              {layer.blocks.map((b) => (
-                <button key={b.id} className={cls('block', b.id, litBlocks.has(b.id))} onClick={() => setFocus({ kind: 'block', id: b.id })}>
+              {layer.blocks.map((b, bi) => (
+                <button
+                  key={b.id}
+                  className={cls('block', b.id, litBlocks.has(b.id))}
+                  style={delay(i + 1, bi)}
+                  onClick={() => setFocus({ kind: 'block', id: b.id })}
+                >
                   <strong>{b.name}</strong>
                   <Items items={b.items} />
                 </button>
@@ -160,35 +176,11 @@ export default function App() {
         <h1>
           <span aria-hidden>🌲</span> cs-skill-tree
         </h1>
-        <button className="help" onClick={() => setIntro(true)}>
+        <button className="help" onClick={() => setGuide(true)}>
           使用说明
         </button>
         <Panel focus={focus} onFocus={setFocus} onCategory={clickCategory} />
       </aside>
-
-      {intro && <Intro onClose={closeIntro} />}
-    </div>
-  )
-}
-
-// 第一次打开时的说明页
-function Intro({ onClose }: { onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
-  return (
-    <div className="intro-backdrop" onClick={onClose}>
-      <div className="intro" role="dialog" aria-modal="true" aria-labelledby="intro-title" onClick={(e) => e.stopPropagation()}>
-        <h2 id="intro-title">在应用层选一个方向</h2>
-        <p className="intro-tip">下面变黑的，就是你要学的。</p>
-
-        <button className="intro-start" onClick={onClose} autoFocus>
-          好的
-        </button>
-      </div>
     </div>
   )
 }
