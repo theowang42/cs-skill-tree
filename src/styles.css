@@ -1,22 +1,30 @@
 :root {
-  --bg: #ffffff;
-  --text: #111111;
-  --muted: #8c8c8c;
-  --line: #dddddd;
-  --on-bg: #111111;
-  --on-text: #ffffff;
+  /* 纸和墨：冷调的蓝白纸面，偏冷的黑墨 */
+  --bg: #eef2f6;
+  --text: #161a20;
+  --muted: #7c8693;
+  --line: #c9d1db;
+  --on-bg: #1a1e25;
+  --on-text: #eef2f6;
+  --vignette: rgb(60 85 120 / 0.12);
+  --grain-opacity: 0.9;
+  --cloud-opacity: 0.5;
   --panel-w: 340px;
+  --serif: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #111111;
-    --text: #eeeeee;
-    --muted: #777777;
-    --line: #333333;
-    --on-bg: #eeeeee;
-    --on-text: #111111;
+    --bg: #14181e;
+    --text: #e2e8ef;
+    --muted: #7f8895;
+    --line: #313843;
+    --on-bg: #e2e8ef;
+    --on-text: #14181e;
+    --vignette: rgb(0 0 0 / 0.35);
+    --grain-opacity: 0.5;
+    --cloud-opacity: 0.3;
     color-scheme: dark;
   }
 }
@@ -27,7 +35,9 @@
 
 body {
   margin: 0;
-  background: var(--bg);
+  /* 纸张边缘略深，像真纸的光影 */
+  background: radial-gradient(ellipse at 50% 40%, transparent 55%, var(--vignette)), var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   font-family: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   font-size: 14px;
@@ -36,6 +46,37 @@ body {
 button {
   font: inherit;
   color: inherit;
+}
+
+/* 纸面质感：两层固定在最上面的噪点，墨块上也会透出纹理
+   - 细颗粒：纸面的粗糙感
+   - 云纹：纸浆纤维分布不均造成的深浅变化 */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+body::before {
+  opacity: var(--cloud-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.02' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E");
+}
+
+body::after {
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* 标题用宋体，像印刷品 */
+.name,
+.node strong,
+.panel h1,
+.detail h2 {
+  font-family: var(--serif);
 }
 
 /* ---------- 整体：左边树，右边详情（为 16:9 屏幕设计，树一屏放下） ---------- */
