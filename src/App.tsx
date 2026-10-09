@@ -171,15 +171,7 @@ export default function App() {
   )
 }
 
-// 第一次打开时的说明页：用一棵缩小的示意树讲清“先选方向，再看要学什么”
-const MINI_ROWS: { label: string; cells: number; lit: number[]; note?: string }[] = [
-  { label: '应用层', cells: 7, lit: [0], note: '← 点一个' },
-  { label: '工具层', cells: 14, lit: [0, 3, 5, 8, 9] },
-  { label: '进阶层', cells: 7, lit: [1, 4] },
-  { label: '核心层', cells: 7, lit: [0, 1, 2, 3, 6] },
-  { label: '基础层', cells: 3, lit: [0, 1, 2] },
-]
-
+// 第一次打开时的说明页
 function Intro({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -190,22 +182,7 @@ function Intro({ onClose }: { onClose: () => void }) {
   return (
     <div className="intro-backdrop" onClick={onClose}>
       <div className="intro" role="dialog" aria-modal="true" aria-labelledby="intro-title" onClick={(e) => e.stopPropagation()}>
-        <h2 id="intro-title">先选一个方向</h2>
-
-        <div className="mini" aria-hidden>
-          {MINI_ROWS.map((r) => (
-            <div key={r.label} className="mini-row">
-              <span className="mini-label">{r.label}</span>
-              <span className={r.cells > 7 ? 'mini-cells small' : 'mini-cells'}>
-                {Array.from({ length: r.cells }, (_, i) => (
-                  <i key={i} className={r.lit.includes(i) ? 'on' : ''} />
-                ))}
-              </span>
-              <span className="mini-note">{r.note}</span>
-            </div>
-          ))}
-        </div>
-
+        <h2 id="intro-title">在应用层选一个方向</h2>
         <p className="intro-tip">下面变黑的，就是你要学的。</p>
 
         <button className="intro-start" onClick={onClose} autoFocus>

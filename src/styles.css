@@ -542,66 +542,15 @@ body::after {
 }
 
 .intro h2 {
-  margin: 0 0 24px;
+  margin: 0 0 12px;
   font-family: var(--serif);
   font-size: 30px;
   font-weight: 900;
   line-height: 1.25;
 }
 
-/* 缩小的示意树 */
-.mini {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.mini-row {
-  display: grid;
-  grid-template-columns: 48px auto 1fr;
-  gap: 10px;
-  align-items: center;
-}
-
-.mini-label {
-  font-family: var(--serif);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.mini-cells {
-  display: flex;
-  gap: 3px;
-}
-
-.mini-cells i {
-  width: 18px;
-  height: 18px;
-  border: 1px solid var(--line);
-}
-
-.mini-cells.small i {
-  width: 8.5px;
-  height: 18px;
-}
-
-.mini-cells i.on {
-  background: var(--on-bg);
-  border-color: var(--on-bg);
-}
-
-.mini-row:first-child .mini-cells i {
-  border: 1.5px solid var(--text);
-}
-
-.mini-note {
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 .intro-tip {
-  margin: 20px 0 0;
+  margin: 0;
   font-size: 15px;
   font-weight: 600;
 }
@@ -635,8 +584,5 @@ body::after {
   }
   .intro h2 {
     font-size: 22px;
-  }
-  .mini-note {
-    white-space: normal;
   }
 }
