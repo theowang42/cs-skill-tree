@@ -27,28 +27,9 @@ export interface Tool {
   org: string
 }
 
+// 按热度排序：综合从业人数（Stack Overflow 开发者调查里 Web 与应用开发者最多）
+// 和当前关注度（AI 讨论最多）。“其他方向”固定放最后。
 export const CATEGORIES: Category[] = [
-  {
-    id: 'hardware',
-    name: '硬件',
-    items: ['芯片设计', '嵌入式', '机器人'],
-    requires: ['architecture', 'os'],
-    tools: ['c', 'cpp', 'asm', 'verilog', 'python', 'vivado', 'ros'],
-  },
-  {
-    id: 'systems',
-    name: '系统',
-    items: ['操作系统', '编译器', '数据库内核'],
-    requires: ['os', 'compiler', 'architecture', 'distributed', 'swe'],
-    tools: ['c', 'cpp', 'rust', 'go', 'asm', 'shell', 'llvm', 'docker'],
-  },
-  {
-    id: 'infra',
-    name: '基础设施与数据',
-    items: ['云原生', '运维', '大数据'],
-    requires: ['distributed', 'swe', 'math'],
-    tools: ['go', 'java', 'python', 'sql', 'shell', 'pandas', 'spark', 'docker', 'k8s', 'nginx', 'postgres', 'redis', 'kafka', 'prometheus', 'terraform'],
-  },
   {
     id: 'ai',
     name: 'AI',
@@ -68,11 +49,32 @@ export const CATEGORIES: Category[] = [
     ],
   },
   {
+    id: 'infra',
+    name: '基础设施与数据',
+    items: ['云原生', '运维', '大数据'],
+    requires: ['distributed', 'swe', 'math'],
+    tools: ['go', 'java', 'python', 'sql', 'shell', 'pandas', 'spark', 'docker', 'k8s', 'nginx', 'postgres', 'redis', 'kafka', 'prometheus', 'terraform'],
+  },
+  {
+    id: 'systems',
+    name: '系统',
+    items: ['操作系统', '编译器', '数据库内核'],
+    requires: ['os', 'compiler', 'architecture', 'distributed', 'swe'],
+    tools: ['c', 'cpp', 'rust', 'go', 'asm', 'shell', 'llvm', 'docker'],
+  },
+  {
     id: 'security',
     name: '安全',
     items: ['漏洞挖掘', '逆向工程', '攻防对抗'],
     requires: ['security', 'compiler'],
     tools: ['c', 'asm', 'python', 'javascript', 'shell', 'wireshark', 'ghidra'],
+  },
+  {
+    id: 'hardware',
+    name: '硬件',
+    items: ['芯片设计', '嵌入式', '机器人'],
+    requires: ['architecture', 'os'],
+    tools: ['c', 'cpp', 'asm', 'verilog', 'python', 'vivado', 'ros'],
   },
   {
     id: 'other',

@@ -136,6 +136,45 @@ body::after {
   color: var(--muted);
 }
 
+/* 每层的用途提示，应用层那条用墨色强调 */
+.hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.layer-apps .hint {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* 还没选过方向时，应用层方块轻轻“呼吸”，提示从这里点 */
+.row.beckon .node.app {
+  animation: beckon 2.4s ease-in-out infinite;
+}
+
+.row.beckon .node.app:nth-child(2) { animation-delay: 0.15s; }
+.row.beckon .node.app:nth-child(3) { animation-delay: 0.3s; }
+.row.beckon .node.app:nth-child(4) { animation-delay: 0.45s; }
+.row.beckon .node.app:nth-child(5) { animation-delay: 0.6s; }
+.row.beckon .node.app:nth-child(6) { animation-delay: 0.75s; }
+.row.beckon .node.app:nth-child(7) { animation-delay: 0.9s; }
+
+@keyframes beckon {
+  0%, 60%, 100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  30% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--text) 18%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row.beckon .node.app {
+    animation: none;
+  }
+}
+
 .row {
   display: grid;
   grid-template-columns: repeat(7, var(--s));
@@ -294,10 +333,42 @@ body::after {
   flex-direction: column;
 }
 
-.detail.empty p {
-  margin: 0 0 12px;
+.steps {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li {
+  position: relative;
+  padding: 0 0 18px 44px;
+  counter-increment: step;
+}
+
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: -6px;
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.steps strong {
+  display: block;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.steps span {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.6;
   color: var(--muted);
-  line-height: 1.7;
 }
 
 .eyebrow {

@@ -8,6 +8,7 @@ type Focus = { kind: Kind; id: string } | null
 
 const BLOCKS = LAYERS.flatMap((l) => l.blocks.map((b) => ({ ...b, layer: l.name })))
 const TOOLS = TOOL_GROUPS.flatMap((g) => g.tools.map((t) => ({ ...t, group: g.name })))
+const VISITED_KEY = 'cs-skill-tree:visited'
 const SHORT_GROUP: Record<string, string> = { 编程语言: '语言', 框架与库: '框架', 平台与工具: '平台' }
 
 function ToolIcon({ id }: { id: string }) {
@@ -32,12 +33,13 @@ function ToolIcon({ id }: { id: string }) {
   return <span className="icon mono">{MONOGRAMS[id]}</span>
 }
 
-function Layer({ num, name, children, className = '' }: { num: number; name: string; children: ReactNode; className?: string }) {
+function Layer({ num, name, hint, children, className = '' }: { num: number; name: string; hint: string; children: ReactNode; className?: string }) {
   return (
     <section className={`layer ${className}`}>
       <header>
         <span className="name">{name}</span>
         <span className="num">L{num}</span>
+        <span className="hint">{hint}</span>
       </header>
       <div className="content">{children}</div>
     </section>
@@ -57,6 +59,14 @@ function Items({ items }: { items: string[] }) {
 export default function App() {
   const [activeCat, setActiveCat] = useState<string | null>(null)
   const [focus, setFocus] = useState<Focus>(null)
+  // 第一次来的人还没点过应用层时，应用层方块会轻轻闪动提示
+  const [fresh, setFresh] = useState(() => {
+    try {
+      return localStorage.getItem(VISITED_KEY) === null
+    } catch {
+      return true
+    }
+  })
 
   const clickCategory = (id: string) => {
     if (activeCat === id) {
@@ -65,6 +75,14 @@ export default function App() {
     } else {
       setActiveCat(id)
       setFocus({ kind: 'category', id })
+    }
+    if (fresh) {
+      setFresh(false)
+      try {
+        localStorage.setItem(VISITED_KEY, '1')
+      } catch {
+        // 存不了就只在本次访问里生效
+      }
     }
   }
 
@@ -80,8 +98,8 @@ export default function App() {
   return (
     <div className="page">
       <main className="tree">
-        <Layer num={total} name="应用层" className="layer-apps">
-          <div className="row">
+        <Layer num={total} name="应用层" hint="① 先选方向" className="layer-apps">
+          <div className={fresh ? 'row beckon' : 'row'}>
             {CATEGORIES.map((c) => (
               <button key={c.id} className={cls('category', c.id, activeCat === c.id, 'app')} onClick={() => clickCategory(c.id)}>
                 <strong>{c.name}</strong>
@@ -91,7 +109,7 @@ export default function App() {
           </div>
         </Layer>
 
-        <Layer num={total - 1} name="工具层">
+        <Layer num={total - 1} name="工具层" hint="② 要用的工具">
           {TOOL_GROUPS.map((g) => (
             <div key={g.name} className="group">
               <h3>{SHORT_GROUP[g.name]}</h3>
@@ -110,7 +128,7 @@ export default function App() {
         </Layer>
 
         {LAYERS.map((layer, i) => (
-          <Layer key={layer.name} num={LAYERS.length - i} name={layer.name}>
+          <Layer key={layer.name} num={LAYERS.length - i} name={layer.name} hint="③ 要学的能力">
             <div className="row">
               {layer.blocks.map((b) => (
                 <button key={b.id} className={cls('block', b.id, litBlocks.has(b.id))} onClick={() => setFocus({ kind: 'block', id: b.id })}>
@@ -137,8 +155,29 @@ function Panel({ focus, onFocus, onCategory }: { focus: Focus; onFocus: (f: Focu
   if (!focus) {
     return (
       <div className="detail empty">
-        <p>从应用层选一个方向，下面需要学的工具和能力会一起亮起来。</p>
-        <p>点击任意一格，这里会显示它的介绍和链接。</p>
+        <p className="eyebrow">怎么用</p>
+        <ol className="steps">
+          <li>
+            <strong>在最上面的应用层选一个方向</strong>
+            <span>也就是你想做的工作，比如 AI、Web 应用、操作系统</span>
+          </li>
+          <li>
+            <strong>下面变黑的格子就是要学的</strong>
+            <span>工具层是要用的语言和工具，下面三层是要掌握的能力</span>
+          </li>
+          <li>
+            <strong>点任意一格看详情</strong>
+            <span>介绍、学习内容和链接会显示在这里</span>
+          </li>
+        </ol>
+        <h4>试试热门方向</h4>
+        <div className="chips">
+          {CATEGORIES.slice(0, 3).map((c) => (
+            <button key={c.id} className="chip" onClick={() => onCategory(c.id)}>
+              {c.name}
+            </button>
+          ))}
+        </div>
       </div>
     )
   }
