@@ -15,68 +15,211 @@ export interface Detail {
   links: Link[]
 }
 
-export const CATEGORY_DETAILS: Record<string, Detail> = {
-  hardware: {
-    intro: '离硬件最近的方向：设计 CPU 芯片，或者给单片机、机器人、无人机写程序，让代码在真实世界里动起来。',
-    includes: ['处理器与芯片设计（RISC-V、FPGA）', '嵌入式与物联网（单片机、RTOS）', '机器人与自动驾驶'],
+// 大方向只需要一句介绍，具体内容在细分方向里
+export const CATEGORY_INTROS: Record<string, string> = {
+  hardware: '离硬件最近的方向：设计 CPU 芯片，或者给单片机、机器人、无人机写程序，让代码在真实世界里动起来。',
+  systems: '写“软件底下的软件”：操作系统、编译器、数据库。难度高，但学会了你会真正明白电脑是怎么工作的。',
+  infra: '让网站和 App 能 24 小时稳定运行，并且能处理海量数据。用户看不到你，但没有你，什么都跑不起来。',
+  ai: '让电脑学会“看、听、说、写”。你可以去训练模型、让模型跑得更快，或者用大模型做出能帮人干活的 Agent。这是现在最热门的方向。',
+  apps: '做大家每天都在用的软件：网站、手机 App、桌面软件和游戏。上手最快、岗位最多，适合想尽快做出东西的人。',
+  security: '站在攻击者的角度找漏洞，再把它们补上。需要对系统底层非常熟悉，像侦探一样工作。',
+  other: '一些小众或交叉的方向，比如区块链、量子计算、用数学证明程序没有 bug。感兴趣可以了解一下。',
+}
+
+// 细分方向：介绍、包含什么、代表开源项目
+export const SUB_DETAILS: Record<string, Detail> = {
+  'agent': {
+    intro: '用大模型做出能帮人干活的应用：会查资料、会调用工具、能连续完成多个步骤。门槛最低、最热门的 AI 方向，不需要会训练模型。',
+    includes: ['调用大模型 API 与写提示词', 'RAG：让模型读你自己的资料', '工具调用与 MCP', '把应用部署上线'],
     links: [
-      { label: '香山处理器 XiangShan', url: 'https://github.com/OpenXiangShan/XiangShan' },
-      { label: 'Zephyr 实时操作系统', url: 'https://github.com/zephyrproject-rtos/zephyr' },
-      { label: 'ROS 2 机器人系统', url: 'https://github.com/ros2/ros2' },
-    ],
-  },
-  systems: {
-    intro: '写“软件底下的软件”：操作系统、编译器、数据库。难度高，但学会了你会真正明白电脑是怎么工作的。',
-    includes: ['操作系统内核与虚拟化', 'Linux 发行版与桌面', '编译器与编程语言', '数据库与存储'],
-    links: [
-      { label: 'Linux 内核', url: 'https://github.com/torvalds/linux' },
-      { label: 'LLVM 编译器', url: 'https://github.com/llvm/llvm-project' },
-      { label: 'PostgreSQL 数据库', url: 'https://github.com/postgres/postgres' },
-    ],
-  },
-  infra: {
-    intro: '让网站和 App 能 24 小时稳定运行，并且能处理海量数据。用户看不到你，但没有你，什么都跑不起来。',
-    includes: ['云原生与容器编排', '运维、SRE 与可观测性', '大数据与流处理', '数据分析与科学计算'],
-    links: [
-      { label: 'Kubernetes', url: 'https://github.com/kubernetes/kubernetes' },
-      { label: 'Prometheus 监控', url: 'https://github.com/prometheus/prometheus' },
-      { label: 'Apache Spark', url: 'https://github.com/apache/spark' },
-    ],
-  },
-  ai: {
-    intro: '让电脑学会“看、听、说、写”。你可以去训练模型、让模型跑得更快，或者用大模型做出能帮人干活的 Agent。这是现在最热门的方向。',
-    includes: ['AI 系统：训练框架与推理优化', 'AI 算法：大模型、视觉、语音', 'AI 应用：Agent、RAG、MCP'],
-    links: [
-      { label: 'PyTorch', url: 'https://github.com/pytorch/pytorch' },
-      { label: 'vLLM 推理引擎', url: 'https://github.com/vllm-project/vllm' },
+      { label: 'MCP 官方服务器集合', url: 'https://github.com/modelcontextprotocol/servers' },
+      { label: 'LangGraph Agent 框架', url: 'https://github.com/langchain-ai/langgraph' },
       { label: 'OpenHands 编程 Agent', url: 'https://github.com/OpenHands/OpenHands' },
     ],
   },
-  apps: {
-    intro: '做大家每天都在用的软件：网站、手机 App、桌面软件和游戏。上手最快、岗位最多，适合想尽快做出东西的人。',
-    includes: ['Web 前端', '后端开发', '客户端（桌面、iOS、Android）', '图形、游戏与多媒体', '开发者工具与测试'],
+  'ai-algo': {
+    intro: '研究和改进模型本身：让模型更聪明、更准。需要扎实的数学和机器学习基础，偏研究。',
+    includes: ['大语言模型', '图像与语音模型', '训练与微调', '读论文、复现实验'],
     links: [
-      { label: 'React', url: 'https://github.com/facebook/react' },
-      { label: 'Django', url: 'https://github.com/django/django' },
-      { label: 'Godot 游戏引擎', url: 'https://github.com/godotengine/godot' },
+      { label: 'Hugging Face Transformers', url: 'https://github.com/huggingface/transformers' },
+      { label: 'Diffusers 图像生成', url: 'https://github.com/huggingface/diffusers' },
+      { label: 'nanoGPT 从零训练 GPT', url: 'https://github.com/karpathy/nanoGPT' },
     ],
   },
-  security: {
-    intro: '站在攻击者的角度找漏洞，再把它们补上。需要对系统底层非常熟悉，像侦探一样工作。',
-    includes: ['漏洞研究与利用', '逆向工程', '模糊测试', '密码学工程'],
+  'ai-sys': {
+    intro: '让模型训练得更快、推理更省：和显卡、内存、并行计算打交道，是 AI 里最“硬核”的工程方向。',
+    includes: ['训练框架', '推理加速与部署', 'GPU / CUDA 编程', '分布式训练'],
     links: [
-      { label: 'OSS-Fuzz 模糊测试', url: 'https://github.com/google/oss-fuzz' },
+      { label: 'PyTorch', url: 'https://github.com/pytorch/pytorch' },
+      { label: 'vLLM 推理引擎', url: 'https://github.com/vllm-project/vllm' },
+      { label: 'llama.cpp 本地推理', url: 'https://github.com/ggml-org/llama.cpp' },
+    ],
+  },
+  'backend': {
+    intro: '网站和 App 背后的“大脑”：处理用户请求、读写数据库、保证服务稳定。岗位最多的方向之一。',
+    includes: ['设计和实现 API', '数据库与缓存', '用户、权限与安全', '部署与监控'],
+    links: [
+      { label: 'Spring Boot', url: 'https://github.com/spring-projects/spring-boot' },
+      { label: 'Django', url: 'https://github.com/django/django' },
+      { label: 'FastAPI', url: 'https://github.com/fastapi/fastapi' },
+    ],
+  },
+  'frontend': {
+    intro: '用户直接看到、点到的那部分网页。做出好看、好用、反应快的界面。',
+    includes: ['HTML、CSS 与页面布局', 'JavaScript 交互', 'React / Vue 框架', '打包构建与性能优化'],
+    links: [
+      { label: 'React', url: 'https://github.com/facebook/react' },
+      { label: 'Vue', url: 'https://github.com/vuejs/core' },
+      { label: 'Vite 构建工具', url: 'https://github.com/vitejs/vite' },
+    ],
+  },
+  'client': {
+    intro: '开发装在手机和电脑上的 App：iPhone、安卓、Windows、Mac 软件。',
+    includes: ['iOS 与安卓开发', '桌面软件', '跨平台框架', '发布到应用商店'],
+    links: [
+      { label: 'Flutter', url: 'https://github.com/flutter/flutter' },
+      { label: 'Tauri', url: 'https://github.com/tauri-apps/tauri' },
+      { label: 'Electron', url: 'https://github.com/electron/electron' },
+    ],
+  },
+  'game': {
+    intro: '做游戏，或者做游戏引擎、渲染器、音视频处理这类和画面声音打交道的软件。',
+    includes: ['游戏玩法与引擎使用', '实时渲染', '物理与动画', '音视频编解码'],
+    links: [
+      { label: 'Godot 游戏引擎', url: 'https://github.com/godotengine/godot' },
+      { label: 'Bevy 游戏引擎', url: 'https://github.com/bevyengine/bevy' },
+      { label: 'FFmpeg 音视频', url: 'https://github.com/FFmpeg/FFmpeg' },
+    ],
+  },
+  'devtools': {
+    intro: '给程序员做工具：编辑器、插件、构建工具、测试框架。你天天在用，最清楚哪里不好用，是参与开源最容易的入口。',
+    includes: ['编辑器与插件', '构建工具', '测试框架', '命令行工具'],
+    links: [
+      { label: 'VS Code', url: 'https://github.com/microsoft/vscode' },
+      { label: 'Neovim', url: 'https://github.com/neovim/neovim' },
+      { label: 'Playwright 测试框架', url: 'https://github.com/microsoft/playwright' },
+    ],
+  },
+  'cloud': {
+    intro: '让服务 24 小时稳定运行：用容器部署、自动扩容、出问题能第一时间发现。也就是常说的运维、SRE、DevOps。',
+    includes: ['Docker 与 Kubernetes', '监控、日志与告警', '自动化部署（CI/CD）', '用代码管理云资源'],
+    links: [
+      { label: 'Kubernetes', url: 'https://github.com/kubernetes/kubernetes' },
+      { label: 'Prometheus 监控', url: 'https://github.com/prometheus/prometheus' },
+      { label: 'Envoy 代理', url: 'https://github.com/envoyproxy/envoy' },
+    ],
+  },
+  'datasci': {
+    intro: '从数据里找答案：清洗数据、做统计、画图表，帮业务做决定。上手快，数学和 Python 是关键。',
+    includes: ['数据清洗与整理', '统计分析', '数据可视化', 'SQL 查询'],
+    links: [
+      { label: 'pandas', url: 'https://github.com/pandas-dev/pandas' },
+      { label: 'NumPy', url: 'https://github.com/numpy/numpy' },
+      { label: 'Polars', url: 'https://github.com/pola-rs/polars' },
+    ],
+  },
+  'bigdata': {
+    intro: '一台电脑处理不了的海量数据，要用一群电脑一起处理。负责搭建数据流水线和数据仓库。',
+    includes: ['批处理（Spark）', '实时流处理（Kafka、Flink）', '数据仓库', '数据流水线'],
+    links: [
+      { label: 'Apache Spark', url: 'https://github.com/apache/spark' },
+      { label: 'Apache Kafka', url: 'https://github.com/apache/kafka' },
+      { label: 'Apache Flink', url: 'https://github.com/apache/flink' },
+    ],
+  },
+  'kernel': {
+    intro: '写操作系统最底层的代码：调度、内存管理、驱动、虚拟机。难，但能真正看清电脑是怎么运转的。',
+    includes: ['内核与驱动', '虚拟化与虚拟机', '容器底层原理', 'eBPF'],
+    links: [
+      { label: 'Linux 内核', url: 'https://github.com/torvalds/linux' },
+      { label: 'QEMU 虚拟机', url: 'https://github.com/qemu/qemu' },
+      { label: 'Firecracker 微虚拟机', url: 'https://github.com/firecracker-microvm/firecracker' },
+    ],
+  },
+  'db-dev': {
+    intro: '自己动手造数据库：怎么把数据存到硬盘上、怎么查得快、怎么在多台机器之间保持一致。',
+    includes: ['存储引擎', '查询优化与执行', '事务与并发', '分布式数据库'],
+    links: [
+      { label: 'PostgreSQL', url: 'https://github.com/postgres/postgres' },
+      { label: 'DuckDB', url: 'https://github.com/duckdb/duckdb' },
+      { label: 'TiKV 分布式存储', url: 'https://github.com/tikv/tikv' },
+    ],
+  },
+  'compiler-dev': {
+    intro: '做编程语言本身：编译器、解释器、运行时。你写的每一行代码都要经过它们。',
+    includes: ['编译器前端与后端', '代码优化', '语言运行时与垃圾回收', 'WebAssembly'],
+    links: [
+      { label: 'LLVM', url: 'https://github.com/llvm/llvm-project' },
+      { label: 'Rust 编译器', url: 'https://github.com/rust-lang/rust' },
+      { label: 'CPython', url: 'https://github.com/python/cpython' },
+    ],
+  },
+  'distro': {
+    intro: '把各种开源组件组装成一个好用的系统：打包软件、调配置、打磨桌面体验。门槛不高，改动马上能看到效果。',
+    includes: ['软件打包', '系统集成与启动流程', '桌面环境与窗口管理器', '配置与脚本'],
+    links: [
+      { label: 'Omarchy', url: 'https://github.com/omacom/omarchy' },
+      { label: 'Hyprland', url: 'https://github.com/hyprwm/Hyprland' },
+      { label: 'NixOS / nixpkgs', url: 'https://github.com/NixOS/nixpkgs' },
+    ],
+  },
+  'websec': {
+    intro: '帮网站和网络找漏洞、做防护：渗透测试、分析流量、发现 SQL 注入这类问题。安全行业里岗位最多的方向。',
+    includes: ['渗透测试', 'Web 漏洞（注入、XSS）', '网络流量分析', '安全加固'],
+    links: [
+      { label: 'ZAP 漏洞扫描', url: 'https://github.com/zaproxy/zaproxy' },
+      { label: 'sqlmap 注入检测', url: 'https://github.com/sqlmapproject/sqlmap' },
+      { label: 'Wireshark 抓包', url: 'https://github.com/wireshark/wireshark' },
+    ],
+  },
+  'vuln': {
+    intro: '钻到程序最底层找漏洞：分析编译好的程序、找内存错误、写利用代码。需要懂汇编和系统底层。',
+    includes: ['二进制漏洞与利用', '逆向工程', '模糊测试', 'CTF 比赛'],
+    links: [
       { label: 'Ghidra 逆向工具', url: 'https://github.com/NationalSecurityAgency/ghidra' },
+      { label: 'OSS-Fuzz 模糊测试', url: 'https://github.com/google/oss-fuzz' },
       { label: 'pwn.college 攻防练习', url: 'https://pwn.college/' },
     ],
   },
-  other: {
-    intro: '一些小众或交叉的方向，比如区块链、量子计算、用数学证明程序没有 bug。感兴趣可以了解一下。',
-    includes: ['区块链', '量子计算', '形式化验证', '生物信息学', '地理信息系统'],
+  'embedded': {
+    intro: '给单片机、机器人、无人机写程序，让代码控制真实世界的硬件。',
+    includes: ['单片机编程', '实时操作系统', '传感器与通信', '机器人软件（ROS）'],
     links: [
-      { label: 'go-ethereum 以太坊客户端', url: 'https://github.com/ethereum/go-ethereum' },
-      { label: 'Qiskit 量子计算', url: 'https://github.com/Qiskit/qiskit' },
+      { label: 'Zephyr 实时系统', url: 'https://github.com/zephyrproject-rtos/zephyr' },
+      { label: 'ROS 2 机器人系统', url: 'https://github.com/ros2/ros2' },
+      { label: 'PX4 无人机飞控', url: 'https://github.com/PX4/PX4-Autopilot' },
+    ],
+  },
+  'chip': {
+    intro: '设计 CPU 和芯片：用硬件描述语言写电路，再在 FPGA 上验证，最后可能真的做成芯片。',
+    includes: ['数字电路设计', '处理器设计', 'FPGA 验证', '芯片设计工具'],
+    links: [
+      { label: '香山处理器 XiangShan', url: 'https://github.com/OpenXiangShan/XiangShan' },
+      { label: 'Chisel 硬件语言', url: 'https://github.com/chipsalliance/chisel' },
+      { label: 'Verilator 仿真器', url: 'https://github.com/verilator/verilator' },
+    ],
+  },
+  'blockchain': {
+    intro: '构建去中心化的系统：智能合约、区块链客户端、链上应用。',
+    includes: ['智能合约', '共识协议', '密码学应用', '链上应用开发'],
+    links: [
+      { label: 'go-ethereum', url: 'https://github.com/ethereum/go-ethereum' },
+      { label: 'reth 以太坊客户端', url: 'https://github.com/paradigmxyz/reth' },
+    ],
+  },
+  'quantum': {
+    intro: '用量子力学的原理做计算，写能在量子计算机上运行的程序。很前沿，数学要求高。',
+    includes: ['量子比特与量子门', '量子算法', '量子编程框架'],
+    links: [
+      { label: 'Qiskit', url: 'https://github.com/Qiskit/qiskit' },
+    ],
+  },
+  'formal': {
+    intro: '用数学证明程序没有 bug。芯片、操作系统、密码学这些不能出错的领域会用到。',
+    includes: ['定理证明', '模型检验', '程序验证'],
+    links: [
       { label: 'Lean 定理证明器', url: 'https://github.com/leanprover/lean4' },
+      { label: 'TLA+ 模型检验', url: 'https://github.com/tlaplus/tlaplus' },
     ],
   },
 }

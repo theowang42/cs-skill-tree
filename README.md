@@ -8,6 +8,6 @@
 
 👉 https://theowang42.github.io/cs-skill-tree/
 
-![选中 AI 方向后，要学的工具和能力依次亮起](docs/screenshot.jpg)
+![选中 AI › Agent 开发后，要学的工具和能力依次亮起](docs/screenshot.jpg)
 
 课程参考 [csdiy.wiki](https://csdiy.wiki/) · 内容在 `src/data/` · 本地运行 `npm ci && npm run dev`

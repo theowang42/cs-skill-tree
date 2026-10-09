@@ -1,9 +1,9 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
-import { CATEGORIES, LAYERS, TOOL_GROUPS, closure } from './data/roadmap'
-import { BLOCK_DETAILS, CATEGORY_DETAILS, TOOL_DETAILS, type Detail } from './data/details'
+import { CATEGORIES, LAYERS, SUBS, TOOL_GROUPS, closure } from './data/roadmap'
+import { BLOCK_DETAILS, CATEGORY_INTROS, SUB_DETAILS, TOOL_DETAILS, type Detail } from './data/details'
 import { ICONS, MONOGRAMS, STROKE_ICONS } from './data/icons'
 
-type Kind = 'category' | 'tool' | 'block'
+type Kind = 'category' | 'sub' | 'tool' | 'block'
 type Focus = { kind: Kind; id: string } | null
 
 const BLOCKS = LAYERS.flatMap((l) => l.blocks.map((b) => ({ ...b, layer: l.name })))
@@ -79,7 +79,9 @@ function Items({ items }: { items: string[] }) {
 }
 
 export default function App() {
+  // 应用层要选两次：先选大方向，再选细分方向；点亮只看细分方向
   const [activeCat, setActiveCat] = useState<string | null>(null)
+  const [activeSub, setActiveSub] = useState<string | null>(null)
   const [focus, setFocus] = useState<Focus>(null)
   // 新手引导：第一次来时圈出应用层并给一句提示，选过方向或点“知道了”后不再出现
   const [guide, setGuide] = useState(() => !hasFlag(VISITED_KEY))
@@ -89,20 +91,36 @@ export default function App() {
     setFlag(VISITED_KEY)
   }
 
-  const clickCategory = (id: string) => {
+  const pickCategory = (id: string) => {
     if (activeCat === id) {
       setActiveCat(null)
+      setActiveSub(null)
       setFocus(null)
     } else {
       setActiveCat(id)
+      setActiveSub(null)
       setFocus({ kind: 'category', id })
     }
     if (guide) closeGuide()
   }
 
+  const pickSub = (id: string) => {
+    const sub = SUBS.find((x) => x.id === id)!
+    if (activeSub === id) {
+      setActiveSub(null)
+      setFocus({ kind: 'category', id: sub.category.id })
+    } else {
+      setActiveCat(sub.category.id)
+      setActiveSub(id)
+      setFocus({ kind: 'sub', id })
+    }
+    if (guide) closeGuide()
+  }
+
   const cat = CATEGORIES.find((c) => c.id === activeCat)
-  const litBlocks = closure(cat?.requires ?? [])
-  const litTools = new Set(cat?.tools ?? [])
+  const sub = SUBS.find((x) => x.id === activeSub)
+  const litBlocks = closure(sub?.requires ?? [])
+  const litTools = new Set(sub?.tools ?? [])
 
   const cls = (kind: Kind, id: string, lit: boolean, extra = '') =>
     ['node', extra, lit && 'on', focus?.kind === kind && focus.id === id && 'focused'].filter(Boolean).join(' ')
@@ -113,17 +131,35 @@ export default function App() {
     <div className={guide ? 'page guiding' : 'page'}>
       <main className="tree">
         <Layer num={total} name="应用层" className={guide ? 'layer-apps spotlight' : 'layer-apps'}>
-          <div className="row">
-            {CATEGORIES.map((c) => (
-              <button key={c.id} className={cls('category', c.id, activeCat === c.id, 'app')} onClick={() => clickCategory(c.id)}>
-                <strong>{c.name}</strong>
-                <Items items={c.items} />
+          {cat ? (
+            // 选了大方向后，这一行换成它的细分方向；最左边的大方向方块用来返回
+            <div className="row subs" key={cat.id}>
+              <button className={cls('category', cat.id, true, 'app back')} onClick={() => pickCategory(cat.id)}>
+                <strong>{cat.name}</strong>
+                <ul>
+                  <li>← 返回全部方向</li>
+                </ul>
               </button>
-            ))}
-          </div>
+              {cat.subs.map((x) => (
+                <button key={x.id} className={cls('sub', x.id, activeSub === x.id, 'app')} onClick={() => pickSub(x.id)}>
+                  <strong>{x.name}</strong>
+                  <Items items={x.items} />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="row">
+              {CATEGORIES.map((c) => (
+                <button key={c.id} className={cls('category', c.id, false, 'app')} onClick={() => pickCategory(c.id)}>
+                  <strong>{c.name}</strong>
+                  <Items items={c.items} />
+                </button>
+              ))}
+            </div>
+          )}
           {guide && (
             <div className="coach" role="note">
-              <span>在这里选一个方向，下面变黑的就是你要学的。</span>
+              <span>先选一个方向，再选细分方向，下面变黑的就是你要学的。</span>
               <button onClick={closeGuide}>知道了</button>
             </div>
           )}
@@ -179,34 +215,58 @@ export default function App() {
         <button className="help" onClick={() => setGuide(true)}>
           使用说明
         </button>
-        <Panel focus={focus} onFocus={setFocus} onCategory={clickCategory} />
+        <Panel focus={focus} onFocus={setFocus} onCategory={pickCategory} onSub={pickSub} />
       </aside>
     </div>
   )
 }
 
-function Panel({ focus, onFocus, onCategory }: { focus: Focus; onFocus: (f: Focus) => void; onCategory: (id: string) => void }) {
+// 热门的细分方向，没选任何东西时在左栏给出快捷入口
+const HOT_SUBS = ['agent', 'backend', 'frontend']
+
+function Panel({
+  focus,
+  onFocus,
+  onCategory,
+  onSub,
+}: {
+  focus: Focus
+  onFocus: (f: Focus) => void
+  onCategory: (id: string) => void
+  onSub: (id: string) => void
+}) {
+  const chip = (kind: Kind, id: string, name: string) => (
+    <button
+      key={`${kind}-${id}`}
+      className="chip"
+      onClick={() => (kind === 'category' ? onCategory(id) : kind === 'sub' ? onSub(id) : onFocus({ kind, id }))}
+    >
+      {name}
+    </button>
+  )
+
   if (!focus) {
     return (
       <div className="detail empty">
         <p className="empty-tip">先在右边最上面选一个方向。</p>
         <h4>试试热门方向</h4>
-        <div className="chips">
-          {CATEGORIES.slice(0, 3).map((c) => (
-            <button key={c.id} className="chip" onClick={() => onCategory(c.id)}>
-              {c.name}
-            </button>
-          ))}
-        </div>
+        <div className="chips">{SUBS.filter((x) => HOT_SUBS.includes(x.id)).map((x) => chip('sub', x.id, x.name))}</div>
       </div>
     )
   }
 
-  const chip = (kind: Kind, id: string, name: string) => (
-    <button key={`${kind}-${id}`} className="chip" onClick={() => (kind === 'category' ? onCategory(id) : onFocus({ kind, id }))}>
-      {name}
-    </button>
-  )
+  if (focus.kind === 'category') {
+    const c = CATEGORIES.find((x) => x.id === focus.id)!
+    return (
+      <div className="detail" key={`category-${c.id}`}>
+        <p className="eyebrow">应用层 · 大方向</p>
+        <h2>{c.name}</h2>
+        <p className="summary">{CATEGORY_INTROS[c.id]}</p>
+        <h4>再选一个细分方向</h4>
+        <div className="chips">{c.subs.map((x) => chip('sub', x.id, x.name))}</div>
+      </div>
+    )
+  }
 
   let eyebrow = ''
   let title: ReactNode = null
@@ -216,15 +276,15 @@ function Panel({ focus, onFocus, onCategory }: { focus: Focus; onFocus: (f: Focu
   let labels = { includes: '', links: '' }
   let note: ReactNode = null
 
-  if (focus.kind === 'category') {
-    const c = CATEGORIES.find((x) => x.id === focus.id)!
-    const blocks = closure(c.requires)
-    eyebrow = '应用层 · 方向'
-    title = c.name
-    detail = CATEGORY_DETAILS[c.id]
-    labels = { includes: '具体可以做这些', links: '去看看真实的开源项目' }
+  if (focus.kind === 'sub') {
+    const x = SUBS.find((y) => y.id === focus.id)!
+    const blocks = closure(x.requires)
+    eyebrow = `应用层 · ${x.category.name}`
+    title = x.name
+    detail = SUB_DETAILS[x.id]
+    labels = { includes: '具体做这些', links: '去看看真实的开源项目' }
     relations = [
-      { label: '会用到的工具', chips: TOOLS.filter((t) => c.tools.includes(t.id)).map((t) => chip('tool', t.id, t.name)) },
+      { label: '会用到的工具', chips: TOOLS.filter((t) => x.tools.includes(t.id)).map((t) => chip('tool', t.id, t.name)) },
       { label: '需要先学会的能力', chips: BLOCKS.filter((b) => blocks.has(b.id)).map((b) => chip('block', b.id, b.name)) },
     ]
   } else if (focus.kind === 'tool') {
@@ -241,7 +301,7 @@ function Panel({ focus, onFocus, onCategory }: { focus: Focus; onFocus: (f: Focu
     )
     detail = TOOL_DETAILS[t.id]
     labels = { includes: '学它主要学这些', links: '官方入口' }
-    relations = [{ label: '这些方向会用到它', chips: CATEGORIES.filter((c) => c.tools.includes(t.id)).map((c) => chip('category', c.id, c.name)) }]
+    relations = [{ label: '这些方向会用到它', chips: SUBS.filter((x) => x.tools.includes(t.id)).map((x) => chip('sub', x.id, x.name)) }]
   } else {
     const b = BLOCKS.find((x) => x.id === focus.id)!
     eyebrow = `${b.layer} · 能力`
@@ -259,7 +319,7 @@ function Panel({ focus, onFocus, onCategory }: { focus: Focus; onFocus: (f: Focu
     )
     relations = [
       { label: '学之前最好先会', chips: b.requires.map((r) => chip('block', r, BLOCKS.find((x) => x.id === r)!.name)) },
-      { label: '学会了可以去做', chips: CATEGORIES.filter((c) => closure(c.requires).has(b.id)).map((c) => chip('category', c.id, c.name)) },
+      { label: '学会了可以去做', chips: SUBS.filter((x) => closure(x.requires).has(b.id)).map((x) => chip('sub', x.id, x.name)) },
     ]
   }
 

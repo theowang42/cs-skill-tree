@@ -280,6 +280,30 @@ body::after {
   transition-delay: var(--d, 0s);
 }
 
+/* 选了大方向后，细分方向从左侧滑入；最左边的大方向方块是返回按钮 */
+.row.subs .node {
+  animation: sub-in 0.25s ease-out both;
+}
+
+.row.subs .node:nth-child(2) { animation-delay: 0.04s; }
+.row.subs .node:nth-child(3) { animation-delay: 0.08s; }
+.row.subs .node:nth-child(4) { animation-delay: 0.12s; }
+.row.subs .node:nth-child(5) { animation-delay: 0.16s; }
+.row.subs .node:nth-child(6) { animation-delay: 0.2s; }
+
+@keyframes sub-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+
+.node.back ul {
+  margin-top: auto;
+  opacity: 1;
+  font-weight: 600;
+}
+
 /* 当前在右侧显示详情的那一格 */
 .node.focused {
   outline: 3px solid var(--text);
@@ -579,7 +603,8 @@ body::after {
     transition-delay: 0s;
   }
   .coach,
-  .spotlight .row {
+  .spotlight .row,
+  .row.subs .node {
     animation: none;
   }
 }
