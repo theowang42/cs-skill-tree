@@ -51,9 +51,7 @@ h1 {
 }
 
 .tree-mark {
-  width: 56px;
-  height: 48px;
-  fill: currentColor;
+  font-size: 56px;
 }
 
 /* 每一层：左边是层名，右边是方块，层与层之间用粗线隔开 */
@@ -115,11 +113,43 @@ h1 {
 .node.tool {
   align-items: center;
   justify-content: center;
+  gap: 4px;
   padding: 6px;
-  font-size: 12px;
-  font-weight: 600;
   text-align: center;
   white-space: nowrap;
+}
+
+.icon {
+  width: 24px;
+  height: 24px;
+  margin-bottom: 4px;
+  fill: currentColor;
+}
+
+.icon.mono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 800;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+}
+
+.tool-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tool-org {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.node.tool.on .tool-org {
+  color: inherit;
+  opacity: 0.7;
 }
 
 .row {

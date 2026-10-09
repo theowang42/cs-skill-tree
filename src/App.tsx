@@ -1,13 +1,13 @@
 import { useState, type ReactNode } from 'react'
 import { CATEGORIES, LAYERS, TOOL_GROUPS, closure } from './data/roadmap'
+import { ICONS, MONOGRAMS } from './data/icons'
 
-// 用方块拼成的一棵树，和页面上的方块呼应
-const TREE = ['...#...', '..###..', '.#####.', '#######', '...#...', '...#...']
-
-function TreeMark() {
+function ToolIcon({ id }: { id: string }) {
+  const icon = ICONS[id]
+  if (!icon) return <span className="icon mono">{MONOGRAMS[id]}</span>
   return (
-    <svg className="tree-mark" viewBox="0 0 7 6" aria-hidden>
-      {TREE.flatMap((row, y) => [...row].map((c, x) => c === '#' && <rect key={`${x}${y}`} x={x + 0.06} y={y + 0.06} width={0.88} height={0.88} />))}
+    <svg className="icon" viewBox="0 0 24 24" role="img" aria-label={icon.title}>
+      <path d={icon.path} />
     </svg>
   )
 }
@@ -52,7 +52,9 @@ export default function App() {
   return (
     <main>
       <h1>
-        <TreeMark />
+        <span className="tree-mark" aria-hidden>
+          🌲
+        </span>
         cs-skill-tree
       </h1>
 
@@ -74,7 +76,9 @@ export default function App() {
             <div className="row tools">
               {g.tools.map((t) => (
                 <div key={t.id} className={litTools.has(t.id) ? 'node tool on' : 'node tool'}>
-                  {t.name}
+                  <ToolIcon id={t.id} />
+                  <span className="tool-name">{t.name}</span>
+                  <span className="tool-org">{t.org}</span>
                 </div>
               ))}
             </div>
