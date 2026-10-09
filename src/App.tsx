@@ -110,7 +110,7 @@ export default function App() {
   const total = LAYERS.length + 2
 
   return (
-    <div className="page">
+    <div className={guide ? 'page guiding' : 'page'}>
       <main className="tree">
         <Layer num={total} name="应用层" className={guide ? 'layer-apps spotlight' : 'layer-apps'}>
           <div className="row">

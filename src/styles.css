@@ -150,8 +150,30 @@ body::after {
 
 .spotlight .row {
   width: max-content;
-  outline: 3px solid var(--text);
+  outline: 4px solid var(--text);
   outline-offset: 8px;
+  animation: ring 1.8s ease-out infinite;
+}
+
+/* 圈框外一圈向外扩散的光环 */
+@keyframes ring {
+  0% {
+    box-shadow: 0 0 0 12px color-mix(in srgb, var(--text) 35%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 30px transparent;
+  }
+}
+
+/* 引导时其他地方变暗（不虚化），只突出应用层 */
+.page .panel,
+.page .layer {
+  transition: opacity 0.3s;
+}
+
+.guiding .panel,
+.guiding .layer:not(.layer-apps) {
+  opacity: 0.25;
 }
 
 .coach {
@@ -162,10 +184,10 @@ body::after {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 8px 14px;
+  padding: 10px 16px;
   background: var(--on-bg);
   color: var(--on-text);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   animation: coach-in 0.3s ease-out;
 }
@@ -544,7 +566,8 @@ body::after {
   .node.on ul {
     transition-delay: 0s;
   }
-  .coach {
+  .coach,
+  .spotlight .row {
     animation: none;
   }
 }

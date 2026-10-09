@@ -159,7 +159,7 @@ export const LAYERS: { name: string; blocks: Block[] }[] = [
       { id: 'graphics', name: '图形学', items: ['光栅化', '光线追踪', '渲染管线'], requires: ['math', 'organization'] },
       { id: 'architecture', name: '体系结构', items: ['流水线', '乱序执行', '缓存一致性'], requires: ['organization'] },
       { id: 'hpc', name: '高性能计算', items: ['多线程', 'SIMD', 'GPU 编程'], requires: ['organization', 'os'] },
-      { id: 'security', name: '安全', items: ['内存漏洞', 'Web 漏洞', '密码学'], requires: ['organization', 'os', 'network'] },
+      { id: 'security', name: '安全基础', items: ['内存漏洞', 'Web 漏洞', '密码学'], requires: ['organization', 'os', 'network'] },
       { id: 'distributed', name: '分布式系统', items: ['一致性', '容错', '共识算法'], requires: ['os', 'network', 'database'] },
     ],
   },
