@@ -1,8 +1,8 @@
 :root {
   --bg: #ffffff;
   --text: #111111;
-  --muted: #999999;
-  --line: #e5e5e5;
+  --muted: #8c8c8c;
+  --line: #dddddd;
   --on-bg: #111111;
   --on-text: #ffffff;
   color-scheme: light;
@@ -13,7 +13,7 @@
     --bg: #111111;
     --text: #eeeeee;
     --muted: #777777;
-    --line: #2a2a2a;
+    --line: #333333;
     --on-bg: #eeeeee;
     --on-text: #111111;
     color-scheme: dark;
@@ -33,77 +33,136 @@ body {
 }
 
 main {
-  max-width: 1120px;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 48px 16px;
+  padding: 56px 24px;
 }
 
 h1 {
-  margin: 0 0 48px;
-  font-size: 22px;
-  font-weight: 600;
+  margin: 0 0 56px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   text-align: center;
 }
 
-section + section {
-  margin-top: 32px;
+/* 每一层：左边是层名，右边是方块，层与层之间用粗线隔开 */
+
+.layer {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 24px;
+  padding: 28px 0;
+  border-top: 1px solid var(--text);
 }
 
-h2 {
-  margin: 0 0 10px;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 400;
+.layer:last-child {
+  border-bottom: 1px solid var(--text);
+}
+
+.layer-apps {
+  border-top-width: 3px;
+}
+
+.layer header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.num {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.name {
+  font-size: 13px;
   color: var(--muted);
 }
 
 .row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 10px;
 }
 
+/* 方块 */
+
 .node {
-  width: 140px;
   aspect-ratio: 1;
+  min-width: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
   padding: 14px;
   border: 1px solid var(--line);
-  border-radius: 6px;
   background: none;
   color: var(--text);
   font: inherit;
-  text-align: center;
+  text-align: left;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
+/* 应用层可以点击，用实线黑框区分 */
 button.node {
+  border: 2px solid var(--text);
   cursor: pointer;
 }
 
 .node strong {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
+  line-height: 1.3;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid currentColor;
 }
 
-.node span {
+.node ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.7;
   color: var(--muted);
-}
-
-.node.on span {
-  color: inherit;
-  opacity: 0.7;
 }
 
 .node.on {
   background: var(--on-bg);
   border-color: var(--on-bg);
   color: var(--on-text);
+}
+
+.node.on ul {
+  color: inherit;
+  opacity: 0.7;
+}
+
+@media (max-width: 1000px) {
+  .row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  main {
+    padding: 40px 16px;
+  }
+  .layer {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .layer header {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .num {
+    font-size: 24px;
+  }
+  .row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
