@@ -15,14 +15,15 @@ export default function App() {
 
   return (
     <main>
-      <h1>CS 能力树</h1>
+      <h1>cs-skill-tree</h1>
 
       <section>
         <h2>应用层</h2>
         <div className="row">
           {CATEGORIES.map((c) => (
             <button key={c.id} className={selected.has(c.id) ? 'node on' : 'node'} onClick={() => toggle(c.id)}>
-              {c.name}
+              <strong>{c.name}</strong>
+              <span>{c.desc}</span>
             </button>
           ))}
         </div>
@@ -34,7 +35,8 @@ export default function App() {
           <div className="row">
             {layer.blocks.map((b) => (
               <div key={b.id} className={lit.has(b.id) ? 'node on' : 'node'}>
-                {b.name}
+                <strong>{b.name}</strong>
+                <span>{b.desc}</span>
               </div>
             ))}
           </div>
