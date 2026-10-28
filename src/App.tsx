@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
-import { CATEGORIES, LAYERS, SUBS, TOOL_GROUPS, closure } from './data/roadmap'
+import { CATEGORIES, LAYERS, SUBS, TOOL_GROUPS, closure, learningSteps } from './data/roadmap'
 import { BLOCK_DETAILS, CATEGORY_INTROS, SUB_DETAILS, TOOL_DETAILS, type Detail } from './data/details'
 import { ICONS, MONOGRAMS, STROKE_ICONS } from './data/icons'
 
@@ -120,6 +120,8 @@ export default function App() {
   const cat = CATEGORIES.find((c) => c.id === activeCat)
   const sub = SUBS.find((x) => x.id === activeSub)
   const litBlocks = closure(sub?.requires ?? [])
+  // 亮起的能力块上标出第几步学
+  const steps = learningSteps(sub?.requires ?? [])
   const litTools = new Set(sub?.tools ?? [])
 
   const cls = (kind: Kind, id: string, lit: boolean, extra = '') =>
@@ -199,6 +201,7 @@ export default function App() {
                   style={delay(i + 1, bi)}
                   onClick={() => setFocus({ kind: 'block', id: b.id })}
                 >
+                  {steps.has(b.id) && <span className="step">{steps.get(b.id)}</span>}
                   <strong>{b.name}</strong>
                   <Items items={b.items} />
                 </button>
@@ -278,14 +281,18 @@ function Panel({
 
   if (focus.kind === 'sub') {
     const x = SUBS.find((y) => y.id === focus.id)!
-    const blocks = closure(x.requires)
+    const st = learningSteps(x.requires)
+    const max = Math.max(...st.values())
     eyebrow = `应用层 · ${x.category.name}`
     title = x.name
     detail = SUB_DETAILS[x.id]
     labels = { includes: '具体做这些', links: '去看看真实的开源项目' }
     relations = [
       { label: '会用到的工具', chips: TOOLS.filter((t) => x.tools.includes(t.id)).map((t) => chip('tool', t.id, t.name)) },
-      { label: '需要先学会的能力', chips: BLOCKS.filter((b) => blocks.has(b.id)).map((b) => chip('block', b.id, b.name)) },
+      ...Array.from({ length: max }, (_, i) => ({
+        label: i === 0 ? `学习顺序 · 第 1 步` : `第 ${i + 1} 步`,
+        chips: BLOCKS.filter((b) => st.get(b.id) === i + 1).map((b) => chip('block', b.id, b.name)),
+      })),
     ]
   } else if (focus.kind === 'tool') {
     const t = TOOLS.find((x) => x.id === focus.id)!
