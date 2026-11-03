@@ -75,8 +75,10 @@ test('重新播种保留学习者的进度，只清掉指向已删除技能的�
   db.exec('PRAGMA foreign_keys = OFF')
   db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'removed-skill', 'done')").run(id)
   db.exec('PRAGMA foreign_keys = ON')
+  const eventsBefore = (db.prepare('SELECT COUNT(*) AS n FROM learner_events').get() as Row).n
   const r = seed(db)
   assert.equal(r.orphaned, 1)
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM learner_events').get() as Row).n, eventsBefore, '清理不该留下用户没做过的操作记录')
   const rows = db.prepare('SELECT skill_id, status FROM learner_skills ORDER BY skill_id').all() as Row[]
   assert.deepEqual(rows.map((x) => `${x.skill_id}:${x.status}`), ['cli:done', 'http:learning'])
   assert.equal((db.prepare('SELECT goal_sub_id FROM learners').get() as Row).goal_sub_id, 'backend')

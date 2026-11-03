@@ -40,7 +40,8 @@ function curve(a: ReturnType<typeof anchor>, b: ReturnType<typeof anchor>): stri
 }
 
 export function Edges({ container }: { container: RefObject<HTMLElement | null> }) {
-  const { tree, focus, openCategory } = useApp()
+  // 目标或状态变了，节点上会多出步数角标、宽度会变，线也要跟着重量
+  const { tree, focus, openCategory, activeSubId, states, view } = useApp()
   const [lines, setLines] = useState<Line[]>([])
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [tick, setTick] = useState(0)
@@ -89,7 +90,7 @@ export function Edges({ container }: { container: RefObject<HTMLElement | null> 
       }
     }
     setLines(out)
-  }, [tree, skillId, tick, openCategory, container])
+  }, [tree, skillId, tick, openCategory, activeSubId, states, view, container])
 
   if (!lines.length) return null
   // 远的路线先画，直接相连的画在最上面

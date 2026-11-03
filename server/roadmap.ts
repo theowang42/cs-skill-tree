@@ -118,8 +118,8 @@ export function getRoadmap(db: DatabaseSync): Roadmap {
     all(db, `SELECT x.sub_id, s.id FROM sub_requirements x JOIN skills s ON s.id = x.skill_id ${SKILL_ORDER} WHERE x.choice IS NULL ORDER BY x.sub_id, ${SKILL_ORDER_BY}`),
     'sub_id', (r) => r.id as string,
   )
-  // 任选组按在种子里第一次出现的顺序（rowid 顺序不可靠，用组里第一个技能的顺序）
-  const choiceRows = all(db, `SELECT x.sub_id, x.choice, s.id FROM sub_requirements x JOIN skills s ON s.id = x.skill_id ${SKILL_ORDER} WHERE x.choice IS NOT NULL ORDER BY x.sub_id, x.choice, ${SKILL_ORDER_BY}`)
+  // 任选组：真正要挑一个的组在前，“加分项”放最后；同类按组名排，组里按页面顺序
+  const choiceRows = all(db, `SELECT x.sub_id, x.choice, s.id FROM sub_requirements x JOIN skills s ON s.id = x.skill_id ${SKILL_ORDER} WHERE x.choice IS NOT NULL ORDER BY x.sub_id, x.choice = '加分项', x.choice, ${SKILL_ORDER_BY}`)
   const choices = new Map<string, { label: string; options: string[] }[]>()
   for (const r of choiceRows) {
     const list = choices.get(r.sub_id as string) ?? []

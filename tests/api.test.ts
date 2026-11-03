@@ -35,6 +35,12 @@ test('内容接口', async () => {
   assert.equal((await call('GET', '/skills/nope')).status, 404)
   assert.equal((await call('GET', '/skills/..%2F..')).status, 404)
   assert.equal((await call('GET', '/whatever')).status, 404)
+  // 不合法的百分号编码是 400，不是 500
+  assert.equal((await fetch(base + '/skills/%E0')).status, 400)
+  // HEAD 和 GET 一样能用
+  const head = await fetch(base + '/health', { method: 'HEAD' })
+  assert.equal(head.status, 200)
+  assert.equal(await head.text(), '')
 })
 
 test('搜索：名字优先，通配符被转义', async () => {

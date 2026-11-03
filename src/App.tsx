@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { Progress, Roadmap } from './types'
 import { Tree } from './lib/tree'
-import { createStore, readStorage, roadmapUrl, USE_API, type ProgressStore } from './lib/store'
+import { createStore, readStorage, roadmapUrl, sanitize, USE_API, type ProgressStore } from './lib/store'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { decodeShare } from './lib/share'
 import { AppProvider, useApp, type Focus, type FocusKind } from './state'
 import { TreeView } from './components/TreeView'
@@ -22,8 +23,14 @@ async function load(): Promise<Loaded> {
   if (!res.ok) throw new Error(`读不到技能树数据（${res.status}）`)
   const tree = new Tree((await res.json()) as Roadmap)
   const store = createStore()
-  const progress = await store.load()
-  const shared = decodeShare(tree, location.hash)
+  const skills = new Set(tree.skills.keys())
+  const subs = new Set(tree.subs.keys())
+  // 内容更新后，存着的进度里可能有已删除的技能或方向，清掉并写回
+  const loaded = sanitize(await store.load(), skills, subs)
+  const progress = loaded.progress
+  if (loaded.dropped.length && store.kind === 'local') await store.replace(progress, skills)
+  const decoded = decodeShare(tree, location.hash)
+  const shared = decoded && sanitize(decoded, skills, subs).progress
   // 地址栏里的 #/skill/http 这类链接
   const m = /^#\/(skill|area|sub|category)\/([a-z0-9-]+)$/.exec(location.hash)
   const known = m && { skill: tree.skills, area: tree.areas, sub: tree.subs, category: tree.categories }[m[1] as FocusKind].has(m[2])
@@ -117,10 +124,12 @@ export default function App() {
   }
   if (!data) return <div className="boot">🌲 正在加载技能树…</div>
   return (
-    <AppProvider tree={data.tree} store={data.store} initial={data.progress} shared={data.shared}>
-      <InitialFocus focus={data.focus} />
-      <Shortcuts />
-      <Shell />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider tree={data.tree} store={data.store} initial={data.progress} shared={data.shared}>
+        <InitialFocus focus={data.focus} />
+        <Shortcuts />
+        <Shell />
+      </AppProvider>
+    </ErrorBoundary>
   )
 }

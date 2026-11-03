@@ -5,7 +5,7 @@ import { getRoadmap } from '../server/roadmap.ts'
 import { Tree } from '../src/lib/tree.ts'
 import { decodeShare, encodeShare } from '../src/lib/share.ts'
 import { searchTree } from '../src/lib/search.ts'
-import { applyChanges, parseFile, toFile } from '../src/lib/store.ts'
+import { applyChanges, parseFile, sanitize, toFile } from '../src/lib/store.ts'
 import type { Progress } from '../src/types.ts'
 import { freshDb } from './helpers.ts'
 
@@ -54,4 +54,16 @@ test('搜索：名字前缀优先，也能搜到介绍和学会的标志', () =>
   assert.ok(searchTree(tree, 'curl').some((h) => h.id === 'http'))
   assert.ok(searchTree(tree, '后端').some((h) => h.kind === 'sub' && h.id === 'backend'))
   assert.deepEqual(searchTree(tree, '   '), [])
+})
+
+test('sanitize 去掉已不存在的技能和方向，没问题时原样返回', () => {
+  const skills = new Set(tree.skills.keys())
+  const subs = new Set(tree.subs.keys())
+  const ok: Progress = { goalSubId: 'backend', skills: { cli: { status: 'done', updatedAt: 't' } } }
+  assert.equal(sanitize(ok, skills, subs).progress, ok)
+  const bad: Progress = { goalSubId: 'gone-sub', skills: { cli: { status: 'done', updatedAt: 't' }, 'gone-skill': { status: 'done', updatedAt: 't' } } }
+  const r = sanitize(bad, skills, subs)
+  assert.deepEqual(r.dropped, ['gone-skill'])
+  assert.equal(r.progress.goalSubId, null)
+  assert.deepEqual(Object.keys(r.progress.skills), ['cli'])
 })

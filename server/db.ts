@@ -101,9 +101,12 @@ export function seed(db: DatabaseSync): SeedResult {
         throw new Error(`种子文件 ${name} 出错：${(e as Error).message}`)
       }
     }
+    // 清理失效记录会触发删除触发器写一条“取消点亮”的操作记录，但那不是用户做的，事后删掉
+    const lastEvent = (db.prepare('SELECT COALESCE(MAX(id), 0) AS id FROM learner_events').get() as { id: number }).id
     const orphaned =
       Number(db.prepare('DELETE FROM learner_skills WHERE skill_id NOT IN (SELECT id FROM skills)').run().changes) +
       Number(db.prepare('UPDATE learners SET goal_sub_id = NULL WHERE goal_sub_id IS NOT NULL AND goal_sub_id NOT IN (SELECT id FROM subs)').run().changes)
+    db.prepare('DELETE FROM learner_events WHERE id > ?').run(lastEvent)
     const broken = db.prepare('PRAGMA foreign_key_check').all() as { table: string; parent: string; rowid: number }[]
     if (broken.length) {
       const sample = broken.slice(0, 5).map((b) => `${b.table} 第 ${b.rowid} 行 → ${b.parent}`).join('；')

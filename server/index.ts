@@ -123,9 +123,15 @@ export function cachedRoadmap(db: DatabaseSync) {
 
 /** API 路由。返回 false 表示这个路径不归 API 管。 */
 export async function handleApi(db: DatabaseSync, req: IncomingMessage, url: URL, res: ServerResponse): Promise<boolean> {
-  const parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent)
-  if (parts[0] !== 'api') return false
-  const method = req.method ?? 'GET'
+  if (url.pathname !== '/api' && !url.pathname.startsWith('/api/')) return false
+  let parts: string[]
+  try {
+    parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent)
+  } catch {
+    throw badRequest('地址里有不合法的编码')
+  }
+  // HEAD 和 GET 走同一条路由，Node 会自动丢掉响应体
+  const method = req.method === 'HEAD' ? 'GET' : (req.method ?? 'GET')
   const [, a, b, c, d, ...rest] = parts
   if (rest.length) throw notFound('这个接口')
   const route = `${method} /${[a, b && ':b', c, d && ':d'].filter(Boolean).join('/')}`
@@ -235,7 +241,11 @@ function serveStatic(url: URL, res: ServerResponse): boolean {
   }
   if (file !== DIST && !file.startsWith(DIST + sep)) return false
   if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html')
-  if (!existsSync(file)) file = join(DIST, 'index.html')
+  if (!existsSync(file)) {
+    // 有扩展名的（/assets/x.js）找不到就是 404；没有扩展名的当作页面路由，回落到 index.html
+    if (extname(file)) return false
+    file = join(DIST, 'index.html')
+  }
   res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream' })
   res.end(readFileSync(file))
   return true

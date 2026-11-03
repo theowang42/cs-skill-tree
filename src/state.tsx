@@ -4,7 +4,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Progress, Readiness, SkillState, Status } from './types'
 import { Tree, computeStates, missingPrerequisites, readiness } from './lib/tree'
-import { applyChanges, readStorage, writeStorage, type Changes, type ProgressStore } from './lib/store'
+import { applyChanges, readStorage, sanitize, writeStorage, type Changes, type ProgressStore } from './lib/store'
+import { decodeShare } from './lib/share'
 
 export type FocusKind = 'skill' | 'area' | 'sub' | 'category'
 export type Focus = { kind: FocusKind; id: string } | null
@@ -137,14 +138,45 @@ export function AppProvider({
     if (location.hash !== hash) history.replaceState(null, '', hash || location.pathname + location.search)
   }, [focus, readOnly])
 
-  // 存储失败时，用存储里的真实数据纠正界面
-  const resync = useCallback((e: unknown) => {
-    toast(`保存失败：${(e as Error).message}`)
-    store.load().then(setOwn).catch(() => undefined)
-  }, [store, toast])
 
   const ownRef = useRef(own)
   ownRef.current = own
+  const clean = useCallback((p: Progress) => sanitize(p, new Set(tree.skills.keys()), new Set(tree.subs.keys())), [tree])
+  const setOwnNow = useCallback((p: Progress) => {
+    ownRef.current = p
+    setOwn(p)
+  }, [])
+
+  // 存储失败时，用存储里的真实数据纠正界面
+  const resync = useCallback((e: unknown) => {
+    toast(`保存失败：${(e as Error).message}`)
+    store.load().then((p) => setOwnNow(clean(p).progress)).catch(() => undefined)
+  }, [store, toast, clean, setOwnNow])
+
+  // 别的标签页改了进度，这里跟着刷新
+  useEffect(() => store.subscribe?.(() => {
+    store.load().then((p) => setOwnNow(clean(p).progress)).catch(() => undefined)
+  }), [store, clean, setOwnNow])
+
+  // 加载后再改地址栏（粘贴链接、前进后退）也要生效
+  useEffect(() => {
+    const onHash = () => {
+      const h = location.hash
+      const s = decodeShare(tree, h)
+      if (s) {
+        setShared(clean(s).progress)
+        return
+      }
+      const m = /^#\/(skill|area|sub|category)\/([a-z0-9-]+)$/.exec(h)
+      if (m) {
+        const kind = m[1] as FocusKind
+        const known = { skill: tree.skills, area: tree.areas, sub: tree.subs, category: tree.categories }[kind].has(m[2])
+        if (known) setFocus({ kind, id: m[2] }, { scroll: true })
+      }
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [tree, clean, setFocus])
 
   const change = useCallback((changes: Changes, opts: ChangeOptions = {}) => {
     if (readOnly) return
@@ -172,9 +204,7 @@ export function AppProvider({
     const inverse: Changes = {}
     for (const id of ids) inverse[id] = before.skills[id]?.status ?? null
     const undo = () => {
-      const now = applyChanges(ownRef.current, inverse)
-      ownRef.current = now
-      setOwn(now)
+      setOwnNow(applyChanges(ownRef.current, inverse))
       store.apply(inverse).catch(resync)
     }
     let text = opts.message
@@ -183,7 +213,7 @@ export function AppProvider({
       text = `解锁了 ${unlocked.length} 个新技能：${names}${unlocked.length > 3 ? ' 等' : ''}`
     }
     if (text || opts.undo) toast(text ?? `改了 ${ids.length} 个技能`, opts.undo ? { label: '撤销', run: undo } : undefined)
-  }, [readOnly, tree, store, resync, toast])
+  }, [readOnly, tree, store, resync, toast, setOwnNow])
 
   const setStatus = useCallback((id: string, status: Status | null) => change({ [id]: status }), [change])
 
@@ -200,19 +230,29 @@ export function AppProvider({
     if (subId) toast(`目标设为「${tree.subs.get(subId)!.name}」`)
   }, [readOnly, store, resync, toast, tree])
 
+  /** 整体换掉进度，提示里可以撤销回原来的 */
+  const restore = useCallback((backup: Progress) => {
+    store.replace(backup, new Set(tree.skills.keys()))
+      .then(() => store.load())
+      .then((p) => setOwnNow(clean(p).progress))
+      .catch(resync)
+  }, [store, tree, clean, setOwnNow, resync])
+
   const replaceProgress = useCallback(async (p: Progress) => {
-    const dropped = await store.replace(p, new Set(tree.skills.keys()))
-    setOwn(await store.load())
-    const n = Object.keys(p.skills).length - dropped.length
-    toast(`已导入 ${n} 个技能的进度${dropped.length ? `，${dropped.length} 个已不存在的技能被跳过` : ''}`)
-  }, [store, tree, toast])
+    const backup = ownRef.current
+    const { progress: cleaned, dropped } = clean(p)
+    await store.replace(cleaned, new Set(tree.skills.keys()))
+    setOwnNow(clean(await store.load()).progress)
+    const n = Object.keys(cleaned.skills).length
+    toast(`已导入 ${n} 个技能的进度${dropped.length ? `，跳过了 ${dropped.length} 个已不存在的技能` : ''}`, { label: '撤销', run: () => restore(backup) })
+  }, [store, tree, toast, clean, setOwnNow, restore])
 
   const resetProgress = useCallback(async () => {
     const backup = ownRef.current
     await store.reset()
-    setOwn(await store.load())
-    toast('进度已清空', { label: '撤销', run: () => void store.replace(backup, new Set(tree.skills.keys())).then(() => store.load()).then(setOwn) })
-  }, [store, toast, tree])
+    setOwnNow(await store.load())
+    toast('进度已清空', { label: '撤销', run: () => restore(backup) })
+  }, [store, toast, setOwnNow, restore])
 
   const leaveShared = useCallback(() => {
     setShared(null)
@@ -225,8 +265,9 @@ export function AppProvider({
     const p: Progress = { ...shared, skills: Object.fromEntries(Object.entries(shared.skills).map(([k, e]) => [k, { ...e, updatedAt: now }])) }
     setShared(null)
     history.replaceState(null, '', location.pathname + location.search)
-    void replaceProgress(p)
-  }, [shared, replaceProgress])
+    // 导入的提示里带“撤销”，点错了能换回来
+    replaceProgress(p).catch((e: Error) => toast(`导入失败：${e.message}`))
+  }, [shared, replaceProgress, toast])
 
   const activeSubId = focus?.kind === 'sub' ? focus.id : progress.goalSubId
 

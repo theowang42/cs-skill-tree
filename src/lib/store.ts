@@ -14,6 +14,20 @@ export interface ProgressStore {
   /** 整体替换（导入）。返回被丢掉的、已不存在的技能 */
   replace(progress: Progress, known: Set<string>): Promise<string[]>
   reset(): Promise<void>
+  /** 别的标签页改了进度时通知（只有浏览器存储需要），返回取消订阅的函数 */
+  subscribe?(onChange: () => void): () => void
+}
+
+/**
+ * 去掉内容里已经不存在的技能和方向。内容更新后（技能删了或改了 id），
+ * 浏览器里存的旧进度、导入的文件、分享链接都可能带着它们，不清掉页面会出错。
+ */
+export function sanitize(progress: Progress, skills: Set<string>, subs: Set<string>): { progress: Progress; dropped: string[] } {
+  const dropped = Object.keys(progress.skills).filter((id) => !skills.has(id))
+  const goalSubId = progress.goalSubId && subs.has(progress.goalSubId) ? progress.goalSubId : null
+  if (!dropped.length && goalSubId === progress.goalSubId) return { progress, dropped }
+  const kept = Object.fromEntries(Object.entries(progress.skills).filter(([id]) => skills.has(id)))
+  return { progress: { goalSubId, skills: kept }, dropped }
 }
 
 export const emptyProgress = (): Progress => ({ goalSubId: null, skills: {} })
@@ -80,30 +94,44 @@ export class LocalStore implements ProgressStore {
   readonly where = '进度保存在这台设备的浏览器里。换设备前记得导出。'
   private progress: Progress = emptyProgress()
 
-  async load() {
+  /** 从 localStorage 读最新的（可能被别的标签页改过）；读不到就用内存里的 */
+  private fresh(): Progress {
     const raw = readStorage(LOCAL_KEY)
     if (raw) {
       try {
         this.progress = parseFile(raw)
       } catch {
-        this.progress = emptyProgress()
+        // 存的东西坏了，保留内存里的
       }
     }
     return this.progress
+  }
+
+  async load() {
+    return this.fresh()
   }
 
   private persist() {
     writeStorage(LOCAL_KEY, JSON.stringify(toFile(this.progress)))
   }
 
+  // 每次写之前先读一遍，两个标签页各改各的技能时不会互相覆盖
   async apply(changes: Changes) {
-    this.progress = applyChanges(this.progress, changes)
+    this.progress = applyChanges(this.fresh(), changes)
     this.persist()
   }
 
   async setGoal(subId: string | null) {
-    this.progress = { ...this.progress, goalSubId: subId }
+    this.progress = { ...this.fresh(), goalSubId: subId }
     this.persist()
+  }
+
+  subscribe(onChange: () => void) {
+    const handler = (e: StorageEvent) => {
+      if (e.key === LOCAL_KEY) onChange()
+    }
+    window.addEventListener('storage', handler)
+    return () => window.removeEventListener('storage', handler)
   }
 
   async replace(progress: Progress, known: Set<string>) {
@@ -124,6 +152,14 @@ export class LocalStore implements ProgressStore {
 
 const LEARNER_KEY = 'cs-skill-tree:learner'
 
+export class RequestError extends Error {
+  status: number
+  constructor(status: number, message: string) {
+    super(message)
+    this.status = status
+  }
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method,
@@ -132,7 +168,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   })
   if (!res.ok) {
     const err = (await res.json().catch(() => null)) as { error?: string } | null
-    throw new Error(err?.error ?? `请求失败（${res.status}）`)
+    throw new RequestError(res.status, err?.error ?? `请求失败（${res.status}）`)
   }
   return (res.status === 204 ? null : await res.json()) as T
 }
@@ -154,8 +190,10 @@ export class ApiStore implements ProgressStore {
     if (this.id) {
       try {
         return await request<Learner>('GET', `/learners/${this.id}`)
-      } catch {
-        // 服务器上没有了（比如数据库重建过），重新建一个
+      } catch (e) {
+        // 只有服务器明确说“没有这个学习者”（比如数据库重建过）才新建；
+        // 网络断了、服务器重启中这类错误要往上抛，不能把用户换成一个空的新身份
+        if (!(e instanceof RequestError && e.status === 404)) throw e
       }
     }
     const l = await request<Learner>('POST', '/learners')
@@ -164,8 +202,9 @@ export class ApiStore implements ProgressStore {
     return l
   }
 
+  // 读也排队：等前面的写都落地了再读，界面和数据库才一致
   async load(): Promise<Progress> {
-    const l = await this.ensure()
+    const l = await this.enqueue(() => this.ensure())
     return { goalSubId: l.goalSubId, skills: l.skills }
   }
 
@@ -178,15 +217,17 @@ export class ApiStore implements ProgressStore {
   }
 
   async replace(progress: Progress) {
-    const r = await request<{ dropped: string[] }>('POST', `/learners/${this.id}/import`, toFile(progress))
+    const r = await this.enqueue(() => request<{ dropped: string[] }>('POST', `/learners/${this.id}/import`, toFile(progress)))
     return r.dropped
   }
 
   async reset() {
-    if (this.id) await request('DELETE', `/learners/${this.id}`).catch(() => undefined)
-    this.id = null
-    writeStorage(LEARNER_KEY, null)
-    await this.ensure()
+    await this.enqueue(async () => {
+      if (this.id) await request('DELETE', `/learners/${this.id}`).catch(() => undefined)
+      this.id = null
+      writeStorage(LEARNER_KEY, null)
+      await this.ensure()
+    })
   }
 }
 
