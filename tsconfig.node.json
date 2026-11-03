@@ -1,10 +1,15 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": [
+      "ES2022"
+    ],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "types": ["node"],
+    "types": [
+      "node",
+      "vite/client"
+    ],
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -15,5 +20,12 @@
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["server", "scripts", "tests", "src/types.ts", "src/lib/tree.ts"]
+  "include": [
+    "server",
+    "scripts",
+    "tests",
+    "src/types.ts",
+    "src/lib",
+    "src/vite-env.d.ts"
+  ]
 }

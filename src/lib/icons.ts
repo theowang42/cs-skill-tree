@@ -1,7 +1,7 @@
 // 工具层的图标，来自 Simple Icons（单色 SVG）。图标库里没有的，自己画或显示缩写。
 import {
   siAmd, siApachekafka, siApachespark, siC, siCplusplus, siDjango, siDocker, siFastapi, siFlutter,
-  siGnubash, siGo, siGodotengine, siHuggingface, siJavascript, siKotlin, siKubernetes, siLangchain, siLlvm,
+  siGo, siGodotengine, siHuggingface, siJavascript, siKotlin, siKubernetes, siLangchain, siLlvm,
   siNginx, siNodedotjs, siNumpy, siNvidia, siPandas, siPostgresql, siPrometheus, siPython, siPytorch,
   siQt, siReact, siRedis, siRos, siRust, siSolidity, siSpring, siSwift, siTerraform, siTypescript, siVuedotjs,
   siWireshark,
@@ -18,7 +18,6 @@ export const ICONS: Record<string, SimpleIcon> = {
   python: siPython,
   javascript: siJavascript,
   typescript: siTypescript,
-  shell: siGnubash,
   solidity: siSolidity,
   react: siReact,
   vue: siVuedotjs,
@@ -61,8 +60,6 @@ export const STROKE_ICONS: Record<string, string[]> = {
 /** 没有图标时显示的缩写 */
 export const MONOGRAMS: Record<string, string> = {
   csharp: 'C#',
-  sql: 'SQL',
-  asm: 'ASM',
   verilog: 'V',
   ghidra: 'G',
 }
