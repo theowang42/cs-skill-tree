@@ -1,6 +1,6 @@
 // 技能树主体，从上往下：应用层（方向）→ 工具层 → 进阶层 → 核心层 → 基础层。
 // 领域卡片里的技能按“领域内的前置深度”分行，第 1 行在最下面——整棵树从根往上长。
-import { memo, useMemo, useRef, type CSSProperties, type ReactNode } from 'react'
+import { memo, useCallback, useMemo, useRef, type CSSProperties, type ReactNode } from 'react'
 import type { SkillState } from '../types'
 import { useApp, type View } from '../state'
 import { ToolIcon } from './ToolIcon'
@@ -27,6 +27,10 @@ interface NodeFlags {
   delay: number
 }
 
+const sameFlags = (a: NodeFlags, b: NodeFlags) =>
+  a.state === b.state && a.focused === b.focused && a.step === b.step && a.choice === b.choice && a.path === b.path &&
+  a.unlock === b.unlock && a.dim === b.dim && a.pulse === b.pulse && a.delay === b.delay
+
 const SkillNode = memo(function SkillNode({ id, name, tool, flags, onClick }: { id: string; name: string; tool: boolean; flags: NodeFlags; onClick: (id: string) => void }) {
   const cls = [
     'skill', `s-${flags.state}`, tool && 'tool',
@@ -41,7 +45,7 @@ const SkillNode = memo(function SkillNode({ id, name, tool, flags, onClick }: { 
       {flags.step !== null && <span className="step">{flags.step}</span>}
     </button>
   )
-})
+}, (a, b) => a.id === b.id && a.onClick === b.onClick && sameFlags(a.flags, b.flags))
 
 function Layer({ num, name, sub, children, className = '' }: { num: number; name: string; sub?: ReactNode; children: ReactNode; className?: string }) {
   return (
@@ -197,7 +201,7 @@ export function TreeView() {
   const layers = [...tree.roadmap.layers].reverse()
   const total = layers.length + 2
 
-  const onSkill = (id: string) => {
+  const onSkillLatest = (id: string) => {
     if (quick && !readOnly) {
       const next = NEXT[states.get(id)!]
       change({ [id]: next })
@@ -209,6 +213,10 @@ export function TreeView() {
     }
     setFocus(focus?.kind === 'skill' && focus.id === id ? null : { kind: 'skill', id })
   }
+  // 给节点一个不变的回调，配合 memo 让没变化的节点不重新渲染
+  const latest = useRef(onSkillLatest)
+  latest.current = onSkillLatest
+  const onSkill = useCallback((id: string) => latest.current(id), [])
 
   return (
     <div className={`tree${quick && !readOnly ? ' quick' : ''}${focus?.kind === 'skill' ? ' has-focus' : ''}`} ref={ref}>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Progress, Roadmap } from './types'
 import { Tree } from './lib/tree'
-import { createStore, roadmapUrl, USE_API, type ProgressStore } from './lib/store'
+import { createStore, readStorage, roadmapUrl, USE_API, type ProgressStore } from './lib/store'
 import { decodeShare } from './lib/share'
 import { AppProvider, useApp, type Focus, type FocusKind } from './state'
 import { TreeView } from './components/TreeView'
@@ -65,7 +65,8 @@ function InitialFocus({ focus }: { focus: Focus }) {
 
 function Shell() {
   const { focus, quick, readOnly } = useApp()
-  const [sheetOpen, setSheetOpen] = useState(false)
+  // 第一次来（还没看过介绍）时把面板拉起来，手机上也能看到“开始自评”
+  const [sheetOpen, setSheetOpen] = useState(() => !readStorage('cs-skill-tree:intro-done'))
   // 窄屏上选中东西时自动拉起底部面板
   useEffect(() => {
     if (focus) setSheetOpen(true)

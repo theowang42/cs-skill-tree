@@ -4,7 +4,7 @@
 
 **A computer science skill tree you light up as you learn, so you always know where your learning frontier is.**
 
-- 225 skills (183 concepts plus 42 languages, frameworks and platforms) linked by more than 330 prerequisite edges
+- 225 skills (183 concepts plus 42 languages, frameworks and platforms) linked by 325 prerequisite edges
 - Every skill lists concrete checks for "you have learned this", so self-assessment stays honest
 - **Learning frontier**: skills whose prerequisites you have all mastered but you have not learned yet
 - Pick a **goal direction** such as agent development, backend or OS kernels to see the skills it needs, the order to learn them and how ready you are

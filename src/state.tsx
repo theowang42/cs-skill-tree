@@ -157,6 +157,8 @@ export function AppProvider({
     const after = applyChanges(before, real)
     const prevStates = computeStates(tree, before)
     const nextStates = computeStates(tree, after)
+    // 立刻更新 ref：同一帧里连续两次改动（快速点击、点亮前置）要基于最新的进度算
+    ownRef.current = after
     setOwn(after)
     store.apply(real).catch(resync)
 
@@ -170,8 +172,9 @@ export function AppProvider({
     const inverse: Changes = {}
     for (const id of ids) inverse[id] = before.skills[id]?.status ?? null
     const undo = () => {
-      const now = ownRef.current
-      setOwn(applyChanges(now, inverse))
+      const now = applyChanges(ownRef.current, inverse)
+      ownRef.current = now
+      setOwn(now)
       store.apply(inverse).catch(resync)
     }
     let text = opts.message
@@ -217,7 +220,9 @@ export function AppProvider({
   }, [])
   const adoptShared = useCallback(() => {
     if (!shared) return
-    const p = shared
+    // 分享链接里没有时间，按现在算
+    const now = new Date().toISOString()
+    const p: Progress = { ...shared, skills: Object.fromEntries(Object.entries(shared.skills).map(([k, e]) => [k, { ...e, updatedAt: now }])) }
     setShared(null)
     history.replaceState(null, '', location.pathname + location.search)
     void replaceProgress(p)

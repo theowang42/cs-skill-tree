@@ -1761,3 +1761,9 @@ button.danger {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 领域里相邻两行之间一条淡淡的分隔，提示“往上一层” */
+.tier + .tier {
+  padding-bottom: 5px;
+  border-bottom: 1px dotted color-mix(in srgb, var(--line) 70%, transparent);
+}

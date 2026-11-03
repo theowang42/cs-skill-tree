@@ -141,6 +141,14 @@ export class ApiStore implements ProgressStore {
   readonly kind = 'api'
   readonly where = '进度保存在服务器的数据库里，用同一个浏览器打开就能看到。'
   private id: string | null = readStorage(LEARNER_KEY)
+  /** 写请求排队发，保证同一个技能连续改两次时服务器上的顺序和界面一致 */
+  private queue: Promise<unknown> = Promise.resolve()
+
+  private enqueue<T>(fn: () => Promise<T>): Promise<T> {
+    const next = this.queue.then(fn, fn)
+    this.queue = next.catch(() => undefined)
+    return next
+  }
 
   private async ensure(): Promise<Learner> {
     if (this.id) {
@@ -162,11 +170,11 @@ export class ApiStore implements ProgressStore {
   }
 
   async apply(changes: Changes) {
-    await request('PATCH', `/learners/${this.id}/skills`, { changes })
+    await this.enqueue(() => request('PATCH', `/learners/${this.id}/skills`, { changes }))
   }
 
   async setGoal(subId: string | null) {
-    await request('PUT', `/learners/${this.id}/goal`, { subId })
+    await this.enqueue(() => request('PUT', `/learners/${this.id}/goal`, { subId }))
   }
 
   async replace(progress: Progress) {

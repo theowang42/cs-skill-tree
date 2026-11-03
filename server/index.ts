@@ -109,6 +109,18 @@ function requireLearner(db: DatabaseSync, id: string | undefined): string {
   return id
 }
 
+// 整棵树只在内容变了时重新查。data_version 在别的连接（比如 npm run db -- seed）提交后会变，
+// 本连接自己写学习者数据不会让它变。
+const roadmapCache = new WeakMap<DatabaseSync, { version: number; roadmap: ReturnType<typeof getRoadmap> }>()
+export function cachedRoadmap(db: DatabaseSync) {
+  const version = (db.prepare('PRAGMA data_version').get() as { data_version: number }).data_version
+  const hit = roadmapCache.get(db)
+  if (hit && hit.version === version) return hit.roadmap
+  const roadmap = getRoadmap(db)
+  roadmapCache.set(db, { version, roadmap })
+  return roadmap
+}
+
 /** API 路由。返回 false 表示这个路径不归 API 管。 */
 export async function handleApi(db: DatabaseSync, req: IncomingMessage, url: URL, res: ServerResponse): Promise<boolean> {
   const parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent)
@@ -123,7 +135,7 @@ export async function handleApi(db: DatabaseSync, req: IncomingMessage, url: URL
       send(res, 200, { ok: true, skills: (db.prepare('SELECT COUNT(*) AS n FROM skills').get() as { n: number }).n })
       return true
     case 'GET /roadmap':
-      send(res, 200, getRoadmap(db))
+      send(res, 200, cachedRoadmap(db))
       return true
     case 'GET /search': {
       const limit = Math.min(Math.max(Number(url.searchParams.get('limit') ?? 20) || 20, 1), 100)
@@ -138,7 +150,7 @@ export async function handleApi(db: DatabaseSync, req: IncomingMessage, url: URL
     case 'GET /subs/:b':
     case 'GET /categories/:b': {
       if (!ID.test(b)) throw notFound(b)
-      const roadmap = getRoadmap(db)
+      const roadmap = cachedRoadmap(db)
       const list = { skills: roadmap.skills, areas: roadmap.areas, subs: roadmap.subs, categories: roadmap.categories }[a as 'skills']
       const found = (list as { id: string }[]).find((x) => x.id === b)
       if (!found) throw notFound(`${a} 里的 ${b}`)
