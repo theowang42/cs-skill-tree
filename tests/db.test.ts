@@ -101,3 +101,29 @@ test('操作记录由触发器自动写入', () => {
   const ev = db.prepare('SELECT from_status, to_status FROM learner_events WHERE learner_id = ? ORDER BY id').all(id) as Row[]
   assert.deepEqual(ev.map((e) => `${e.from_status}->${e.to_status}`), ['null->learning', 'learning->done', 'done->null'])
 })
+
+test('API 的整棵树缓存：别的连接改了内容就失效，自己写学习者数据不失效', async () => {
+  const { mkdtempSync, rmSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const { rebuild } = await import('../server/db.ts')
+  const { cachedRoadmap } = await import('../server/index.ts')
+  const dir = mkdtempSync(join(tmpdir(), 'cs-skill-tree-'))
+  try {
+    const path = join(dir, 'test.db')
+    rebuild(path).close()
+    const server = openDatabase(path)
+    const first = cachedRoadmap(server)
+    server.prepare("INSERT INTO learners (id) VALUES (?)").run('c'.repeat(32))
+    assert.equal(cachedRoadmap(server), first, '学习者数据不该让缓存失效')
+    const editor = openDatabase(path)
+    editor.exec("UPDATE skills SET name = '变量、条件与循环' WHERE id = 'prog-basics'")
+    const second = cachedRoadmap(server)
+    assert.notEqual(second, first)
+    assert.equal(second.skills.find((s) => s.id === 'prog-basics')!.name, '变量、条件与循环')
+    editor.close()
+    server.close()
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
