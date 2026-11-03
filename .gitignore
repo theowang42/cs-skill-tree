@@ -2,3 +2,6 @@ node_modules
 dist
 *.tsbuildinfo
 .DS_Store
+# 由 npm run db:build 生成
+data/
+public/data/

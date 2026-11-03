@@ -1,195 +1,201 @@
-// 从数据库查出前端要的整棵树，以及单个节点和搜索。
+// 从数据库查出整棵树（Roadmap），以及搜索。查询都是一次性把一张表读完再在内存里归组，
+// 总共二十来条 SQL，导出一次几毫秒。
 import type { DatabaseSync } from 'node:sqlite'
-import type { Block, Category, Layer, Link, Roadmap, Sub, Tool, ToolGroup } from '../src/types.ts'
+import type { Area, Category, Layer, Link, Roadmap, Skill, Sub, ToolGroup } from '../src/types.ts'
 
 type Row = Record<string, unknown>
 
-/** 把 (owner_id, text) 行按 owner 归组，保持 position 顺序 */
-function groupText(rows: Row[], key: string): Map<string, string[]> {
-  const m = new Map<string, string[]>()
+function all(db: DatabaseSync, sql: string, ...params: (string | number)[]): Row[] {
+  return db.prepare(sql).all(...params) as Row[]
+}
+
+/** 按 key 归组，保持查询给出的顺序 */
+function groupBy<T>(rows: Row[], key: string, map: (r: Row) => T): Map<string, T[]> {
+  const m = new Map<string, T[]>()
   for (const r of rows) {
-    const id = r[key] as string
-    if (!m.has(id)) m.set(id, [])
-    m.get(id)!.push(r.text as string)
+    const k = r[key] as string
+    let list = m.get(k)
+    if (!list) m.set(k, (list = []))
+    list.push(map(r))
   }
   return m
 }
 
-function groupLinks(rows: Row[], key: string): Map<string, Link[]> {
-  const m = new Map<string, Link[]>()
-  for (const r of rows) {
-    const id = r[key] as string
-    if (!m.has(id)) m.set(id, [])
-    m.get(id)!.push({ label: r.label as string, url: r.url as string })
-  }
-  return m
-}
+const text = (r: Row) => r.text as string
+const link = (r: Row): Link => ({ label: r.label as string, url: r.url as string })
 
-function groupIds(rows: Row[], key: string, value: string): Map<string, string[]> {
-  const m = new Map<string, string[]>()
-  for (const r of rows) {
-    const id = r[key] as string
-    if (!m.has(id)) m.set(id, [])
-    m.get(id)!.push(r[value] as string)
-  }
-  return m
-}
+// 页面上的排序：领域按层和位置，工具组按位置，方向按大方向和位置
+const SKILL_ORDER = `
+  LEFT JOIN areas sa ON sa.id = s.area_id
+  LEFT JOIN layers sl ON sl.id = sa.layer_id
+  LEFT JOIN tool_groups sg ON sg.id = s.group_id
+  JOIN skill_tiers st ON st.skill_id = s.id`
+const SKILL_ORDER_BY = 'COALESCE(sl.position, 99), sa.position, sg.position, st.tier, s.position'
+const SUB_ORDER = 'JOIN subs sb ON sb.id = x.sub_id JOIN categories sc ON sc.id = sb.category_id'
+const SUB_ORDER_BY = 'sc.position, sb.position'
 
-const ordered = (db: DatabaseSync, table: string, owner: string) =>
-  db.prepare(`SELECT * FROM ${table} ORDER BY ${owner}, position`).all() as Row[]
-
-export function getLayers(db: DatabaseSync): Layer[] {
-  const items = groupText(ordered(db, 'block_items', 'block_id'), 'block_id')
-  const topics = groupText(ordered(db, 'block_topics', 'block_id'), 'block_id')
-  const courses = groupLinks(ordered(db, 'block_courses', 'block_id'), 'block_id')
-  const prereqs = groupIds(
-    db.prepare('SELECT p.block_id, p.prerequisite_id FROM block_prerequisites p JOIN blocks b ON b.id = p.prerequisite_id JOIN layers l ON l.id = b.layer_id ORDER BY p.block_id, l.position, b.position').all() as Row[],
-    'block_id', 'prerequisite_id',
+export function getSkills(db: DatabaseSync): Skill[] {
+  const checks = groupBy(all(db, 'SELECT * FROM skill_checks ORDER BY skill_id, position'), 'skill_id', text)
+  const topics = groupBy(all(db, 'SELECT * FROM skill_topics ORDER BY skill_id, position'), 'skill_id', text)
+  const resources = groupBy(all(db, 'SELECT * FROM skill_resources ORDER BY skill_id, position'), 'skill_id', link)
+  const prereqs = groupBy(
+    all(db, `SELECT x.skill_id, s.id FROM skill_prerequisites x JOIN skills s ON s.id = x.prerequisite_id ${SKILL_ORDER} ORDER BY x.skill_id, ${SKILL_ORDER_BY}`),
+    'skill_id', (r) => r.id as string,
   )
-  const unlocks = groupIds(
-    db.prepare('SELECT u.block_id, u.sub_id FROM block_unlocks u JOIN subs s ON s.id = u.sub_id JOIN categories c ON c.id = s.category_id ORDER BY u.block_id, c.position, s.position').all() as Row[],
-    'block_id', 'sub_id',
+  const dependents = groupBy(
+    all(db, `SELECT x.prerequisite_id, s.id FROM skill_prerequisites x JOIN skills s ON s.id = x.skill_id ${SKILL_ORDER} ORDER BY x.prerequisite_id, ${SKILL_ORDER_BY}`),
+    'prerequisite_id', (r) => r.id as string,
   )
-  const blocks = db.prepare('SELECT * FROM blocks ORDER BY layer_id, position').all() as Row[]
-  const layers = db.prepare('SELECT * FROM layers ORDER BY position').all() as Row[]
-  return layers.map((l) => ({
-    id: l.id as string,
-    name: l.name as string,
-    position: l.position as number,
-    blocks: blocks
-      .filter((b) => b.layer_id === l.id)
-      .map<Block>((b) => ({
-        id: b.id as string,
-        layerId: l.id as string,
-        name: b.name as string,
-        intro: b.intro as string,
-        items: items.get(b.id as string) ?? [],
-        prerequisites: prereqs.get(b.id as string) ?? [],
-        topics: topics.get(b.id as string) ?? [],
-        courses: courses.get(b.id as string) ?? [],
-        unlocks: unlocks.get(b.id as string) ?? [],
-      })),
-  }))
-}
-
-export function getToolGroups(db: DatabaseSync): ToolGroup[] {
-  const topics = groupText(ordered(db, 'tool_topics', 'tool_id'), 'tool_id')
-  const links = groupLinks(ordered(db, 'tool_links', 'tool_id'), 'tool_id')
-  const usedBy = groupIds(
-    db.prepare('SELECT t.tool_id, t.sub_id FROM sub_tools t JOIN subs s ON s.id = t.sub_id JOIN categories c ON c.id = s.category_id ORDER BY t.tool_id, c.position, s.position').all() as Row[],
-    'tool_id', 'sub_id',
+  const requiredBy = groupBy(
+    all(db, `SELECT x.skill_id, x.sub_id FROM skill_unlocks x ${SUB_ORDER} ORDER BY x.skill_id, ${SUB_ORDER_BY}`),
+    'skill_id', (r) => r.sub_id as string,
   )
-  const tools = db.prepare('SELECT * FROM tools ORDER BY group_id, position').all() as Row[]
-  const groups = db.prepare('SELECT * FROM tool_groups ORDER BY position').all() as Row[]
-  return groups.map((g) => ({
-    id: g.id as string,
-    name: g.name as string,
-    shortName: g.short_name as string,
-    tools: tools
-      .filter((t) => t.group_id === g.id)
-      .map<Tool>((t) => ({
-        id: t.id as string,
-        groupId: g.id as string,
-        name: t.name as string,
-        org: t.org as string,
-        intro: t.intro as string,
-        topics: topics.get(t.id as string) ?? [],
-        links: links.get(t.id as string) ?? [],
-        usedBy: usedBy.get(t.id as string) ?? [],
-      })),
-  }))
-}
-
-export function getCategories(db: DatabaseSync): Category[] {
-  const catItems = groupText(ordered(db, 'category_items', 'category_id'), 'category_id')
-  const items = groupText(ordered(db, 'sub_items', 'sub_id'), 'sub_id')
-  const topics = groupText(ordered(db, 'sub_topics', 'sub_id'), 'sub_id')
-  const projects = groupLinks(ordered(db, 'sub_projects', 'sub_id'), 'sub_id')
-  const requirements = groupIds(
-    db.prepare('SELECT r.sub_id, r.block_id FROM sub_requirements r JOIN blocks b ON b.id = r.block_id JOIN layers l ON l.id = b.layer_id ORDER BY r.sub_id, l.position DESC, b.position').all() as Row[],
-    'sub_id', 'block_id',
-  )
-  const tools = groupIds(
-    db.prepare('SELECT s.sub_id, s.tool_id FROM sub_tools s JOIN tools t ON t.id = s.tool_id JOIN tool_groups g ON g.id = t.group_id ORDER BY s.sub_id, g.position, t.position').all() as Row[],
-    'sub_id', 'tool_id',
-  )
-  const plans = new Map<string, { blockId: string; step: number }[]>()
-  for (const r of db.prepare('SELECT p.sub_id, p.block_id, p.step FROM sub_learning_plan p JOIN blocks b ON b.id = p.block_id JOIN layers l ON l.id = b.layer_id ORDER BY p.sub_id, p.step, l.position, b.position').all() as Row[]) {
-    const id = r.sub_id as string
-    if (!plans.has(id)) plans.set(id, [])
-    plans.get(id)!.push({ blockId: r.block_id as string, step: r.step as number })
-  }
-  const subs = db.prepare('SELECT * FROM subs ORDER BY category_id, position').all() as Row[]
-  const categories = db.prepare('SELECT * FROM categories ORDER BY position').all() as Row[]
-  return categories.map((c) => ({
-    id: c.id as string,
-    name: c.name as string,
-    intro: c.intro as string,
-    items: catItems.get(c.id as string) ?? [],
-    subs: subs
-      .filter((s) => s.category_id === c.id)
-      .map<Sub>((s) => ({
-        id: s.id as string,
-        categoryId: c.id as string,
-        name: s.name as string,
-        intro: s.intro as string,
-        items: items.get(s.id as string) ?? [],
-        isHot: s.is_hot === 1,
-        requirements: requirements.get(s.id as string) ?? [],
-        tools: tools.get(s.id as string) ?? [],
-        topics: topics.get(s.id as string) ?? [],
-        projects: projects.get(s.id as string) ?? [],
-        plan: plans.get(s.id as string) ?? [],
-      })),
-  }))
+  const rows = all(db, `
+    SELECT s.*, st.tier, w.dependents AS weight
+      FROM skills s ${SKILL_ORDER}
+      JOIN skill_weight w ON w.skill_id = s.id
+     ORDER BY ${SKILL_ORDER_BY}`)
+  return rows.map((r) => {
+    const id = r.id as string
+    const skill: Skill = {
+      id,
+      kind: r.kind as Skill['kind'],
+      name: r.name as string,
+      intro: r.intro as string,
+      tier: r.tier as number,
+      prerequisites: prereqs.get(id) ?? [],
+      dependents: dependents.get(id) ?? [],
+      weight: r.weight as number,
+      checks: checks.get(id) ?? [],
+      topics: topics.get(id) ?? [],
+      resources: resources.get(id) ?? [],
+      requiredBy: requiredBy.get(id) ?? [],
+    }
+    if (r.org) skill.org = r.org as string
+    if (r.area_id) skill.areaId = r.area_id as string
+    if (r.group_id) skill.groupId = r.group_id as string
+    return skill
+  })
 }
 
 export function getRoadmap(db: DatabaseSync): Roadmap {
-  return {
-    generatedAt: new Date().toISOString(),
-    layers: getLayers(db),
-    toolGroups: getToolGroups(db),
-    categories: getCategories(db),
+  const skills = getSkills(db)
+  const byArea = new Map<string, string[]>()
+  const byGroup = new Map<string, string[]>()
+  for (const s of skills) {
+    const [m, k] = s.areaId ? [byArea, s.areaId] : [byGroup, s.groupId!]
+    if (!m.has(k)) m.set(k, [])
+    m.get(k)!.push(s.id)
   }
+
+  const courses = groupBy(all(db, 'SELECT * FROM area_courses ORDER BY area_id, position'), 'area_id', link)
+  const areaRows = all(db, 'SELECT a.* FROM areas a JOIN layers l ON l.id = a.layer_id ORDER BY l.position, a.position')
+  const areas: Area[] = areaRows.map((r) => ({
+    id: r.id as string,
+    layerId: r.layer_id as string,
+    name: r.name as string,
+    intro: r.intro as string,
+    courses: courses.get(r.id as string) ?? [],
+    skillIds: byArea.get(r.id as string) ?? [],
+  }))
+  const layers: Layer[] = all(db, 'SELECT * FROM layers ORDER BY position').map((r) => ({
+    id: r.id as string,
+    name: r.name as string,
+    position: r.position as number,
+    areaIds: areas.filter((a) => a.layerId === r.id).map((a) => a.id),
+  }))
+  const toolGroups: ToolGroup[] = all(db, 'SELECT * FROM tool_groups ORDER BY position').map((r) => ({
+    id: r.id as string,
+    name: r.name as string,
+    shortName: r.short_name as string,
+    skillIds: byGroup.get(r.id as string) ?? [],
+  }))
+
+  const subItems = groupBy(all(db, 'SELECT * FROM sub_items ORDER BY sub_id, position'), 'sub_id', text)
+  const subTopics = groupBy(all(db, 'SELECT * FROM sub_topics ORDER BY sub_id, position'), 'sub_id', text)
+  const projects = groupBy(all(db, 'SELECT * FROM sub_projects ORDER BY sub_id, position'), 'sub_id', link)
+  const requirements = groupBy(
+    all(db, `SELECT x.sub_id, s.id FROM sub_requirements x JOIN skills s ON s.id = x.skill_id ${SKILL_ORDER} WHERE x.choice IS NULL ORDER BY x.sub_id, ${SKILL_ORDER_BY}`),
+    'sub_id', (r) => r.id as string,
+  )
+  // 任选组按在种子里第一次出现的顺序（rowid 顺序不可靠，用组里第一个技能的顺序）
+  const choiceRows = all(db, `SELECT x.sub_id, x.choice, s.id FROM sub_requirements x JOIN skills s ON s.id = x.skill_id ${SKILL_ORDER} WHERE x.choice IS NOT NULL ORDER BY x.sub_id, x.choice, ${SKILL_ORDER_BY}`)
+  const choices = new Map<string, { label: string; options: string[] }[]>()
+  for (const r of choiceRows) {
+    const list = choices.get(r.sub_id as string) ?? []
+    choices.set(r.sub_id as string, list)
+    let group = list.find((g) => g.label === r.choice)
+    if (!group) list.push((group = { label: r.choice as string, options: [] }))
+    group.options.push(r.id as string)
+  }
+  const plans = groupBy(
+    all(db, `SELECT x.sub_id, x.skill_id, x.step FROM sub_learning_plan x JOIN skills s ON s.id = x.skill_id ${SKILL_ORDER} ORDER BY x.sub_id, x.step, ${SKILL_ORDER_BY}`),
+    'sub_id', (r) => ({ skillId: r.skill_id as string, step: r.step as number }),
+  )
+  const subRows = all(db, 'SELECT x.* FROM subs x JOIN categories c ON c.id = x.category_id ORDER BY c.position, x.position')
+  const subs: Sub[] = subRows.map((r) => {
+    const id = r.id as string
+    return {
+      id,
+      categoryId: r.category_id as string,
+      name: r.name as string,
+      intro: r.intro as string,
+      isHot: r.is_hot === 1,
+      items: subItems.get(id) ?? [],
+      topics: subTopics.get(id) ?? [],
+      projects: projects.get(id) ?? [],
+      requirements: requirements.get(id) ?? [],
+      choices: choices.get(id) ?? [],
+      plan: plans.get(id) ?? [],
+    }
+  })
+  const catItems = groupBy(all(db, 'SELECT * FROM category_items ORDER BY category_id, position'), 'category_id', text)
+  const categories: Category[] = all(db, 'SELECT * FROM categories ORDER BY position').map((r) => ({
+    id: r.id as string,
+    name: r.name as string,
+    intro: r.intro as string,
+    items: catItems.get(r.id as string) ?? [],
+    subIds: subs.filter((s) => s.categoryId === r.id).map((s) => s.id),
+  }))
+
+  return { version: 2, generatedAt: new Date().toISOString(), layers, areas, toolGroups, skills, categories, subs }
 }
 
-export const findBlock = (db: DatabaseSync, id: string) => getLayers(db).flatMap((l) => l.blocks).find((b) => b.id === id)
-export const findTool = (db: DatabaseSync, id: string) => getToolGroups(db).flatMap((g) => g.tools).find((t) => t.id === id)
-export const findCategory = (db: DatabaseSync, id: string) => getCategories(db).find((c) => c.id === id)
-export const findSub = (db: DatabaseSync, id: string) => getCategories(db).flatMap((c) => c.subs).find((s) => s.id === id)
-
 export interface SearchHit {
-  kind: 'category' | 'sub' | 'tool' | 'block'
+  kind: 'skill' | 'area' | 'sub' | 'category'
   id: string
   name: string
   /** 命中的那段文字 */
   matched: string
 }
 
-/** 在名字、介绍、方块文字和面板列表里做不区分大小写的子串搜索 */
+/**
+ * 在名字、介绍、学会的标志、要学的内容、资料标题里做不区分大小写的子串搜索。
+ * 名字命中排最前，其次是介绍，再其次是列表里的文字。
+ */
 export function search(db: DatabaseSync, query: string, limit = 20): SearchHit[] {
-  const q = `%${query.trim().toLowerCase()}%`
-  if (q === '%%') return []
+  const q = query.trim().toLowerCase()
+  if (!q) return []
+  // LIKE 的通配符要转义，否则搜“100%”会匹配一切
+  const pattern = `%${q.replace(/[\\%_]/g, (c) => '\\' + c)}%`
+  const like = (col: string) => `lower(${col}) LIKE ?1 ESCAPE '\\'`
   const sql = `
     SELECT kind, id, name, matched FROM (
-      SELECT 'category' AS kind, id, name, name AS matched, 0 AS rank FROM categories WHERE lower(name) LIKE ?1
-      UNION ALL SELECT 'sub',   id, name, name,  0 FROM subs   WHERE lower(name) LIKE ?1
-      UNION ALL SELECT 'tool',  id, name, name,  0 FROM tools  WHERE lower(name) LIKE ?1
-      UNION ALL SELECT 'block', id, name, name,  0 FROM blocks WHERE lower(name) LIKE ?1
-      UNION ALL SELECT 'category', id, name, intro, 1 FROM categories WHERE lower(intro) LIKE ?1
-      UNION ALL SELECT 'sub',   id, name, intro, 1 FROM subs   WHERE lower(intro) LIKE ?1
-      UNION ALL SELECT 'tool',  id, name, intro, 1 FROM tools  WHERE lower(intro) LIKE ?1
-      UNION ALL SELECT 'block', id, name, intro, 1 FROM blocks WHERE lower(intro) LIKE ?1
-      UNION ALL SELECT 'sub',   s.id, s.name, i.text, 2 FROM sub_items i   JOIN subs s   ON s.id = i.sub_id     WHERE lower(i.text) LIKE ?1
-      UNION ALL SELECT 'sub',   s.id, s.name, i.text, 2 FROM sub_topics i  JOIN subs s   ON s.id = i.sub_id     WHERE lower(i.text) LIKE ?1
-      UNION ALL SELECT 'tool',  t.id, t.name, i.text, 2 FROM tool_topics i JOIN tools t  ON t.id = i.tool_id    WHERE lower(i.text) LIKE ?1
-      UNION ALL SELECT 'block', b.id, b.name, i.text, 2 FROM block_items i JOIN blocks b ON b.id = i.block_id   WHERE lower(i.text) LIKE ?1
-      UNION ALL SELECT 'block', b.id, b.name, i.text, 2 FROM block_topics i JOIN blocks b ON b.id = i.block_id  WHERE lower(i.text) LIKE ?1
-      UNION ALL SELECT 'block', b.id, b.name, c.label, 3 FROM block_courses c JOIN blocks b ON b.id = c.block_id WHERE lower(c.label) LIKE ?1
+      SELECT 'skill' AS kind, id, name, name AS matched, 0 AS rank FROM skills WHERE ${like('name')}
+      UNION ALL SELECT 'area', id, name, name, 0 FROM areas WHERE ${like('name')}
+      UNION ALL SELECT 'sub', id, name, name, 0 FROM subs WHERE ${like('name')}
+      UNION ALL SELECT 'category', id, name, name, 0 FROM categories WHERE ${like('name')}
+      UNION ALL SELECT 'skill', id, name, id, 1 FROM skills WHERE ${like('id')}
+      UNION ALL SELECT 'skill', id, name, intro, 2 FROM skills WHERE ${like('intro')}
+      UNION ALL SELECT 'sub', id, name, intro, 2 FROM subs WHERE ${like('intro')}
+      UNION ALL SELECT 'skill', s.id, s.name, x.text, 3 FROM skill_checks x JOIN skills s ON s.id = x.skill_id WHERE ${like('x.text')}
+      UNION ALL SELECT 'skill', s.id, s.name, x.text, 3 FROM skill_topics x JOIN skills s ON s.id = x.skill_id WHERE ${like('x.text')}
+      UNION ALL SELECT 'skill', s.id, s.name, x.label, 4 FROM skill_resources x JOIN skills s ON s.id = x.skill_id WHERE ${like('x.label')}
+      UNION ALL SELECT 'sub', s.id, s.name, x.text, 3 FROM sub_topics x JOIN subs s ON s.id = x.sub_id WHERE ${like('x.text')}
     )
     GROUP BY kind, id
-    ORDER BY MIN(rank), name
+    ORDER BY MIN(rank), length(name), name
     LIMIT ?2
   `
-  return db.prepare(sql).all(q, limit) as unknown as SearchHit[]
+  return db.prepare(sql).all(pattern, limit) as unknown as SearchHit[]
 }

@@ -15,5 +15,5 @@
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["server", "scripts", "tests", "src/types.ts"]
+  "include": ["server", "scripts", "tests", "src/types.ts", "src/lib/tree.ts"]
 }

@@ -73,21 +73,20 @@ export function migrate(db: DatabaseSync): MigrationResult {
 
 /** 内容表，按“先删谁”的顺序。学习者的表不在这里，重新播种不会动它们。 */
 export const CONTENT_TABLES = [
-  'sub_projects', 'sub_topics', 'sub_items', 'sub_tools', 'sub_requirements', 'subs',
-  'category_items', 'categories',
-  'tool_links', 'tool_topics', 'tools', 'tool_groups',
-  'block_courses', 'block_topics', 'block_prerequisites', 'block_items', 'blocks', 'layers',
+  'sub_requirements', 'sub_projects', 'sub_topics', 'sub_items', 'subs', 'category_items', 'categories',
+  'skill_resources', 'skill_topics', 'skill_checks', 'skill_prerequisites', 'skills',
+  'tool_groups', 'area_courses', 'areas', 'layers',
 ] as const
 
 export interface SeedResult {
   files: string[]
-  /** 内容换掉后，指向已不存在的块或方向的学习记录被清掉了多少条 */
-  orphanedProgress: number
+  /** 内容换掉后，指向已不存在的技能或方向的学习记录被清掉了多少条 */
+  orphaned: number
 }
 
 /**
  * 清空内容表，按 db/seed 里的文件重新灌一遍。整个过程在一个事务里，失败就全部回滚。
- * 播种时关掉外键检查，这样学习者的记录能保留；结束前再把指向已删除内容的记录清掉。
+ * 播种时关掉外键检查，这样学习者的记录能保留；结束前把指向已删除内容的记录清掉，再整体核对外键。
  */
 export function seed(db: DatabaseSync): SeedResult {
   const files = sqlFiles(SEED_DIR)
@@ -102,18 +101,22 @@ export function seed(db: DatabaseSync): SeedResult {
         throw new Error(`种子文件 ${name} 出错：${(e as Error).message}`)
       }
     }
-    const orphanedProgress =
-      Number(db.prepare('DELETE FROM learner_progress WHERE block_id NOT IN (SELECT id FROM blocks)').run().changes) +
+    const orphaned =
+      Number(db.prepare('DELETE FROM learner_skills WHERE skill_id NOT IN (SELECT id FROM skills)').run().changes) +
       Number(db.prepare('UPDATE learners SET goal_sub_id = NULL WHERE goal_sub_id IS NOT NULL AND goal_sub_id NOT IN (SELECT id FROM subs)').run().changes)
-    const broken = db.prepare('PRAGMA foreign_key_check').all()
+    const broken = db.prepare('PRAGMA foreign_key_check').all() as { table: string; parent: string; rowid: number }[]
     if (broken.length) {
-      const first = broken[0] as { table: string; rowid: number | null; parent: string }
-      throw new Error(`种子数据里有 ${broken.length} 处外键对不上，比如 ${first.table} 里引用了不存在的 ${first.parent}`)
+      const sample = broken.slice(0, 5).map((b) => `${b.table} 第 ${b.rowid} 行 → ${b.parent}`).join('；')
+      throw new Error(`种子数据里有 ${broken.length} 处引用对不上（多半是 id 拼错了）：${sample}`)
     }
     db.exec('COMMIT')
-    return { files: files.map((f) => f.name), orphanedProgress }
+    return { files: files.map((f) => f.name), orphaned }
   } catch (e) {
     db.exec('ROLLBACK')
+    // 临时视图可能留在连接上，清掉免得下次播种报“已存在”
+    for (const v of ['area_rows', 'concept_rows', 'tool_rows', 'resource_rows', 'category_rows', 'sub_rows']) {
+      db.exec(`DROP VIEW IF EXISTS temp.${v}`)
+    }
     throw e
   } finally {
     db.exec('PRAGMA foreign_keys = ON')
@@ -140,8 +143,8 @@ export interface Finding {
 type Row = Record<string, unknown>
 
 /**
- * 检查外键约束管不到的事情：前置有没有成环、顺序号有没有断、有没有没人用的内容。
- * error 会让 CI 失败；warning 只是提醒。
+ * 检查表约束管不到的事情：前置有没有成环、有没有连反、编号有没有断、内容有没有缺、有没有多余的写法。
+ * error 会让构建失败；warning 只是提醒。
  */
 export function check(db: DatabaseSync): Finding[] {
   const findings: Finding[] = []
@@ -152,79 +155,116 @@ export function check(db: DatabaseSync): Finding[] {
   for (const r of all('PRAGMA foreign_key_check')) error('foreign-key', `${r.table} 里有一行引用了不存在的 ${r.parent}`)
   for (const r of all('PRAGMA integrity_check')) if (r.integrity_check !== 'ok') error('integrity', String(r.integrity_check))
 
-  // 前置成环：一个块是它自己的前置
-  for (const r of all('SELECT block_id FROM block_ancestors WHERE block_id = ancestor_id')) {
-    error('prerequisite-cycle', `能力块 ${r.block_id} 的前置绕了一圈又回到自己`)
+  // ── 前置关系 ──
+  for (const r of all('SELECT skill_id FROM skill_ancestors WHERE skill_id = ancestor_id')) {
+    error('prerequisite-cycle', `技能 ${r.skill_id} 的前置绕了一圈又回到了自己`)
   }
-  // 前置只能指向同层或更低的层
+  // 前置只能在同层或更低的层：工具层算最高层，知识点不能依赖工具
   for (const r of all(`
-    SELECT p.block_id, p.prerequisite_id
-      FROM block_prerequisites p
-      JOIN blocks b ON b.id = p.block_id   JOIN layers lb ON lb.id = b.layer_id
-      JOIN blocks q ON q.id = p.prerequisite_id JOIN layers lq ON lq.id = q.layer_id
-     WHERE lq.position > lb.position
+    WITH lvl AS (
+      SELECT s.id, COALESCE(l.position, (SELECT MAX(position) + 1 FROM layers)) AS level
+        FROM skills s LEFT JOIN areas a ON a.id = s.area_id LEFT JOIN layers l ON l.id = a.layer_id
+    )
+    SELECT p.skill_id, p.prerequisite_id
+      FROM skill_prerequisites p
+      JOIN lvl a ON a.id = p.skill_id
+      JOIN lvl b ON b.id = p.prerequisite_id
+     WHERE b.level > a.level
   `)) {
-    error('prerequisite-layer', `能力块 ${r.block_id} 的前置 ${r.prerequisite_id} 在更高的层，图上会连反`)
+    error('prerequisite-layer', `技能 ${r.skill_id} 的前置 ${r.prerequisite_id} 在更高的层，树会画反`)
+  }
+  // 直接前置里写了另一个直接前置的祖先，多余
+  for (const r of all(`
+    SELECT p.skill_id, p.prerequisite_id, o.prerequisite_id AS via
+      FROM skill_prerequisites p
+      JOIN skill_prerequisites o ON o.skill_id = p.skill_id AND o.prerequisite_id <> p.prerequisite_id
+      JOIN skill_ancestors a ON a.skill_id = o.prerequisite_id AND a.ancestor_id = p.prerequisite_id
+  `)) {
+    warning('redundant-prerequisite', `技能 ${r.skill_id} 的前置 ${r.prerequisite_id} 已经是 ${r.via} 的前置，可以不写`)
+  }
+  // 既不依赖别人、也没人依赖的知识点，在树上是一座孤岛
+  for (const r of all(`
+    SELECT id FROM skills
+     WHERE kind = 'concept'
+       AND id NOT IN (SELECT skill_id FROM skill_prerequisites)
+       AND id NOT IN (SELECT prerequisite_id FROM skill_prerequisites)
+  `)) {
+    warning('isolated-skill', `知识点 ${r.id} 既没有前置，也不是任何技能的前置`)
   }
 
-  // 顺序号必须是 1..n 连续
-  const sequences: [string, string, string][] = [
-    ['layers', "'all'", 'position'],
-    ['blocks', 'layer_id', 'position'],
-    ['tool_groups', "'all'", 'position'],
-    ['tools', 'group_id', 'position'],
-    ['categories', "'all'", 'position'],
-    ['subs', 'category_id', 'position'],
-    ['block_items', 'block_id', 'position'], ['block_topics', 'block_id', 'position'], ['block_courses', 'block_id', 'position'],
-    ['tool_topics', 'tool_id', 'position'], ['tool_links', 'tool_id', 'position'],
-    ['category_items', 'category_id', 'position'],
-    ['sub_items', 'sub_id', 'position'], ['sub_topics', 'sub_id', 'position'], ['sub_projects', 'sub_id', 'position'],
+  // ── 编号必须从 1 连续 ──
+  const sequences: [string, string][] = [
+    ['layers', "'*'"], ['areas', 'layer_id'], ['tool_groups', "'*'"], ['categories', "'*'"], ['subs', 'category_id'],
+    ['area_courses', 'area_id'], ['skill_checks', 'skill_id'], ['skill_topics', 'skill_id'], ['skill_resources', 'skill_id'],
+    ['category_items', 'category_id'], ['sub_items', 'sub_id'], ['sub_topics', 'sub_id'], ['sub_projects', 'sub_id'],
   ]
-  for (const [table, group, col] of sequences) {
-    for (const r of all(`SELECT ${group} AS g, COUNT(*) AS n, MAX(${col}) AS m, MIN(${col}) AS lo FROM ${table} GROUP BY ${group} HAVING n <> m OR lo <> 1`)) {
-      error('position-gap', `${table} 里 ${r.g} 的 ${col} 不是从 1 连续编号（共 ${r.n} 行，最大 ${r.m}）`)
+  for (const [table, group] of sequences) {
+    for (const r of all(`SELECT ${group} AS g, COUNT(*) AS n, MIN(position) AS lo, MAX(position) AS hi FROM ${table} GROUP BY ${group} HAVING lo <> 1 OR hi <> n`)) {
+      error('position-gap', `${table} 里 ${r.g} 的 position 不是从 1 连续编号（共 ${r.n} 行，最大 ${r.hi}）`)
     }
   }
+  for (const r of all(`SELECT COALESCE(area_id, group_id) AS g, COUNT(*) AS n, MAX(position) AS hi FROM skills GROUP BY g HAVING MIN(position) <> 1 OR hi <> n`)) {
+    error('position-gap', `skills 里 ${r.g} 的 position 不是从 1 连续编号（共 ${r.n} 行，最大 ${r.hi}）`)
+  }
 
-  // 每个实体都得有面板内容
+  // ── 内容齐不齐 ──
   const required: [string, string, string, string][] = [
-    ['blocks', 'block_items', 'block_id', '方块文字'], ['blocks', 'block_topics', 'block_id', '会学到'], ['blocks', 'block_courses', 'block_id', '公开课'],
-    ['tools', 'tool_topics', 'tool_id', '学什么'], ['tools', 'tool_links', 'tool_id', '官方链接'],
+    ["(SELECT id FROM skills WHERE kind = 'concept')", 'skill_checks', 'skill_id', '学会的标志'],
+    ["(SELECT id FROM skills WHERE kind = 'tool')", 'skill_topics', 'skill_id', '要学的内容'],
+    ["(SELECT id FROM skills WHERE kind = 'tool')", 'skill_resources', 'skill_id', '官方链接'],
+    ['areas', 'area_courses', 'area_id', '推荐公开课'],
+    ['areas', "(SELECT area_id FROM skills WHERE area_id IS NOT NULL)", 'area_id', '技能'],
+    ['tool_groups', "(SELECT group_id FROM skills WHERE group_id IS NOT NULL)", 'group_id', '工具'],
     ['categories', 'category_items', 'category_id', '方块文字'],
-    ['subs', 'sub_items', 'sub_id', '方块文字'], ['subs', 'sub_topics', 'sub_id', '具体做什么'], ['subs', 'sub_projects', 'sub_id', '开源项目'],
-    ['subs', 'sub_requirements', 'sub_id', '需要的能力块'],
+    ['categories', 'subs', 'category_id', '细分方向'],
+    ['subs', 'sub_items', 'sub_id', '方块文字'],
+    ['subs', 'sub_topics', 'sub_id', '具体做什么'],
+    ['subs', 'sub_projects', 'sub_id', '代表项目'],
+    ['subs', '(SELECT sub_id FROM sub_requirements WHERE choice IS NULL)', 'sub_id', '必学技能'],
   ]
   for (const [parent, child, fk, what] of required) {
     for (const r of all(`SELECT id FROM ${parent} WHERE id NOT IN (SELECT ${fk} FROM ${child})`)) {
-      error('missing-content', `${parent} 里的 ${r.id} 没有“${what}”`)
+      error('missing-content', `${r.id} 没有“${what}”`)
     }
   }
-  for (const r of all('SELECT id FROM subs WHERE id NOT IN (SELECT sub_id FROM sub_tools)')) warning('no-tools', `细分方向 ${r.id} 没写会用到的工具`)
-  for (const r of all('SELECT id FROM categories WHERE id NOT IN (SELECT category_id FROM subs)')) error('empty-category', `大方向 ${r.id} 下面没有细分方向`)
-
-  // 没人用的内容
-  for (const r of all('SELECT id FROM tools WHERE id NOT IN (SELECT tool_id FROM sub_tools)')) warning('unused-tool', `工具 ${r.id} 没有任何方向用到，页面上永远不会亮`)
-  for (const r of all('SELECT id FROM blocks WHERE id NOT IN (SELECT block_id FROM sub_block_closure)')) warning('unused-block', `能力块 ${r.id} 没有任何方向需要，页面上永远不会亮`)
-  // 直接要求里写了会被前置自动带上的块，多余
-  for (const r of all(`
-    SELECT r.sub_id, r.block_id
-      FROM sub_requirements r
-      JOIN sub_requirements o ON o.sub_id = r.sub_id AND o.block_id <> r.block_id
-      JOIN block_ancestors a ON a.block_id = o.block_id AND a.ancestor_id = r.block_id
-  `)) {
-    warning('redundant-requirement', `细分方向 ${r.sub_id} 直接要求的 ${r.block_id} 已经是其他要求的前置，可以不写`)
+  for (const r of all("SELECT skill_id, COUNT(*) AS n FROM skill_checks GROUP BY skill_id HAVING n > 4")) {
+    warning('too-many-checks', `技能 ${r.skill_id} 有 ${r.n} 条“学会的标志”，2~3 条最好读`)
   }
-  // 链接不重复
+  for (const r of all("SELECT id, length(intro) AS n FROM skills WHERE length(intro) > 90")) {
+    warning('long-intro', `技能 ${r.id} 的介绍有 ${r.n} 个字，一句话最好控制在 90 字以内`)
+  }
+
+  // ── 方向的要求写得对不对 ──
+  for (const r of all(`
+    SELECT r.sub_id, r.skill_id, o.skill_id AS via
+      FROM sub_requirements r
+      JOIN sub_requirements o ON o.sub_id = r.sub_id AND o.skill_id <> r.skill_id AND o.choice IS NULL
+      JOIN skill_ancestors a ON a.skill_id = o.skill_id AND a.ancestor_id = r.skill_id
+     WHERE r.choice IS NULL
+  `)) {
+    warning('redundant-requirement', `方向 ${r.sub_id} 必学的 ${r.skill_id} 已经是 ${r.via} 的前置，可以不写`)
+  }
+  for (const r of all(`
+    SELECT ch.sub_id, ch.choice, ch.skill_id
+      FROM sub_choices ch
+      JOIN sub_skill_closure c ON c.sub_id = ch.sub_id AND c.skill_id = ch.skill_id
+  `)) {
+    error('choice-in-core', `方向 ${r.sub_id} 的任选组“${r.choice}”里的 ${r.skill_id} 已经是必学的了`)
+  }
+  for (const r of all("SELECT id FROM skills WHERE kind = 'tool' AND id NOT IN (SELECT skill_id FROM sub_skill_closure) AND id NOT IN (SELECT skill_id FROM sub_choices)")) {
+    warning('unused-tool', `工具 ${r.id} 没有任何方向用到`)
+  }
+  const hot = (db.prepare('SELECT COUNT(*) AS n FROM subs WHERE is_hot = 1').get() as Row).n as number
+  if (hot < 1 || hot > 4) warning('hot-count', `热门方向有 ${hot} 个，首页放 1~4 个比较合适`)
+
+  // ── 链接 ──
   for (const r of all(`
     SELECT url, COUNT(*) AS n FROM (
-      SELECT url FROM block_courses UNION ALL SELECT url FROM tool_links UNION ALL SELECT url FROM sub_projects
+      SELECT url FROM area_courses UNION ALL SELECT url FROM skill_resources UNION ALL SELECT url FROM sub_projects
     ) GROUP BY url HAVING n > 1
   `)) {
     warning('duplicate-url', `链接 ${r.url} 出现了 ${r.n} 次`)
   }
-  // 热门方向数量
-  const hot = (db.prepare('SELECT COUNT(*) AS n FROM subs WHERE is_hot = 1').get() as Row).n as number
-  if (hot < 1 || hot > 4) warning('hot-count', `热门方向有 ${hot} 个，左栏放 1~4 个比较合适`)
 
   return findings
 }

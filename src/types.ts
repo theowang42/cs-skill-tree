@@ -1,26 +1,40 @@
-// 前端和服务端共用的数据形状。由 server/roadmap.ts 从数据库查出来，
-// 静态站点读的是导出的 public/data/roadmap.json，跑服务时读的是 /api/roadmap，内容一样。
+// 前端和服务端共用的数据形状。
+// 内容（Roadmap）由 server/roadmap.ts 从数据库查出来：静态站点读导出的 public/data/roadmap.json，
+// 跑 API 服务时读 /api/roadmap，两者完全一样。所有引用都用 id，前端自己建索引。
 
 export interface Link {
   label: string
   url: string
 }
 
-export interface Block {
+export type SkillKind = 'concept' | 'tool'
+
+export interface Skill {
   id: string
-  layerId: string
+  kind: SkillKind
   name: string
   intro: string
-  /** 方块上显示的 2~3 行 */
-  items: string[]
+  /** 只有工具有：出品方 */
+  org?: string
+  /** 知识点所在的领域 */
+  areaId?: string
+  /** 工具所在的工具组 */
+  groupId?: string
+  /** 在领域里排第几行：领域内最长前置链的长度，从 1 开始 */
+  tier: number
   /** 直接前置 */
   prerequisites: string[]
-  /** 右侧面板“会学到” */
+  /** 直接依赖它的技能 */
+  dependents: string[]
+  /** 有多少技能直接或间接依赖它 */
+  weight: number
+  /** 学会的标志 */
+  checks: string[]
+  /** 要学的内容 */
   topics: string[]
-  /** 推荐公开课 */
-  courses: Link[]
-  /** 学会了可以去做的细分方向（含间接依赖它的） */
-  unlocks: string[]
+  resources: Link[]
+  /** 必学它的细分方向（含间接） */
+  requiredBy: string[]
 }
 
 export interface Layer {
@@ -28,32 +42,34 @@ export interface Layer {
   name: string
   /** 1 是最底层 */
   position: number
-  blocks: Block[]
+  areaIds: string[]
 }
 
-export interface Tool {
+export interface Area {
   id: string
-  groupId: string
+  layerId: string
   name: string
-  org: string
   intro: string
-  topics: string[]
-  links: Link[]
-  /** 会用到它的细分方向 */
-  usedBy: string[]
+  courses: Link[]
+  /** 按行、再按顺序排好 */
+  skillIds: string[]
 }
 
 export interface ToolGroup {
   id: string
   name: string
   shortName: string
-  tools: Tool[]
+  skillIds: string[]
 }
 
 export interface PlanStep {
-  blockId: string
-  /** 第几步学，从 1 开始 */
+  skillId: string
   step: number
+}
+
+export interface Choice {
+  label: string
+  options: string[]
 }
 
 export interface Sub {
@@ -61,14 +77,15 @@ export interface Sub {
   categoryId: string
   name: string
   intro: string
-  items: string[]
   isHot: boolean
-  /** 直接要求的能力块 */
-  requirements: string[]
-  tools: string[]
+  items: string[]
   topics: string[]
   projects: Link[]
-  /** 要学的全部能力块和顺序，由数据库视图 sub_learning_plan 算出 */
+  /** 直接写在方向上的必学技能 */
+  requirements: string[]
+  /** 任选组 */
+  choices: Choice[]
+  /** 必学的全部技能（含前置）和学习顺序，由数据库视图 sub_learning_plan 算出 */
   plan: PlanStep[]
 }
 
@@ -77,23 +94,65 @@ export interface Category {
   name: string
   intro: string
   items: string[]
-  subs: Sub[]
+  subIds: string[]
 }
 
 export interface Roadmap {
+  version: 2
   generatedAt: string
   /** 从底层到顶层 */
   layers: Layer[]
+  areas: Area[]
   toolGroups: ToolGroup[]
+  skills: Skill[]
   categories: Category[]
+  subs: Sub[]
 }
 
-// ───────────── 学习者（只有跑着 API 服务时才有） ─────────────
+// ───────────── 学习进度 ─────────────
 
-export type ProgressStatus = 'learning' | 'done'
+/** 学习者亲手标的状态 */
+export type Status = 'learning' | 'done'
+/** 页面上显示的状态：标过的直接用；没标的看前置是不是都 done */
+export type SkillState = 'locked' | 'available' | Status
 
-export interface LearnerState {
-  id: string
+export interface ProgressEntry {
+  status: Status
+  /** ISO 时间 */
+  updatedAt: string
+}
+
+export interface Progress {
   goalSubId: string | null
-  progress: Record<string, ProgressStatus>
+  skills: Record<string, ProgressEntry>
+}
+
+/** 导出 / 导入用的进度文件 */
+export interface ProgressFile extends Progress {
+  format: 'cs-skill-tree-progress'
+  version: 1
+  exportedAt: string
+}
+
+/** API 里的学习者 */
+export interface Learner extends Progress {
+  id: string
+}
+
+export interface Readiness {
+  subId: string
+  coreTotal: number
+  coreDone: number
+  coreLearning: number
+  choiceTotal: number
+  choiceDone: number
+  /** 0~100，保留一位小数 */
+  percent: number
+}
+
+export interface LearnerEvent {
+  skillId: string
+  from: Status | null
+  to: Status | null
+  at: string
 }

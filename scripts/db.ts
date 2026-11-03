@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 // 数据库命令行。用法：npm run db -- <命令>
 //
-//   build    删掉旧库，建表并灌入 db/seed 的内容（日常用这个）
+//   build    删掉旧库，建表并灌入 db/seed 的内容，再体检（加 --export 顺便导出 JSON）
 //   migrate  只跑还没跑过的迁移，保留已有数据（线上升级用）
 //   seed     只重新灌内容，保留学习者数据
 //   check    体检：外键、成环、编号、没人用的内容
 //   export   把整棵树导出成 public/data/roadmap.json，给静态站点用
 //   stats    每张表有多少行
 //   query    跑一条 SQL，例如 npm run db -- query "SELECT * FROM sub_learning_plan WHERE sub_id = 'agent'"
+//   events   最近的学习记录（API 模式下有数据）
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -37,10 +38,8 @@ function runExport(db = openDatabase()) {
   const roadmap = getRoadmap(db)
   mkdirSync(dirname(EXPORT_PATH), { recursive: true })
   writeFileSync(EXPORT_PATH, JSON.stringify(roadmap, null, 2) + '\n')
-  const subs = roadmap.categories.reduce((n, c) => n + c.subs.length, 0)
-  const blocks = roadmap.layers.reduce((n, l) => n + l.blocks.length, 0)
-  const tools = roadmap.toolGroups.reduce((n, g) => n + g.tools.length, 0)
-  console.log(`已导出 ${EXPORT_PATH}：${roadmap.categories.length} 个大方向、${subs} 个细分方向、${tools} 个工具、${blocks} 个能力块`)
+  const tools = roadmap.skills.filter((s) => s.kind === 'tool').length
+  console.log(`已导出 ${EXPORT_PATH}：${roadmap.areas.length} 个领域、${roadmap.skills.length - tools} 个知识点、${tools} 个工具、${roadmap.subs.length} 个方向`)
 }
 
 switch (command) {
@@ -48,6 +47,7 @@ switch (command) {
     const db = rebuild()
     console.log(`已重建 ${DEFAULT_DB_PATH}`)
     if (!runCheck(db)) process.exit(1)
+    if (args.includes('--export')) runExport(db)
     break
   }
   case 'migrate': {
@@ -57,7 +57,7 @@ switch (command) {
   }
   case 'seed': {
     const r = seed(openDatabase())
-    console.log(`已重新灌入 ${r.files.join('、')}${r.orphanedProgress ? `，清理了 ${r.orphanedProgress} 条失效的学习记录` : ''}`)
+    console.log(`已重新灌入 ${r.files.join('、')}${r.orphaned ? `，清理了 ${r.orphaned} 条失效的学习记录` : ''}`)
     break
   }
   case 'check':
@@ -69,6 +69,9 @@ switch (command) {
   case 'stats':
     printTable(Object.entries(tableCounts(openDatabase())).map(([table, rows]) => ({ table, rows })))
     break
+  case 'events':
+    printTable(openDatabase().prepare('SELECT e.at, e.learner_id, s.name, e.from_status, e.to_status FROM learner_events e LEFT JOIN skills s ON s.id = e.skill_id ORDER BY e.id DESC LIMIT 30').all() as Record<string, unknown>[])
+    break
   case 'query': {
     const sql = args.join(' ')
     if (!sql) {
@@ -79,6 +82,6 @@ switch (command) {
     break
   }
   default:
-    console.error('用法：npm run db -- build | migrate | seed | check | export | stats | query "<SQL>"')
+    console.error('用法：npm run db -- build [--export] | migrate | seed | check | export | stats | events | query "<SQL>"')
     process.exit(2)
 }
