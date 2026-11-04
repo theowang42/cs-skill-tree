@@ -15,9 +15,9 @@ function Welcome({ onStart, onClose }: { onStart: () => void; onClose: () => voi
     <div className="welcome">
       <h3>你在星图的中心</h3>
       <p>
-        周围 {tree.roadmap.skills.length} 颗星是 CS 的技能，越靠内越基础。把你会的点亮，亮区的边缘就是你的<b>能力边界</b>：前置都会了、现在就能学的星。
+        黑暗里一共有 {tree.roadmap.skills.length} 颗星，越靠内越基础。点亮你会的，光会照出旁边能学的星，那就是你的<b>能力边界</b>。
       </p>
-      <p>外圈的信标是职业方向。哪片星域亮了，你就离哪个方向近。</p>
+      <p>远处的信标是职业方向。哪片星域亮了，你就离哪个方向近。</p>
       <div className="row-actions">
         <button className="primary" onClick={onStart}>开始自评（约 3 分钟）</button>
         <button onClick={onClose}>先随便看看</button>

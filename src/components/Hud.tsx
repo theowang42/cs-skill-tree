@@ -1,6 +1,6 @@
-// 顶部的仪表：进度、目标、视图、快速点亮、“带我去下一颗”、搜索
+// 顶栏：左边名字（开面板），右边目标、“下一颗”、进度、搜索。能少一个就少一个。
 import { useEffect, useRef, useState } from 'react'
-import { useApp, type View } from '../state'
+import { useApp } from '../state'
 import { searchTree, snippet, type Hit } from '../lib/search'
 import { frontier, totals } from '../lib/tree'
 
@@ -17,7 +17,8 @@ function Search() {
       const typing = e.target instanceof HTMLElement && e.target.closest('input, textarea, [contenteditable]') !== null
       if (e.key === '/' && !typing) {
         e.preventDefault()
-        input.current?.focus()
+        setOpen(true)
+        window.setTimeout(() => input.current?.focus(), 0)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -32,22 +33,22 @@ function Search() {
   }
 
   return (
-    <div className="search" role="combobox" aria-expanded={open && hits.length > 0} aria-haspopup="listbox">
+    <div className={`search${open ? ' open' : ''}`} role="combobox" aria-expanded={open && hits.length > 0} aria-haspopup="listbox">
+      <button className="search-btn" onClick={() => { setOpen(true); window.setTimeout(() => input.current?.focus(), 0) }} aria-label="搜索（/）">⌕</button>
       <input
         ref={input}
         id="search-input"
         type="search"
-        placeholder="找一颗星（/）"
+        placeholder="找一颗星"
         value={q}
         autoComplete="off"
-        onChange={(e) => { setQ(e.target.value); setSel(0); setOpen(true) }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+        onChange={(e) => { setQ(e.target.value); setSel(0) }}
+        onBlur={() => window.setTimeout(() => { if (!q) setOpen(false) }, 150)}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown') { e.preventDefault(); setSel((s) => Math.max(0, Math.min(s + 1, hits.length - 1))) }
           else if (e.key === 'ArrowUp') { e.preventDefault(); setSel((s) => Math.max(s - 1, 0)) }
           else if (e.key === 'Enter' && hits[sel]) go(hits[sel])
-          else if (e.key === 'Escape') { setQ(''); input.current?.blur() }
+          else if (e.key === 'Escape') { setQ(''); setOpen(false); input.current?.blur() }
         }}
         aria-label="搜索"
       />
@@ -69,14 +70,8 @@ function Search() {
   )
 }
 
-const VIEWS: [View, string, string][] = [
-  ['all', '全部', '显示所有星'],
-  ['goal', '目标', '只亮出当前方向要学的'],
-  ['frontier', '边界', '只亮出已掌握和现在能学的'],
-]
-
 export function Hud({ onTogglePanel, panelOpen }: { onTogglePanel: () => void; panelOpen: boolean }) {
-  const { tree, states, progress, readinessBySub, view, setView, quick, setQuick, readOnly, setFocus, activeSubId, focus } = useApp()
+  const { tree, states, progress, readinessBySub, readOnly, setFocus } = useApp()
   const t = totals(states)
   const goal = progress.goalSubId ? tree.subs.get(progress.goalSubId) : null
   const r = goal ? readinessBySub.get(goal.id)! : null
@@ -87,45 +82,31 @@ export function Hud({ onTogglePanel, panelOpen }: { onTogglePanel: () => void; p
       <button className={`brand${panelOpen ? ' open' : ''}`} onClick={onTogglePanel} title={panelOpen ? '收起面板' : '打开面板'}>
         <span className="brand-mark" aria-hidden />
         <span className="brand-name">CS 星图</span>
+        <span className="brand-count">
+          <b>{t.done}</b>/{t.total}
+        </span>
       </button>
-      <div className="hud-stats" title={`已掌握 ${t.done}，在学 ${t.learning}，能力边界 ${t.available}，还够不着 ${t.locked}`}>
-        <span className="st st-done"><b>{t.done}</b>已掌握</span>
-        <span className="st st-available"><b>{t.available}</b>能学</span>
-        <span className="st st-total"><b>{t.total}</b>颗星</span>
-      </div>
-      <button
-        className={`hud-goal${goal ? '' : ' empty'}`}
-        onClick={() => (goal ? setFocus({ kind: 'sub', id: goal.id }, { scroll: true }) : setFocus({ kind: 'category', id: tree.roadmap.categories[0].id }, { scroll: true }))}
-      >
-        {goal && r ? (
-          <>
-            <span className="goal-dot" aria-hidden />
-            {goal.name} <b>{Math.round(r.percent)}%</b>
-          </>
-        ) : (
-          '选一个目标方向'
-        )}
-      </button>
-      {next && !readOnly && (
-        <button className="hud-next" onClick={() => setFocus({ kind: 'skill', id: next.id }, { scroll: true })} title="飞到最该学的那颗星">
-          下一颗 → {tree.skill(next.id).name}
+      <div className="hud-right">
+        <button
+          className={`hud-goal${goal ? '' : ' empty'}`}
+          onClick={() => (goal ? setFocus({ kind: 'sub', id: goal.id }, { scroll: true }) : setFocus({ kind: 'category', id: tree.roadmap.categories[0].id }, { scroll: true }))}
+        >
+          {goal && r ? (
+            <>
+              <span className="goal-dot" aria-hidden />
+              {goal.name} <b>{Math.round(r.percent)}%</b>
+            </>
+          ) : (
+            '选一个目标方向'
+          )}
         </button>
-      )}
-      <div className="segmented views" role="radiogroup" aria-label="显示">
-        {VIEWS.map(([v, label, title]) => (
-          <button key={v} role="radio" aria-checked={view === v} className={view === v ? 'on' : ''} onClick={() => setView(v)} title={title} disabled={v === 'goal' && !activeSubId}>
-            {label}
+        {next && !readOnly && (
+          <button className="hud-next" onClick={() => setFocus({ kind: 'skill', id: next.id }, { scroll: true })} title="飞到最该学的那颗星">
+            下一颗 <b>{tree.skill(next.id).name}</b>
           </button>
-        ))}
+        )}
+        <Search />
       </div>
-      {!readOnly && (
-        <label className={`quick-toggle${quick ? ' on' : ''}`} title="打开后点星直接切换：没学 → 已掌握 → 在学 → 没学（快捷键 Q）">
-          <input type="checkbox" checked={quick} onChange={(e) => setQuick(e.target.checked)} />
-          <span>快速点亮</span>
-        </label>
-      )}
-      <Search />
-      {focus && <span className="sr-only">当前选中 {focus.kind} {focus.id}</span>}
     </header>
   )
 }

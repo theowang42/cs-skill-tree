@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Progress, Roadmap } from './types'
 import { Tree } from './lib/tree'
-import { createStore, readStorage, roadmapUrl, sanitize, USE_API, type ProgressStore } from './lib/store'
+import { createStore, roadmapUrl, sanitize, USE_API, type ProgressStore } from './lib/store'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { decodeShare } from './lib/share'
 import { AppProvider, useApp, type Focus, type FocusKind } from './state'
@@ -72,8 +72,8 @@ function InitialFocus({ focus }: { focus: Focus }) {
 
 function Shell() {
   const { focus } = useApp()
-  // 第一次来（还没看过介绍）时把面板打开，能看到“开始自评”
-  const [panelOpen, setPanelOpen] = useState(() => !readStorage('cs-skill-tree:intro-done'))
+  // 面板默认收起：第一次来只看到星图和圆心旁的提示
+  const [panelOpen, setPanelOpen] = useState(false)
   useEffect(() => {
     if (focus) setPanelOpen(true)
   }, [focus])

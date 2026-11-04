@@ -2,7 +2,7 @@
 
 [简体中文](../README.md) | English
 
-**A star map of computer science. You sit at the center, the skills you know are lit stars, and the edge of the lit region is your learning frontier.**
+**A star map of computer science that you reveal by lighting it. It starts dark: you sit at the center, light the skills you know, and the light shows the stars next to them. The edge of the lit region is your learning frontier.**
 
 - 225 stars (183 concepts plus 42 languages, frameworks and platforms) joined by 325 prerequisite edges. Fundamentals sit near the center; each ring outward is more advanced
 - Every star lists concrete checks for "you have learned this", so self-assessment stays honest

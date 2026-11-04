@@ -9,7 +9,6 @@ import { decodeShare } from './lib/share'
 
 export type FocusKind = 'skill' | 'area' | 'sub' | 'category'
 export type Focus = { kind: FocusKind; id: string } | null
-export type View = 'all' | 'goal' | 'frontier'
 
 export interface Toast {
   id: number
@@ -49,8 +48,9 @@ export interface AppState {
   openCategory: string | null
   setOpenCategory: (id: string | null) => void
 
-  view: View
-  setView: (v: View) => void
+  /** 迷雾：只显示已点亮、能学的和它们旁边的星。关掉就看全图。 */
+  fog: boolean
+  setFog: (f: boolean) => void
   quick: boolean
   setQuick: (q: boolean) => void
   /** 刚刚解锁或点亮的技能，树上闪一下 */
@@ -79,12 +79,12 @@ export function useApp(): AppState {
 
 const PREFS_KEY = 'cs-skill-tree:prefs'
 
-function loadPrefs(): { view: View; quick: boolean } {
+function loadPrefs(): { fog: boolean; quick: boolean } {
   try {
     const p = JSON.parse(readStorage(PREFS_KEY) ?? '{}')
-    return { view: ['all', 'goal', 'frontier'].includes(p.view) ? p.view : 'all', quick: p.quick === true }
+    return { fog: p.fog !== false, quick: p.quick === true }
   } catch {
-    return { view: 'all', quick: false }
+    return { fog: true, quick: false }
   }
 }
 
@@ -106,9 +106,9 @@ export function AppProvider({
   const [hover, setHover] = useState<string | null>(null)
   const [openCategory, setOpenCategory] = useState<string | null>(null)
   const prefs = useMemo(loadPrefs, [])
-  const [view, setView] = useState<View>(prefs.view)
+  const [fog, setFog] = useState(prefs.fog)
   const [quick, setQuick] = useState(prefs.quick)
-  useEffect(() => writeStorage(PREFS_KEY, JSON.stringify({ view, quick })), [view, quick])
+  useEffect(() => writeStorage(PREFS_KEY, JSON.stringify({ fog, quick })), [fog, quick])
 
   const [pulse, setPulse] = useState<Set<string>>(new Set())
   const pulseTimer = useRef<number>(0)
@@ -272,7 +272,7 @@ export function AppProvider({
   const value: AppState = {
     tree, store, progress, states, readinessBySub, readOnly, shared, leaveShared, adoptShared,
     focus, setFocus, flyRequest, hover, setHover, activeSubId, openCategory, setOpenCategory,
-    view, setView, quick, setQuick, pulse,
+    fog, setFog, quick, setQuick, pulse,
     change, setStatus, lightWithPrerequisites, setGoal, replaceProgress, resetProgress,
     toasts, toast, dismissToast,
   }
