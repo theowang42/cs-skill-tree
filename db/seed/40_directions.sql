@@ -1,5 +1,6 @@
 -- 方向：从技能树往外走，最后到达的职业位置。按“通用标准、只看重磅方向”的排序。
 -- 细分方向每行：id, 大方向, 名字, 介绍, 是否热门, 方块上三行, 具体做这些, 代表项目, 必学技能, 任选组。
+-- 方向画在技能树的枝头：挂在必学技能的第一个后面。
 
 INSERT INTO category_rows VALUES ('ai-infra', 'AI Infra',
  '让大模型跑得更快、更省钱。推理支出已经超过训练，这是最可迁移、也最难被替代的 AI 方向。',
@@ -28,7 +29,13 @@ INSERT INTO sub_rows VALUES
  '["llama.cpp", "量化", "C++"]',
  '["量化模型", "写 CPU / Metal 后端", "做本地应用"]',
  '[["llama.cpp", "https://github.com/ggml-org/llama.cpp"]]',
- '["edge-infer"]', '{}');
+ '["edge-infer"]', '{}'),
+('training-infra', 'ai-infra', '训练基础设施',
+ '让几百张卡一起训练一个模型还不出错。', 0,
+ '["FSDP", "混合精度", "集群"]',
+ '["搭训练集群", "优化训练吞吐", "排查训练故障"]',
+ '[["Megatron-LM", "https://github.com/NVIDIA/Megatron-LM"], ["TorchTitan", "https://github.com/pytorch/torchtitan"]]',
+ '["dist-train", "perf"]', '{}');
 
 INSERT INTO category_rows VALUES ('ai-product', 'AI 产品',
  '用大模型做出自己的产品。唯一真正归自己所有的东西；会推理部署的人做得起别人做不起的产品。',
@@ -45,7 +52,7 @@ INSERT INTO sub_rows VALUES
  '["RAG", "Agent", "后端"]',
  '["做问答和检索", "做 Agent 工作流", "接进业务系统"]',
  '[["LangGraph", "https://github.com/langchain-ai/langgraph"], ["MCP 服务器", "https://github.com/modelcontextprotocol/servers"]]',
- '["agent", "rag", "fastapi"]', '{}');
+ '["agent"]', '{}');
 
 INSERT INTO category_rows VALUES ('systems', '底层系统',
  '操作系统、分布式、数据库。已经成熟，适合学原理打地基，不一定深挖。',
@@ -56,7 +63,7 @@ INSERT INTO sub_rows VALUES
  '["内核", "并发", "性能"]',
  '["写系统服务", "排查性能问题", "读 Linux 源码"]',
  '[["Linux", "https://github.com/torvalds/linux"]]',
- '["concurrency", "perf", "networking"]', '{}'),
+ '["kernel", "perf", "concurrency"]', '{"加分项": ["rust"]}'),
 ('distributed-eng', 'systems', '分布式 / 数据库',
  '做存储、数据库、分布式基础设施。', 0,
  '["分布式", "存储", "共识"]',
@@ -64,7 +71,7 @@ INSERT INTO sub_rows VALUES
  '[["PostgreSQL", "https://github.com/postgres/postgres"], ["etcd", "https://github.com/etcd-io/etcd"]]',
  '["distributed", "db-internals"]', '{}');
 
-INSERT INTO category_rows VALUES ('other', '其他方向',
+INSERT INTO category_rows VALUES ('other', '边线',
  '安全、机器人、区块链、量化。按通用标准不是主线：安全是按漏洞拿钱的劳动，机器人还在早期，区块链和量化放在资本层。',
  '["量化", "安全", "机器人"]');
 INSERT INTO sub_rows VALUES
@@ -79,13 +86,13 @@ INSERT INTO sub_rows VALUES
  '["Web 安全", "二进制", "CTF"]',
  '["渗透测试", "漏洞挖掘"]',
  '[["OWASP", "https://owasp.org/"]]',
- '["web-security", "pwn"]', '{}'),
+ '["reverse", "web-security"]', '{}'),
 ('robotics', 'other', '机器人',
  '让模型控制真实世界的机器。', 0,
  '["ROS 2", "控制", "仿真"]',
  '["写机器人软件", "接入视觉和语言模型"]',
  '[["ROS 2", "https://github.com/ros2/ros2"]]',
- '["ros"]', '{"加分项": ["pytorch"]}'),
+ '["robot-learning"]', '{}'),
 ('blockchain', 'other', '区块链',
  '写智能合约和链上应用。', 0,
  '["智能合约", "以太坊"]',

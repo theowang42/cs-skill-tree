@@ -53,9 +53,9 @@ test('每个细分方向的学习计划都从没有前置的技能开始，并�
 test('体检能发现成环、等级倒挂、编号断档和重复图标', () => {
   const db = freshDb()
   db.exec("INSERT INTO skill_prerequisites VALUES ('python', 'agent')") // 成环
-  db.exec("UPDATE skills SET level = 1 WHERE id = 'cuda'") // 手写的等级比前置 C++ 还低
-  db.exec("UPDATE skills SET level = 3 WHERE id = 'cpp'")
-  db.exec("UPDATE skill_resources SET position = 9 WHERE skill_id = 'python' AND position = 2")
+  db.exec("UPDATE skills SET level = 1 WHERE id = 'cuda'") // 手写的等级比前置 CS149 还低
+  db.exec("UPDATE skills SET level = 3 WHERE id = 'parallel'")
+  db.exec("UPDATE skill_resources SET position = 9 WHERE skill_id = 'git' AND position = 2")
   db.exec("UPDATE skills SET icon = 'si:python' WHERE id = 'javascript'")
   const rules = new Set(check(db).filter((f) => f.level === 'error').map((f) => f.rule))
   assert.ok(rules.has('prerequisite-cycle'))

@@ -6,7 +6,7 @@ INSERT INTO layers (id, name, position) VALUES
   ('advanced',   '边线', 3);
 
 INSERT INTO area_rows VALUES
-('base',     'foundation', '地基',     '编程语言、工具、数学和写作。每样都要有，最可迁移。'),
+('base',     'foundation', '地基',     'CS 核心课、数学和每天都用的工具。每样都要有，最可迁移。'),
 ('infra',    'core',       'AI Infra', '让大模型跑得更快更省：推理引擎、GPU kernel、AI 编译器。'),
 ('product',  'core',       'AI 产品',  '用大模型做出自己的产品：后端、前端、RAG、Agent。'),
 ('systems',  'core',       '底层系统', '操作系统、并发、网络、编译器、分布式：AI Infra 的根。'),

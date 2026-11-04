@@ -77,7 +77,7 @@ test('学习者的完整流程', async () => {
   assert.equal(sum.counts.done, 1)
   assert.equal(sum.counts.learning, 1)
   assert.equal(sum.goal.subId, 'inference')
-  assert.ok(sum.frontier.some((f: { skillId: string }) => f.skillId === 'dsa'))
+  assert.ok(sum.frontier.some((f: { skillId: string }) => f.skillId === 'math'))
   assert.ok(!sum.frontier.some((f: { skillId: string }) => f.skillId === 'python'))
 
   const ev = (await call('GET', `/learners/${id}/events`)).body

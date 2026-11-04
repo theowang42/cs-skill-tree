@@ -1,10 +1,11 @@
-// 技能网：地基在中心，每个领域朝一个方向长出去，越往外越深。白底黑线。
-// 已掌握是实心黑，能学是黑框，还够不着是浅灰。悬停或选中时，前置路线和它解锁的保持清楚，其余变淡。
+// 技能树：CS 核心课在中心，一条条链往四周长，枝头是方向。白底黑线。
+// 课程是方块（里面是课号），技能是圆（里面是图标）。已掌握是实心黑，能学是黑框，还够不着是浅灰。
+// 每个节点只画一根枝（连到主前置）；悬停或选中时，其余前置用虚线补出来，整条路线保持清楚，其余变淡。
 // 平移缩放不走 React：直接改 <g> 的 transform。
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
-import { layoutWeb, NODE_R } from '../lib/webLayout'
+import { layoutWeb, NODE_R, subNodeId } from '../lib/webLayout'
 import { ICONS } from '../generated/icons'
 import { frontier, missingPrerequisites } from '../lib/tree'
 
@@ -18,7 +19,10 @@ const MIN_K = 0.3
 const MAX_K = 2.5
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 
+export const isCourse = (icon: string) => icon.startsWith('text:')
+
 export function SkillGlyph({ icon, size }: { icon: string; size: number }) {
+  if (isCourse(icon)) return <span className="code" style={{ fontSize: size * 0.5 }}>{icon.slice(5)}</span>
   const spec = ICONS[icon]
   if (!spec) return null
   if (spec.kind === 'lucide') {
@@ -50,7 +54,7 @@ interface NodeProps {
 }
 
 const Node = memo(function Node({ id, x, y, name, icon, state, focused, relation, next, pulse, onClick, onHover }: NodeProps) {
-  const cls = ['node', `s-${state}`, focused && 'focused', relation !== 'none' && `r-${relation}`, pulse && 'pulse'].filter(Boolean).join(' ')
+  const cls = ['node', isCourse(icon) && 'course', `s-${state}`, focused && 'focused', relation !== 'none' && `r-${relation}`, pulse && 'pulse'].filter(Boolean).join(' ')
   return (
     <g
       className={cls}
@@ -60,20 +64,71 @@ const Node = memo(function Node({ id, x, y, name, icon, state, focused, relation
       onPointerEnter={() => onHover(id)}
       onPointerLeave={() => onHover(null)}
     >
-      <circle className="box" r={NODE_R} />
-      <foreignObject x={-12} y={-12} width="24" height="24">
-        <div className="glyph">
-          <SkillGlyph icon={icon} size={24} />
-        </div>
-      </foreignObject>
+      {isCourse(icon) ? (
+        <>
+          <rect className="box" x={-NODE_R} y={-NODE_R} width={NODE_R * 2} height={NODE_R * 2} rx={6} />
+          <text className="code" dy="0.35em">{icon.slice(5)}</text>
+        </>
+      ) : (
+        <>
+          <circle className="box" r={NODE_R} />
+          <foreignObject x={-12} y={-12} width="24" height="24">
+            <div className="glyph">
+              <SkillGlyph icon={icon} size={24} />
+            </div>
+          </foreignObject>
+        </>
+      )}
       {next && <path className="next-mark" d={`M-6,${-NODE_R - 13} L6,${-NODE_R - 13} L0,${-NODE_R - 6}Z`} />}
       <text className="lbl" y={NODE_R + 18}>{name}</text>
     </g>
   )
 })
 
+interface TipProps {
+  id: string
+  x: number
+  y: number
+  /** 朝外的方向：名字写在菱形外侧，不压到枝上的节点 */
+  angle: number
+  name: string
+  percent: number
+  goal: boolean
+  focused: boolean
+  dim: boolean
+  onClick: (id: string) => void
+  onHover: (id: string | null) => void
+}
+
+/** 枝头的方向：一个小菱形和名字。点它看要学什么、设为目标 */
+const Tip = memo(function Tip({ id, x, y, angle, name, percent, goal, focused, dim, onClick, onHover }: TipProps) {
+  const c = Math.cos(angle)
+  const sn = Math.sin(angle)
+  // 左右两边：名字横着写在外侧；上下：写在菱形的上方或下方
+  const side = c > 0.4 ? 'start' : c < -0.4 ? 'end' : 'middle'
+  const tx = side === 'start' ? 14 : side === 'end' ? -14 : 0
+  const ty = side === 'middle' ? (sn > 0 ? 24 : -26) : 0
+  const hitW = 130
+  const cls = ['tip', goal && 'goal', focused && 'focused', dim && 'dim', percent >= 100 && 'reached'].filter(Boolean).join(' ')
+  return (
+    <g
+      className={cls}
+      transform={`translate(${x},${y})`}
+      data-sub={id}
+      onClick={(e) => { e.stopPropagation(); onClick(id) }}
+      onPointerEnter={() => onHover(id)}
+      onPointerLeave={() => onHover(null)}
+    >
+      <rect className="hit" x={side === 'start' ? -12 : side === 'end' ? -hitW : -hitW / 2} y={side === 'middle' ? (sn > 0 ? -12 : -50) : -20} width={side === 'middle' ? hitW : hitW + 12} height={side === 'middle' ? 62 : 44} />
+      <path className="diamond" d="M0,-8 L8,0 L0,8 L-8,0Z" />
+      <text className="tip-name" x={tx} y={ty} dy="0.1em" style={{ textAnchor: side }}>{name}</text>
+      <text className="tip-pct" x={tx} y={ty + 16} dy="0.1em" style={{ textAnchor: side }}>{Math.round(percent)}%</text>
+    </g>
+  )
+})
+
 export function SkillTree() {
-  const { tree, states, focus, setFocus, hover, setHover, pulse, progress, quick, readOnly, change, toast, lightWithPrerequisites, flyRequest } = useApp()
+  const { tree, states, focus, setFocus, hover, setHover, pulse, progress, quick, readOnly, change, toast, lightWithPrerequisites, flyRequest, readinessBySub } = useApp()
   const layout = useMemo(() => layoutWeb(tree), [tree])
   const wrap = useRef<HTMLDivElement>(null)
   const svg = useRef<SVGSVGElement>(null)
@@ -81,8 +136,9 @@ export function SkillTree() {
   const viewRef = useRef<View>({ x: 0, y: 0, k: 1 })
   const anim = useRef(0)
   const [size, setSize] = useState({ w: 0, h: 0 })
-  const [areaHover, setAreaHover] = useState<string | null>(null)
+  const [tipHover, setTipHover] = useState<string | null>(null)
   const focusedSkill = focus?.kind === 'skill' ? focus.id : null
+  const focusedSub = focus?.kind === 'sub' ? focus.id : null
   const focusedArea = focus?.kind === 'area' ? focus.id : null
 
   // ── 视图 ──
@@ -105,11 +161,21 @@ export function SkillTree() {
     anim.current = requestAnimationFrame(step)
   }, [apply])
 
+  /** 看全图 */
   const fit = useCallback((ms?: number) => {
     const b = layout.bounds
     if (!size.w) return
     const k = Math.min(MAX_K, Math.max(MIN_K, Math.min(size.w / (b.maxX - b.minX), size.h / (b.maxY - b.minY))))
     flyTo({ x: size.w / 2 - ((b.minX + b.maxX) / 2) * k, y: size.h / 2 - ((b.minY + b.maxY) / 2) * k, k }, ms)
+  }, [layout, size, flyTo])
+
+  /** 打开时：从中心的核心课看起，字看得清；往外拖或缩小再看枝头 */
+  const home = useCallback((ms?: number) => {
+    const b = layout.bounds
+    if (!size.w) return
+    const all = Math.min(size.w / (b.maxX - b.minX), size.h / (b.maxY - b.minY))
+    const k = Math.min(1, Math.max(all, size.w < 700 ? 0.6 : 0.78))
+    flyTo({ x: size.w / 2, y: size.h / 2 + 40 * k, k }, ms)
   }, [layout, size, flyTo])
 
   const centerOn = useCallback((x: number, y: number) => {
@@ -128,15 +194,30 @@ export function SkillTree() {
   // 第一次：整张网刚好放进屏幕；之后窗口变化也重新适配，除非用户已经动过
   const touched = useRef(false)
   useEffect(() => {
-    if (size.w && !touched.current) fit(0)
-  }, [size, fit])
+    if (size.w && !touched.current) home(0)
+  }, [size, home])
 
   // 搜索、下一个、面板里的链接：飞到那颗节点
   useEffect(() => {
-    if (!flyRequest || focus?.kind !== 'skill') return
-    const n = layout.nodes.get(focus.id)!
+    if (!flyRequest || (focus?.kind !== 'skill' && focus?.kind !== 'sub')) return
     touched.current = true
-    centerOn(n.x, n.y)
+    if (focus.kind === 'skill') {
+      const n = layout.nodes.get(focus.id)!
+      centerOn(n.x, n.y)
+      return
+    }
+    // 方向：把它要学的整条路线放进屏幕
+    const pts = [subNodeId(focus.id), ...tree.closures.get(focus.id)!].map((id) => layout.nodes.get(id)!)
+    const pad = 90
+    const minX = Math.min(...pts.map((p) => p.x)) - pad
+    const maxX = Math.max(...pts.map((p) => p.x)) + pad
+    const minY = Math.min(...pts.map((p) => p.y)) - pad
+    const maxY = Math.max(...pts.map((p) => p.y)) + pad
+    // 面板正要打开时会占掉右边一块（已经开着的话，size.w 已经是让过之后的宽度）
+    const panelComing = size.w > 900 && window.innerWidth - size.w < 100
+    const w = panelComing ? size.w - 360 : size.w
+    const k = Math.min(1.1, Math.max(MIN_K, Math.min(w / (maxX - minX), size.h / (maxY - minY))))
+    flyTo({ x: w / 2 - ((minX + maxX) / 2) * k, y: size.h / 2 - ((minY + maxY) / 2) * k, k })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flyRequest])
 
@@ -203,21 +284,54 @@ export function SkillTree() {
   }
 
   // ── 关系 ──
-  const lens = hover ?? focusedSkill
+  // 看一个技能：它的全部前置和它直接解锁的。看一个方向：它要学的全部技能。
+  const subLens = tipHover ?? (hover ? null : focusedSub)
+  const lens = subLens ? null : hover ?? focusedSkill
   const anc = useMemo(() => (lens ? tree.ancestors(lens) : new Set<string>()), [tree, lens])
   const unlocks = useMemo(() => new Set(lens ? tree.skill(lens).dependents : []), [tree, lens])
-  const areaLens = areaHover ?? focusedArea
+  const plan = useMemo(() => (subLens ? tree.closures.get(subLens)! : null), [tree, subLens])
   const relation = (id: string): Relation => {
+    if (plan) return plan.has(id) ? 'path' : 'dim'
     if (lens) {
       if (lens === id) return 'none'
       if (anc.has(id)) return 'path'
       if (unlocks.has(id)) return 'unlock'
       return 'dim'
     }
-    if (areaLens) return tree.skill(id).areaId === areaLens ? 'none' : 'dim'
+    if (focusedArea) return tree.skill(id).areaId === focusedArea ? 'none' : 'dim'
     return 'none'
   }
+  /** 一根枝在当前视角下怎么画 */
+  const edgeLens = (from: string, to: string): string => {
+    if (plan) {
+      if (to.startsWith('sub:')) return to === subNodeId(subLens!) ? ' e-path' : ' e-dim'
+      return (from === 'root' || plan.has(from)) && plan.has(to) ? ' e-path' : ' e-dim'
+    }
+    if (lens) {
+      if ((to === lens || anc.has(to)) && (from === 'root' || anc.has(from))) return ' e-path'
+      if (from === lens && !to.startsWith('sub:')) return ' e-unlock'
+      return ' e-dim'
+    }
+    if (focusedArea) return !to.startsWith('sub:') && tree.skill(to).areaId === focusedArea ? '' : ' e-dim'
+    return ''
+  }
+  /** 平时不画的其余前置：只在它属于当前路线时补出来 */
+  const extraOn = (from: string, to: string): boolean => {
+    if (plan) return plan.has(from) && plan.has(to)
+    if (lens) return (to === lens || anc.has(to)) && anc.has(from)
+    return false
+  }
+  const edgeState = (from: string, to: string) => {
+    const a = from === 'root' ? 'done' : states.get(from)
+    const b = to.startsWith('sub:') ? (readinessBySub.get(to.slice(4))!.percent >= 100 ? 'done' : 'locked') : states.get(to)
+    return a === 'done' && b === 'done' ? 'e-done' : a === 'done' ? 'e-open' : 'e-locked'
+  }
   const nextId = progress.goalSubId ? frontier(tree, states, progress.goalSubId).find((f) => f.inGoal)?.id ?? null : null
+
+  const onTip = useCallback((id: string) => {
+    if (drag.current?.moved) return
+    setFocus(focusedSub === id ? null : { kind: 'sub', id })
+  }, [focusedSub, setFocus])
 
   const onClick = (id: string) => {
     if (drag.current?.moved) return
@@ -250,46 +364,34 @@ export function SkillTree() {
         aria-label="技能树"
       >
         <g ref={world}>
-          {/* 领域名：淡淡地写在每一支的末端 */}
-          <g className="area-labels">
-            {layout.areas.map((a) => (
-              <text
-                key={a.id}
-                x={a.x}
-                y={a.y}
-                className={`area-label${areaLens === a.id ? ' on' : ''}`}
-                onPointerEnter={() => setAreaHover(a.id)}
-                onPointerLeave={() => setAreaHover(null)}
-                onClick={(e) => { e.stopPropagation(); setFocus({ kind: 'area', id: a.id }) }}
-              >
-                {a.name}
-              </text>
-            ))}
-          </g>
-          {/* 树干：中心到每个没有前置的技能 */}
-          <g className="trunks">
-            {layout.trunks.map((id) => {
-              const n = layout.nodes.get(id)!
-              const r = Math.hypot(n.x, n.y) || 1
-              const done = states.get(id) === 'done'
-              return <line key={id} x1={0} y1={0} x2={n.x - (n.x / r) * (NODE_R + 3)} y2={n.y - (n.y / r) * (NODE_R + 3)} className={`trunk${done ? ' done' : ''}${lens && relation(id) === 'dim' ? ' dim' : ''}`} />
-            })}
-            <circle r="5" className="root-dot" />
-          </g>
           <g className="edges">
-            {layout.edges.map((e) => {
-              const a = states.get(e.from)!
-              const b = states.get(e.to)!
-              let cls = a === 'done' && b === 'done' ? 'e-done' : a === 'done' ? 'e-open' : 'e-locked'
-              if (lens) {
-                if ((e.to === lens || anc.has(e.to)) && anc.has(e.from)) cls += ' e-path'
-                else if (e.from === lens) cls += ' e-unlock'
-                else cls += ' e-dim'
-              } else if (areaLens) {
-                const inArea = tree.skill(e.to).areaId === areaLens
-                if (!inArea) cls += ' e-dim'
-              }
-              return <path key={`${e.from}>${e.to}`} d={e.d} className={`edge ${cls}`} />
+            {layout.edges.map((e) => (
+              <path key={`${e.from}>${e.to}`} d={e.d} className={`edge ${edgeState(e.from, e.to)}${edgeLens(e.from, e.to)}${e.to.startsWith('sub:') ? ' e-tip' : ''}`} />
+            ))}
+            {(lens || plan) && layout.extra.filter((e) => extraOn(e.from, e.to)).map((e) => (
+              <path key={`x:${e.from}>${e.to}`} d={e.d} className={`edge e-extra ${edgeState(e.from, e.to)}`} />
+            ))}
+            <circle r="6" className="root-dot" />
+          </g>
+          <g className="tips">
+            {tree.roadmap.subs.map((sub) => {
+              const n = layout.nodes.get(subNodeId(sub.id))!
+              return (
+                <Tip
+                  key={sub.id}
+                  id={sub.id}
+                  x={n.x}
+                  y={n.y}
+                  angle={n.angle}
+                  name={sub.name}
+                  percent={readinessBySub.get(sub.id)!.percent}
+                  goal={progress.goalSubId === sub.id}
+                  focused={focusedSub === sub.id}
+                  dim={(subLens !== null && subLens !== sub.id) || (lens !== null && !tree.closures.get(sub.id)!.has(lens))}
+                  onClick={onTip}
+                  onHover={setTipHover}
+                />
+              )
             })}
           </g>
           <g className="nodes">

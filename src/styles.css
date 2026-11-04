@@ -126,41 +126,9 @@ a {
   cursor: crosshair;
 }
 
-/* ── 中心和树干 ── */
+/* ── 中心 ── */
 
 .root-dot {
-  fill: var(--ink);
-}
-
-.trunk {
-  stroke: var(--line);
-  stroke-width: 1.5;
-}
-
-.trunk.done {
-  stroke: var(--ink);
-  stroke-width: 2;
-}
-
-.trunk.dim {
-  opacity: 0.3;
-}
-
-/* ── 领域名 ── */
-
-.area-label {
-  fill: var(--ink-3);
-  font-size: 15px;
-  font-weight: 500;
-  letter-spacing: 0.2em;
-  text-anchor: middle;
-  dominant-baseline: middle;
-  cursor: pointer;
-  transition: fill 0.2s;
-}
-
-.area-label:hover,
-.area-label.on {
   fill: var(--ink);
 }
 
@@ -197,6 +165,74 @@ a {
   opacity: 0.2;
 }
 
+/* 平时不画的其余前置：选中时用细虚线补出来 */
+.edge.e-extra {
+  stroke: var(--ink);
+  stroke-width: 1.25;
+  stroke-dasharray: 2 5;
+  opacity: 0.75;
+}
+
+/* 通向方向的最后一段 */
+.edge.e-tip {
+  stroke-dasharray: 1 5;
+  stroke-width: 1.5;
+}
+
+/* ── 枝头：方向 ── */
+
+.tip {
+  cursor: pointer;
+  transition: opacity 0.25s;
+}
+
+.tip .hit {
+  fill: transparent;
+}
+
+.tip .diamond {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.75;
+  transition: fill 0.3s;
+}
+
+.tip-name {
+  fill: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
+.tip-pct {
+  fill: var(--ink-3);
+  font-size: 11px;
+  text-anchor: middle;
+}
+
+.tip:hover .diamond,
+.tip.focused .diamond,
+.tip.reached .diamond {
+  fill: var(--ink);
+}
+
+.tip.goal .diamond {
+  fill: var(--goal);
+  stroke: var(--goal);
+}
+
+.tip.goal .tip-name {
+  fill: var(--goal);
+}
+
+.tip.dim {
+  opacity: 0.22;
+}
+
 /* ── 节点 ── */
 
 .node {
@@ -217,6 +253,25 @@ a {
   height: 24px;
   color: var(--ink-3);
   transition: color 0.3s var(--ease);
+}
+
+/* 课程：方块里写课号 */
+.node .code {
+  fill: var(--ink-3);
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: middle;
+  letter-spacing: -0.02em;
+  transition: fill 0.3s var(--ease);
+}
+
+.node.s-available .code,
+.node.s-learning .code {
+  fill: var(--ink);
+}
+
+.node.s-done .code {
+  fill: var(--paper);
 }
 
 /* 名字带一圈白边，枝条从下面穿过时不会和字搅在一起 */
@@ -1002,4 +1057,19 @@ button.danger {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ── 选方向 ── */
+
+.dir-group h4 {
+  margin-top: 22px;
+}
+
+.row-link.is-goal span,
+.row-link.is-goal small {
+  color: var(--goal);
+}
+
+.more {
+  margin-top: 22px;
 }

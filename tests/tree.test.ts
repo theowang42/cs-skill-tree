@@ -48,7 +48,9 @@ test('等级：1 到 5，前置不会在更高的等级，每级都有技能', (
     counts[s.level]++
     for (const p of s.prerequisites) assert.ok(tree.skill(p).level <= s.level, `${p} 不该比 ${s.id} 高级`)
   }
-  for (let l = 1; l <= 5; l++) assert.ok(counts[l] >= 5, `第 ${l} 级只有 ${counts[l]} 个技能`)
+  // 最里面一级只有几门起点课，其余每级都要有一批
+  assert.ok(counts[1] >= 3, `第 1 级只有 ${counts[1]} 个技能`)
+  for (let l = 2; l <= 5; l++) assert.ok(counts[l] >= 5, `第 ${l} 级只有 ${counts[l]} 个技能`)
 })
 
 test('领域里的行号：同领域的前置一定在更靠上的行', () => {

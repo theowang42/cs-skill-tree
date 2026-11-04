@@ -71,7 +71,7 @@ export function Dashboard() {
           ))}
           <li>
             <button className="row-link" onClick={() => setFocus({ kind: 'category', id: tree.roadmap.categories[0].id })}>
-              <span>全部方向 →</span>
+              <span>全部方向（也画在树的枝头 ◇）→</span>
             </button>
           </li>
         </ul>

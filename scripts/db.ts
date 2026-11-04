@@ -45,7 +45,7 @@ const siName = (s: string) => 'si' + s[0].toUpperCase() + s.slice(1)
  * 名字不存在就直接报错，比运行时少一个图标好查。
  */
 function writeIcons(names: string[]) {
-  const lucide = [...new Set(names.filter((n) => !n.startsWith('si:')))].sort()
+  const lucide = [...new Set(names.filter((n) => !n.startsWith('si:') && !n.startsWith('text:')))].sort()
   const brands = [...new Set(names.filter((n) => n.startsWith('si:')).map((n) => n.slice(3)))].sort()
   const lucideMod = require('lucide-react') as { icons: Record<string, unknown> }
   const siMod = require('simple-icons') as Record<string, unknown>

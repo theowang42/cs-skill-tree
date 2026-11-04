@@ -1,241 +1,219 @@
-// 技能网的布局：地基在中心，每个领域朝一个方向长出去，越深离中心越远。
+// 技能树的布局：一棵从中心往四周长的树。
 //
-//   - 目标半径由深度决定（从根出发的最长前置链），目标角度由领域决定；地基朝着它喂养的那些领域。
-//   - 用一个确定性的力导向模拟把节点推到不重叠、又不排成网格的位置：
-//     互相排斥、沿边轻轻拉近、径向和角度各有一根弹簧拉回目标。随机数是固定种子，结果每次一样。
-//   - 线用三次贝塞尔：从父节点沿径向往外长，再弯向子节点，像树枝。
+//   - 每个技能只挂在它的“主前置”上（种子里前置的第一个），方向挂在它最主要的必学技能后面。
+//     这样画出来的是一条条链，只在关键节点分叉；其余前置平时不画，选中时才显示。
+//   - 径向树：每棵子树分到的角度和它的枝头数成正比，深度越大离中心越远。
+//     兄弟按领域排，让 AI Infra、底层系统、AI 产品各自聚在一边；整棵树再转一下，让主线 AI Infra 朝上。
+//   - 每一圈的半径够大，保证同一圈相邻两个节点之间放得下名字；再加一点确定性的抖动，不像排出来的。
+//   - 枝条是径向的三次贝塞尔：从父节点沿径向出去，再弯到子节点，像树枝，互相不交叉。
 //
 // 纯函数，坐标单位是像素，原点在中心。
 import type { Tree } from './tree.ts'
 
 export const NODE_R = 27
+/** 相邻两圈至少隔多远 */
+const STEP = 90
+/** 同一圈相邻两个节点至少隔多远（要放得下名字） */
+const SPACING = 96
+/** 第一圈离中心多远 */
+const R1 = 110
+/** 方向离它挂的技能多远 */
+const TIP_GAP = 66
 
-/** 每个领域朝哪个方向长（度，0 是正右，-90 是正上）和占多宽 */
-const SECTORS: Record<string, { angle: number; spread: number }> = {
-  infra: { angle: -90, spread: 70 },
-  systems: { angle: -168, spread: 56 },
-  product: { angle: -12, spread: 62 },
-  quant: { angle: 42, spread: 26 },
-  chain: { angle: 82, spread: 18 },
-  security: { angle: 128, spread: 30 },
-  robotics: { angle: 172, spread: 18 },
+/** 兄弟怎么排：绕圆一圈的领域顺序。AI Infra 和底层系统挨着，产品在另一边 */
+const AREA_ORDER: Record<string, number> = {
+  infra: 0, systems: 1, robotics: 1.6, security: 2, quant: 3, product: 4, chain: 5, base: 6,
 }
 
 export interface WebNode {
+  /** 技能 id，或方向的 'sub:<id>' */
   id: string
   x: number
   y: number
+  /** 树上第几圈，根是 1 */
   depth: number
-  area: string
+  /** 朝外的方向（弧度），画方向名时用 */
+  angle: number
+  kind: 'skill' | 'sub'
 }
 
 export interface WebEdge {
+  /** 'root' 表示中心 */
   from: string
   to: string
   d: string
 }
 
-export interface AreaLabel {
-  id: string
-  name: string
-  x: number
-  y: number
-}
-
 export interface WebLayout {
   nodes: Map<string, WebNode>
+  /** 树上画出来的枝：每个节点一根 */
   edges: WebEdge[]
-  areas: AreaLabel[]
-  /** 中心到每个根的“树干” */
-  trunks: string[]
+  /** 其余前置：只在选中时画 */
+  extra: WebEdge[]
   bounds: { minX: number; minY: number; maxX: number; maxY: number }
 }
 
-const rad = (deg: number) => (deg * Math.PI) / 180
+export const subNodeId = (subId: string) => `sub:${subId}`
 
-function rng(seed: number) {
-  return () => {
-    seed |= 0
-    seed = (seed + 0x6d2b79f5) | 0
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
+/** 稳定的伪随机：同一个 id 永远得到同一个 0~1 的数 */
+function hash01(s: string, salt: number): number {
+  let h = 2166136261 ^ salt
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619)
+  h = Math.imul(h ^ (h >>> 15), 2246822507)
+  h = Math.imul(h ^ (h >>> 13), 3266489909)
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296
 }
 
-function circularMean(angles: number[]): number {
-  let x = 0
-  let y = 0
-  for (const a of angles) {
-    x += Math.cos(a)
-    y += Math.sin(a)
+const polar = (a: number, r: number) => ({ x: Math.cos(a) * r, y: Math.sin(a) * r })
+const f = (n: number) => n.toFixed(1)
+
+/** 径向的三次贝塞尔，两端各让出节点的半径 */
+function branch(a1: number, r1: number, a2: number, r2: number, trimStart: number, trimEnd: number): string {
+  const rm = (r1 + r2) / 2
+  const p1 = polar(a1, r1)
+  const p2 = polar(a2, r2)
+  const c1 = polar(a1, rm)
+  const c2 = polar(a2, rm)
+  const toward = (p: { x: number; y: number }, q: { x: number; y: number }, t: number) => {
+    const dx = q.x - p.x
+    const dy = q.y - p.y
+    const d = Math.hypot(dx, dy) || 1
+    return { x: p.x + (dx / d) * t, y: p.y + (dy / d) * t }
   }
-  return Math.atan2(y, x)
+  const s = trimStart > 0 ? toward(p1, c1, trimStart) : p1
+  const e = toward(p2, c2, trimEnd)
+  return `M${f(s.x)},${f(s.y)} C${f(c1.x)},${f(c1.y)} ${f(c2.x)},${f(c2.y)} ${f(e.x)},${f(e.y)}`
 }
 
 export function layoutWeb(tree: Tree): WebLayout {
   const skills = tree.roadmap.skills
-  const random = rng(7)
-  const ringR = (depth: number) => 150 + (depth - 1) * 118
-
-  // 1. 每个节点的目标角度：领域方向 + 在领域里摊开；地基朝它所有后代领域的平均方向
-  const sectorAngle = (area: string) => rad(SECTORS[area]?.angle ?? 0)
-  const targetAngle = new Map<string, number>()
-  const byArea = new Map<string, string[]>()
-  for (const s of skills) byArea.set(s.areaId!, [...(byArea.get(s.areaId!) ?? []), s.id])
-  // 按深度从里往外定角度：领域方向和同领域父节点的方向各占一半，枝条就会顺着父节点长出去
-  const order = [...skills].sort((a, b) => a.depth - b.depth)
-  const indexInArea = new Map<string, number>()
-  for (const [, ids] of byArea) ids.forEach((id, i) => indexInArea.set(id, i))
-  for (const s of order) {
-    const area = s.areaId!
-    if (area === 'base') continue
-    const sec = SECTORS[area] ?? { angle: 0, spread: 30 }
-    const n = byArea.get(area)!.length
-    const t = n === 1 ? 0 : indexInArea.get(s.id)! / (n - 1) - 0.5
-    const own = rad(sec.angle + t * sec.spread * 0.6)
-    const parents = s.prerequisites.filter((p) => tree.skill(p).areaId === area && targetAngle.has(p)).map((p) => targetAngle.get(p)!)
-    targetAngle.set(s.id, parents.length ? circularMean([own, circularMean(parents)]) : own)
-  }
-  for (const id of byArea.get('base') ?? []) {
-    const reach = [...tree.descendants(id)].map((d) => tree.skill(d).areaId!).filter((a) => a !== 'base')
-    targetAngle.set(id, reach.length ? circularMean(reach.map(sectorAngle)) : random() * Math.PI * 2)
-  }
-  // 同一个方向上的地基节点别挤在一起：按目标角度排好再均匀摊开一点
-  const base = [...(byArea.get('base') ?? [])].sort((a, b) => targetAngle.get(a)! - targetAngle.get(b)!)
-
-  // 2. 初始位置：目标半径和角度，加一点固定种子的抖动
-  const pos = new Map<string, { x: number; y: number }>()
+  // ── 树：每个节点的孩子 ──
+  const children = new Map<string, string[]>([['root', []]])
+  const area = new Map<string, string>()
   for (const s of skills) {
-    const a = targetAngle.get(s.id)! + (random() - 0.5) * 0.25
-    const r = ringR(s.depth) + (random() - 0.5) * 30
-    pos.set(s.id, { x: Math.cos(a) * r, y: Math.sin(a) * r })
+    children.set(s.id, [])
+    area.set(s.id, s.areaId ?? 'base')
+  }
+  for (const s of skills) children.get(s.parent ?? 'root')!.push(s.id)
+  for (const sub of tree.roadmap.subs) {
+    const id = subNodeId(sub.id)
+    children.set(id, [])
+    area.set(id, area.get(sub.anchor) ?? 'base')
+    children.get(sub.anchor)!.push(id)
   }
 
-  // 3. 力导向：排斥、边的弹簧、径向和角度的弹簧
-  const ids = skills.map((s) => s.id)
-  const edges = skills.flatMap((s) => s.prerequisites.map((p) => [p, s.id] as const))
-  const MIN = 128
-  for (let iter = 0; iter < 700; iter++) {
-    const cool = 1 - iter / 700
-    const disp = new Map(ids.map((id) => [id, { x: 0, y: 0 }]))
-    // 排斥：只在太近时推开，留出节点和名字的位置
-    for (let i = 0; i < ids.length; i++) {
-      for (let j = i + 1; j < ids.length; j++) {
-        const a = pos.get(ids[i])!
-        const b = pos.get(ids[j])!
-        let dx = b.x - a.x
-        let dy = b.y - a.y
-        let d = Math.hypot(dx, dy)
-        if (d < 0.01) {
-          dx = random() - 0.5
-          dy = random() - 0.5
-          d = Math.hypot(dx, dy)
-        }
-        if (d < MIN) {
-          const push = ((MIN - d) / d) * 0.5
-          disp.get(ids[i])!.x -= dx * push
-          disp.get(ids[i])!.y -= dy * push
-          disp.get(ids[j])!.x += dx * push
-          disp.get(ids[j])!.y += dy * push
-        }
-      }
+  // 子树的枝头数和领域重心
+  const leaves = new Map<string, number>()
+  const rankSum = new Map<string, number>()
+  const count = new Map<string, number>()
+  const visit = (id: string): void => {
+    const kids = children.get(id)!
+    let l = 0
+    let rs = id === 'root' ? 0 : AREA_ORDER[area.get(id)!] ?? 6
+    let c = id === 'root' ? 0 : 1
+    for (const k of kids) {
+      visit(k)
+      l += leaves.get(k)!
+      rs += rankSum.get(k)!
+      c += count.get(k)!
     }
-    // 边：前置和后继轻轻拉近，让枝条连贯
-    for (const [p, c] of edges) {
-      const a = pos.get(p)!
-      const b = pos.get(c)!
-      const dx = b.x - a.x
-      const dy = b.y - a.y
-      const d = Math.hypot(dx, dy) || 1
-      const pull = ((d - 130) / d) * 0.03
-      disp.get(p)!.x += dx * pull
-      disp.get(p)!.y += dy * pull
-      disp.get(c)!.x -= dx * pull
-      disp.get(c)!.y -= dy * pull
-    }
-    // 径向和角度：拉回目标，但不拉死，保留一点错落
-    for (const s of skills) {
-      const p = pos.get(s.id)!
-      const r = Math.hypot(p.x, p.y) || 1
-      const a = Math.atan2(p.y, p.x)
-      const tr = ringR(s.depth)
-      const ta = targetAngle.get(s.id)!
-      let da = ta - a
-      while (da > Math.PI) da -= Math.PI * 2
-      while (da < -Math.PI) da += Math.PI * 2
-      const nr = r + (tr - r) * 0.14
-      const na = a + da * (s.areaId === 'base' ? 0.03 : 0.07)
-      const d = disp.get(s.id)!
-      d.x += Math.cos(na) * nr - p.x
-      d.y += Math.sin(na) * nr - p.y
-    }
-    for (const id of ids) {
-      const p = pos.get(id)!
-      const d = disp.get(id)!
-      const len = Math.hypot(d.x, d.y)
-      const cap = 30 * cool + 2
-      const k = len > cap ? cap / len : 1
-      p.x += d.x * k
-      p.y += d.y * k
-    }
+    leaves.set(id, Math.max(1, l))
+    rankSum.set(id, rs)
+    count.set(id, c)
   }
-  void base
+  visit('root')
+  const rank = (id: string) => rankSum.get(id)! / count.get(id)!
+  for (const [id, kids] of children) {
+    kids.sort((a, b) => rank(a) - rank(b) || leaves.get(b)! - leaves.get(a)! || a.localeCompare(b))
+    children.set(id, kids)
+  }
+
+  // ── 角度：枝头等距排一圈，父节点在孩子们的中间（只有一个孩子时和它对齐，链是直的） ──
+  const angle = new Map<string, number>()
+  const depth = new Map<string, number>()
+  const total = leaves.get('root')!
+  const rootKids = children.get('root')!
+  // 三棵主干之间多留一点空
+  const slot = (Math.PI * 2) / (total + rootKids.length)
+  let cursor = 0
+  const place = (id: string, d: number): number => {
+    const kids = children.get(id)!
+    let a: number
+    if (kids.length === 0) {
+      a = cursor
+      cursor += slot
+    } else {
+      const as = kids.map((k) => place(k, d + 1))
+      a = (as[0] + as[as.length - 1]) / 2
+    }
+    if (id !== 'root') {
+      angle.set(id, a)
+      depth.set(id, d)
+    }
+    return a
+  }
+  for (const k of rootKids) {
+    place(k, 1)
+    cursor += slot
+  }
+
+  // ── 半径：每一圈够放下名字 ──
+  const maxDepth = Math.max(...[...depth].filter(([id]) => !id.startsWith('sub:')).map(([, d]) => d))
+  const ring: number[] = [0]
+  for (let d = 1; d <= maxDepth; d++) {
+    const on = [...depth].filter(([id, dd]) => dd === d && !id.startsWith('sub:')).map(([id]) => angle.get(id)!).sort((a, b) => a - b)
+    let gap = Math.PI * 2
+    for (let i = 0; i < on.length; i++) {
+      const next = i + 1 < on.length ? on[i + 1] : on[0] + Math.PI * 2
+      if (on.length > 1) gap = Math.min(gap, next - on[i])
+    }
+    const need = on.length > 1 ? SPACING / gap : 0
+    ring[d] = Math.max(d === 1 ? R1 : ring[d - 1] + STEP, need)
+  }
+  // 只有一个孩子的父节点，孩子和它对齐，链才是直的；分叉的地方再散开。
+  // 上面已经是对齐的（孩子分到父亲的全部角度，中点一样），这里加一点抖动，不像尺子画的
+  for (const [id, a] of angle) {
+    angle.set(id, a + (hash01(id, 1) - 0.5) * Math.min(slot * 0.35, 0.05))
+  }
+  // 整棵树转一下：AI Infra 的重心朝正上方
+  const infra = [...angle].filter(([id]) => area.get(id) === 'infra')
+  const mean = Math.atan2(infra.reduce((s, [, a]) => s + Math.sin(a), 0), infra.reduce((s, [, a]) => s + Math.cos(a), 0))
+  const turn = -Math.PI / 2 - mean
+  for (const [id, a] of angle) angle.set(id, a + turn)
+
+  const radius = new Map<string, number>()
+  for (const [id, d] of depth) if (!id.startsWith('sub:')) radius.set(id, ring[d] + (hash01(id, 2) - 0.5) * STEP * 0.22)
+  for (const sub of tree.roadmap.subs) radius.set(subNodeId(sub.id), radius.get(sub.anchor)! + TIP_GAP)
 
   const nodes = new Map<string, WebNode>()
+  for (const [id, d] of depth) {
+    const p = polar(angle.get(id)!, radius.get(id)!)
+    nodes.set(id, { id, x: p.x, y: p.y, depth: d, angle: angle.get(id)!, kind: id.startsWith('sub:') ? 'sub' : 'skill' })
+  }
+
+  // ── 枝条 ──
+  const edges: WebEdge[] = []
+  for (const [id] of depth) {
+    const parent = [...children].find(([, kids]) => kids.includes(id))![0]
+    const isSub = id.startsWith('sub:')
+    if (parent === 'root') {
+      edges.push({ from: 'root', to: id, d: branch(angle.get(id)!, 0, angle.get(id)!, radius.get(id)!, 6, NODE_R + 3) })
+    } else {
+      edges.push({ from: parent, to: id, d: branch(angle.get(parent)!, radius.get(parent)!, angle.get(id)!, radius.get(id)!, NODE_R + 3, isSub ? 9 : NODE_R + 3) })
+    }
+  }
+  const extra: WebEdge[] = []
   for (const s of skills) {
-    const p = pos.get(s.id)!
-    nodes.set(s.id, { id: s.id, x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10, depth: s.depth, area: s.areaId! })
+    for (const p of s.prerequisites) {
+      if (p === s.parent) continue
+      extra.push({ from: p, to: s.id, d: branch(angle.get(p)!, radius.get(p)!, angle.get(s.id)!, radius.get(s.id)!, NODE_R + 3, NODE_R + 3) })
+    }
   }
 
-  // 4. 线：从父节点沿径向长出去，再弯到子节点
-  const radial = (n: WebNode) => {
-    const r = Math.hypot(n.x, n.y) || 1
-    return { x: n.x / r, y: n.y / r }
-  }
-  const webEdges: WebEdge[] = edges.map(([p, c]) => {
-    const a = nodes.get(p)!
-    const b = nodes.get(c)!
-    const dx = b.x - a.x
-    const dy = b.y - a.y
-    const d = Math.hypot(dx, dy) || 1
-    const ux = dx / d
-    const uy = dy / d
-    // 两头各让出节点的半径
-    const x1 = a.x + ux * (NODE_R + 3)
-    const y1 = a.y + uy * (NODE_R + 3)
-    const x2 = b.x - ux * (NODE_R + 3)
-    const y2 = b.y - uy * (NODE_R + 3)
-    // 控制点在弦上，再往外侧（远离中心）弯一点：像树枝向外长，但绝不绕圈
-    const ra = radial(a)
-    const rb = radial(b)
-    const bend = Math.min(40, d * 0.18)
-    const c1x = x1 + (x2 - x1) * 0.33 + ra.x * bend
-    const c1y = y1 + (y2 - y1) * 0.33 + ra.y * bend
-    const c2x = x1 + (x2 - x1) * 0.7 + rb.x * bend * 0.4
-    const c2y = y1 + (y2 - y1) * 0.7 + rb.y * bend * 0.4
-    const f = (v: number) => Math.round(v * 10) / 10
-    return { from: p, to: c, d: `M${f(x1)},${f(y1)} C${f(c1x)},${f(c1y)} ${f(c2x)},${f(c2y)} ${f(x2)},${f(y2)}` }
-  })
-
-  // 5. 领域名：放在这个领域最外面那个节点再往外一点
-  const areas: AreaLabel[] = tree.roadmap.areas.filter((a) => a.id !== 'base').map((a) => {
-    const pts = a.skillIds.map((id) => nodes.get(id)!)
-    const far = Math.max(...pts.map((p) => Math.hypot(p.x, p.y)))
-    const ang = circularMean(pts.map((p) => Math.atan2(p.y, p.x)))
-    return { id: a.id, name: a.name, x: Math.cos(ang) * (far + 78), y: Math.sin(ang) * (far + 78) }
-  })
-
-  const trunks = skills.filter((s) => s.prerequisites.length === 0).map((s) => s.id)
-  const all = [...nodes.values()]
-  const pad = 60
-  const xs = [...all.map((n) => n.x), ...areas.map((a) => a.x)]
-  const ys = [...all.map((n) => n.y), ...areas.map((a) => a.y)]
-  return {
-    nodes,
-    edges: webEdges,
-    areas,
-    trunks,
-    bounds: { minX: Math.min(...xs) - pad, minY: Math.min(...ys) - pad, maxX: Math.max(...xs) + pad, maxY: Math.max(...ys) + pad },
-  }
+  // ── 边界：留出名字的位置 ──
+  const xs = [...nodes.values()].map((n) => n.x)
+  const ys = [...nodes.values()].map((n) => n.y)
+  const pad = 80
+  const bounds = { minX: Math.min(...xs) - pad, minY: Math.min(...ys) - pad, maxX: Math.max(...xs) + pad, maxY: Math.max(...ys) + pad }
+  return { nodes, edges, extra, bounds }
 }

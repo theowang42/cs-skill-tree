@@ -26,8 +26,10 @@ export interface Skill {
   depth: number
   /** 等级：1 入门 · 2 基础 · 3 进阶 · 4 专精 · 5 前沿 */
   level: number
-  /** Lucide 图标名，或 'si:' 开头的 Simple Icons 品牌图标 */
+  /** Lucide 图标名，'si:' 开头的 Simple Icons 品牌图标，或 'text:' 开头的课号（课程） */
   icon: string
+  /** 树上画出来的那根枝连向谁：主前置。没有前置的技能是 null，从中心长出来 */
+  parent: string | null
   /** 直接前置 */
   prerequisites: string[]
   /** 直接依赖它的技能 */
@@ -84,6 +86,8 @@ export interface Sub {
   name: string
   intro: string
   isHot: boolean
+  /** 方向画在哪个技能后面（必学技能的第一个） */
+  anchor: string
   items: string[]
   topics: string[]
   projects: Link[]

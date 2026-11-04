@@ -172,6 +172,19 @@ export function check(db: DatabaseSync): Finding[] {
   `)) {
     error('prerequisite-level', `技能 ${r.skill_id}（${r.la} 级）的前置 ${r.prerequisite_id} 是 ${r.lb} 级，比它还高`)
   }
+  // 树上画的那根枝必须是真正的前置；方向挂的位置必须是它必学的技能
+  for (const r of all('SELECT id, parent_id FROM skills WHERE parent_id IS NOT NULL AND parent_id NOT IN (SELECT prerequisite_id FROM skill_prerequisites WHERE skill_id = skills.id)')) {
+    error('parent-not-prerequisite', `技能 ${r.id} 挂在 ${r.parent_id} 上，但 ${r.parent_id} 不是它的前置`)
+  }
+  for (const r of all("SELECT id FROM skills WHERE parent_id IS NULL AND id IN (SELECT skill_id FROM skill_prerequisites)")) {
+    error('missing-parent', `技能 ${r.id} 有前置，却没有挂在任何一个上`)
+  }
+  for (const r of all('SELECT id, anchor_id FROM subs WHERE anchor_id IS NULL OR anchor_id NOT IN (SELECT skill_id FROM sub_requirements WHERE sub_id = subs.id AND choice IS NULL)')) {
+    error('anchor-not-required', `方向 ${r.id} 挂在 ${r.anchor_id} 上，但那不是它必学的技能`)
+  }
+  for (const r of all("SELECT id FROM skills WHERE icon LIKE 'text:%' AND length(icon) > 10")) {
+    warning('long-code', `课程 ${r.id} 的课号太长，方块里放不下`)
+  }
   for (const r of all('SELECT id FROM skills WHERE icon IS NULL')) {
     error('missing-icon', `技能 ${r.id} 没写图标`)
   }
