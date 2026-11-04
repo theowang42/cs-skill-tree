@@ -1,4 +1,4 @@
-// 顶栏：左边名字（开面板），右边目标、“下一颗”、进度、搜索。能少一个就少一个。
+// 顶栏：左边名字和进度，右边目标、下一个、搜索。都是字，没有壳。
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../state'
 import { searchTree, snippet, type Hit } from '../lib/search'
@@ -34,12 +34,12 @@ function Search() {
 
   return (
     <div className={`search${open ? ' open' : ''}`} role="combobox" aria-expanded={open && hits.length > 0} aria-haspopup="listbox">
-      <button className="search-btn" onClick={() => { setOpen(true); window.setTimeout(() => input.current?.focus(), 0) }} aria-label="搜索（/）">⌕</button>
+      <button className="search-btn" onClick={() => { setOpen(true); window.setTimeout(() => input.current?.focus(), 0) }} aria-label="搜索（/）">搜索</button>
       <input
         ref={input}
         id="search-input"
         type="search"
-        placeholder="找一颗星"
+        placeholder="技能、分支、方向"
         value={q}
         autoComplete="off"
         onChange={(e) => { setQ(e.target.value); setSel(0) }}
@@ -71,7 +71,7 @@ function Search() {
 }
 
 export function Hud({ onTogglePanel, panelOpen }: { onTogglePanel: () => void; panelOpen: boolean }) {
-  const { tree, states, progress, readinessBySub, readOnly, setFocus } = useApp()
+  const { tree, states, progress, readinessBySub, readOnly, setFocus, quick, setQuick } = useApp()
   const t = totals(states)
   const goal = progress.goalSubId ? tree.subs.get(progress.goalSubId) : null
   const r = goal ? readinessBySub.get(goal.id)! : null
@@ -79,30 +79,33 @@ export function Hud({ onTogglePanel, panelOpen }: { onTogglePanel: () => void; p
 
   return (
     <header className="hud">
-      <button className={`brand${panelOpen ? ' open' : ''}`} onClick={onTogglePanel} title={panelOpen ? '收起面板' : '打开面板'}>
-        <span className="brand-mark" aria-hidden />
-        <span className="brand-name">CS 星图</span>
+      <button className={`brand${panelOpen ? ' open' : ''}`} onClick={onTogglePanel} title={panelOpen ? '收起' : '打开我的进度'}>
+        <span className="brand-name">CS 技能树</span>
         <span className="brand-count">
-          <b>{t.done}</b>/{t.total}
+          <b>{t.done}</b> / {t.total}
         </span>
       </button>
       <div className="hud-right">
+        {!readOnly && (
+          <button className={`hud-text${quick ? ' on' : ''}`} onClick={() => setQuick(!quick)} title="打开后点节点直接切换：没学 → 已掌握 → 在学（Q）">
+            快速点亮{quick ? ' ·开' : ''}
+          </button>
+        )}
         <button
-          className={`hud-goal${goal ? '' : ' empty'}`}
-          onClick={() => (goal ? setFocus({ kind: 'sub', id: goal.id }, { scroll: true }) : setFocus({ kind: 'category', id: tree.roadmap.categories[0].id }, { scroll: true }))}
+          className={`hud-text hud-goal${goal ? '' : ' empty'}`}
+          onClick={() => (goal ? setFocus({ kind: 'sub', id: goal.id }, { scroll: true }) : setFocus({ kind: 'category', id: tree.roadmap.categories[0].id }))}
         >
           {goal && r ? (
             <>
-              <span className="goal-dot" aria-hidden />
-              {goal.name} <b>{Math.round(r.percent)}%</b>
+              目标 <b>{goal.name}</b> {Math.round(r.percent)}%
             </>
           ) : (
-            '选一个目标方向'
+            '选一个目标'
           )}
         </button>
         {next && !readOnly && (
-          <button className="hud-next" onClick={() => setFocus({ kind: 'skill', id: next.id }, { scroll: true })} title="飞到最该学的那颗星">
-            下一颗 <b>{tree.skill(next.id).name}</b>
+          <button className="hud-text" onClick={() => setFocus({ kind: 'skill', id: next.id }, { scroll: true })} title="跳到最该学的那个">
+            下一个 <b>{tree.skill(next.id).name}</b>
           </button>
         )}
         <Search />

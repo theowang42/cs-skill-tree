@@ -2,18 +2,17 @@
 
 [简体中文](../README.md) | English
 
-**A star map of computer science that you reveal by lighting it. It starts dark: you sit at the center, light the skills you know, and the light shows the stars next to them. The edge of the lit region is your learning frontier.**
+**A computer science skill tree, like the talent tree in an action game: light up what you know and see where your frontier is.**
 
-- 225 stars (183 concepts plus 42 languages, frameworks and platforms) joined by 325 prerequisite edges. Fundamentals sit near the center; each ring outward is more advanced
-- Every star lists concrete checks for "you have learned this", so self-assessment stays honest
-- **Frontier** stars glow cyan: all prerequisites mastered, not learned yet. They are what to learn next
-- Beacons on the rim are career directions. Set one as your **goal** to see the learning order and how ready you are
-- Select a star to trace its prerequisite path back to the center and the stars it unlocks; lighting one sends light along the edges to newly unlocked stars
-- Progress lives in your browser with export, import, share links and a replay of your growth; an optional server keeps it in SQLite
+- 225 skills (183 concepts plus 42 languages, frameworks and platforms) joined by 325 directed prerequisite edges
+- Rows are five levels from beginner to frontier; columns are 20 branches, one per knowledge area
+- Mastered skills are filled black, available ones have a black outline, the rest are light grey. Available skills are your **frontier**
+- Opening a skill shows one sentence and a few links to good places to learn it
+- Set a **goal direction** to mark what to learn next; progress lives in your browser with export, import and share links, or on an optional SQLite server
 
 👉 https://theowang42.github.io/cs-skill-tree/
 
-![The star map with a lit region, one star selected with its prerequisite path drawn to the center, and the learning order for the backend goal](screenshot.jpg)
+![The skill tree with some skills lit and one selected, showing its prerequisite path and a short panel of links](screenshot.jpg)
 
 ## Run locally
 

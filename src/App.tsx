@@ -5,7 +5,7 @@ import { createStore, roadmapUrl, sanitize, USE_API, type ProgressStore } from '
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { decodeShare } from './lib/share'
 import { AppProvider, useApp, type Focus, type FocusKind } from './state'
-import { StarMap } from './components/StarMap'
+import { SkillTree } from './components/SkillTree'
 import { Panel } from './components/Panel'
 import { Hud } from './components/Hud'
 import { Toasts } from './components/Toasts'
@@ -20,7 +20,7 @@ interface Loaded {
 
 async function load(): Promise<Loaded> {
   const res = await fetch(roadmapUrl())
-  if (!res.ok) throw new Error(`读不到星图数据（${res.status}）`)
+  if (!res.ok) throw new Error(`读不到数据（${res.status}）`)
   const tree = new Tree((await res.json()) as Roadmap)
   const store = createStore()
   const skills = new Set(tree.skills.keys())
@@ -79,7 +79,7 @@ function Shell() {
   }, [focus])
   return (
     <div className={`page${panelOpen ? ' panel-open' : ''}`}>
-      <StarMap />
+      <SkillTree />
       <Hud onTogglePanel={() => setPanelOpen((o) => !o)} panelOpen={panelOpen} />
       <aside className="panel" aria-label="详情" aria-hidden={!panelOpen}>
         <div className="panel-body">
@@ -107,7 +107,7 @@ export default function App() {
       </div>
     )
   }
-  if (!data) return <div className="boot">正在展开星图…</div>
+  if (!data) return <div className="boot">加载中</div>
   return (
     <ErrorBoundary>
       <AppProvider tree={data.tree} store={data.store} initial={data.progress} shared={data.shared}>

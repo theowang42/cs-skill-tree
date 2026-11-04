@@ -51,7 +51,7 @@ export function SubChip({ id }: { id: string }) {
 export function StatusControl({ id, compact = false }: { id: string; compact?: boolean }) {
   const { progress, setStatus, readOnly } = useApp()
   const cur: Status | null = progress.skills[id]?.status ?? null
-  const opts: [Status | null, string][] = [[null, '没学'], ['learning', '在学'], ['done', compact ? '会了' : '学会了']]
+  const opts: [Status | null, string][] = [[null, '没学'], ['learning', '在学'], ['done', compact ? '会了' : '已掌握']]
   return (
     <div className={`segmented status-control${compact ? ' compact' : ''}`} role="radiogroup" aria-label="学习状态">
       {opts.map(([v, label]) => (

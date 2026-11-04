@@ -20,7 +20,7 @@ export function Panel() {
       )}
       {focus && (
         <button className="back-link" onClick={() => setFocus(null)}>
-          ← 我的星图
+          ← 我的进度
         </button>
       )}
       {!focus && <Dashboard />}

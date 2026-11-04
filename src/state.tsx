@@ -48,9 +48,6 @@ export interface AppState {
   openCategory: string | null
   setOpenCategory: (id: string | null) => void
 
-  /** 迷雾：只显示已点亮、能学的和它们旁边的星。关掉就看全图。 */
-  fog: boolean
-  setFog: (f: boolean) => void
   quick: boolean
   setQuick: (q: boolean) => void
   /** 刚刚解锁或点亮的技能，树上闪一下 */
@@ -79,12 +76,12 @@ export function useApp(): AppState {
 
 const PREFS_KEY = 'cs-skill-tree:prefs'
 
-function loadPrefs(): { fog: boolean; quick: boolean } {
+function loadPrefs(): { quick: boolean } {
   try {
     const p = JSON.parse(readStorage(PREFS_KEY) ?? '{}')
-    return { fog: p.fog !== false, quick: p.quick === true }
+    return { quick: p.quick === true }
   } catch {
-    return { fog: true, quick: false }
+    return { quick: false }
   }
 }
 
@@ -106,9 +103,8 @@ export function AppProvider({
   const [hover, setHover] = useState<string | null>(null)
   const [openCategory, setOpenCategory] = useState<string | null>(null)
   const prefs = useMemo(loadPrefs, [])
-  const [fog, setFog] = useState(prefs.fog)
   const [quick, setQuick] = useState(prefs.quick)
-  useEffect(() => writeStorage(PREFS_KEY, JSON.stringify({ fog, quick })), [fog, quick])
+  useEffect(() => writeStorage(PREFS_KEY, JSON.stringify({ quick })), [quick])
 
   const [pulse, setPulse] = useState<Set<string>>(new Set())
   const pulseTimer = useRef<number>(0)
@@ -272,7 +268,7 @@ export function AppProvider({
   const value: AppState = {
     tree, store, progress, states, readinessBySub, readOnly, shared, leaveShared, adoptShared,
     focus, setFocus, flyRequest, hover, setHover, activeSubId, openCategory, setOpenCategory,
-    fog, setFog, quick, setQuick, pulse,
+    quick, setQuick, pulse,
     change, setStatus, lightWithPrerequisites, setGoal, replaceProgress, resetProgress,
     toasts, toast, dismissToast,
   }
