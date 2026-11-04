@@ -41,14 +41,14 @@ test('星图的圈数：前置一定在更靠内的圈，没有前置的在第 1
   }
 })
 
-test('星图的等级：1 到 5，前置不会在更高的等级，每级都有星', () => {
+test('等级：1 到 5，前置不会在更高的等级，每级都有技能', () => {
   const counts = [0, 0, 0, 0, 0, 0]
   for (const s of roadmap.skills) {
     assert.ok(s.level >= 1 && s.level <= 5, `${s.id} 等级 ${s.level}`)
     counts[s.level]++
     for (const p of s.prerequisites) assert.ok(tree.skill(p).level <= s.level, `${p} 不该比 ${s.id} 高级`)
   }
-  for (let l = 1; l <= 5; l++) assert.ok(counts[l] >= 5, `第 ${l} 级只有 ${counts[l]} 颗星`)
+  for (let l = 1; l <= 5; l++) assert.ok(counts[l] >= 5, `第 ${l} 级只有 ${counts[l]} 个技能`)
 })
 
 test('领域里的行号：同领域的前置一定在更靠上的行', () => {
@@ -110,14 +110,13 @@ test('什么都没学时，边界就是所有没有前置的技能', () => {
 })
 
 test('缺的前置按依赖顺序给出；取消点亮会提示受影响的后继', () => {
-  const progress: Progress = { goalSubId: null, skills: { cli: { status: 'done', updatedAt: '' } } }
-  const missing = missingPrerequisites(tree, 'git-collab', progress)
-  assert.deepEqual(missing, ['git-basics'])
-  const deep = missingPrerequisites(tree, 'agents', { goalSubId: null, skills: {} })
+  const progress: Progress = { goalSubId: null, skills: { linux: { status: 'done', updatedAt: '' } } }
+  assert.deepEqual(missingPrerequisites(tree, 'kubernetes', progress), ['docker'])
+  const deep = missingPrerequisites(tree, 'agent', { goalSubId: null, skills: {} })
   const pos = new Map(deep.map((id, i) => [id, i]))
   for (const id of deep) for (const p of tree.skill(id).prerequisites) assert.ok(pos.get(p)! < pos.get(id)!)
-  const lit: Progress = { goalSubId: null, skills: { cli: { status: 'done', updatedAt: '' }, 'git-basics': { status: 'done', updatedAt: '' }, 'git-collab': { status: 'done', updatedAt: '' } } }
-  assert.deepEqual(litDescendants(tree, 'cli', lit), ['git-basics', 'git-collab'])
+  const lit: Progress = { goalSubId: null, skills: { linux: { status: 'done', updatedAt: '' }, docker: { status: 'done', updatedAt: '' }, kubernetes: { status: 'done', updatedAt: '' } } }
+  assert.deepEqual(litDescendants(tree, 'linux', lit), ['docker', 'kubernetes'])
 })
 
 test('把一个方向的必学和任选都点亮后，就绪度是 100%', () => {

@@ -14,20 +14,20 @@ const tree = new Tree(getRoadmap(freshDb()))
 test('分享链接来回编码不丢东西，只保留“学会了”', () => {
   const p: Progress = {
     goalSubId: 'backend',
-    skills: { cli: { status: 'done', updatedAt: 'x' }, http: { status: 'done', updatedAt: 'x' }, rust: { status: 'learning', updatedAt: 'x' } },
+    skills: { linux: { status: 'done', updatedAt: 'x' }, docker: { status: 'done', updatedAt: 'x' }, rust: { status: 'learning', updatedAt: 'x' } },
   }
   const hash = encodeShare(tree, p)
   assert.ok(hash.length < 120, `链接太长：${hash.length}`)
   const back = decodeShare(tree, '#' + hash)!
   assert.equal(back.goalSubId, 'backend')
-  assert.deepEqual(Object.keys(back.skills).sort(), ['cli', 'http'])
+  assert.deepEqual(Object.keys(back.skills).sort(), ['docker', 'linux'])
   assert.equal(decodeShare(tree, '#/skill/http'), null)
   assert.equal(decodeShare(tree, '#share=3.AAAA'), null, '技能数对不上要拒绝')
   assert.equal(decodeShare(tree, '#share=' + hash.split('=')[1].replace(/\.[a-z-]+$/, '.nope'))!.goalSubId, null)
 })
 
 test('进度文件：导出再导入一致；格式不对给出说明', () => {
-  const p = applyChanges({ goalSubId: 'agent', skills: {} }, { cli: 'done', http: 'learning' }, '2026-01-01T00:00:00.000Z')
+  const p = applyChanges({ goalSubId: 'agent', skills: {} }, { linux: 'done', docker: 'learning' }, '2026-01-01T00:00:00.000Z')
   const again = parseFile(JSON.stringify(toFile(p)))
   assert.deepEqual(again, p)
   assert.throws(() => parseFile('nope'), /不是 JSON/)
@@ -40,18 +40,18 @@ test('进度文件：导出再导入一致；格式不对给出说明', () => {
 })
 
 test('applyChanges：null 删除，相同状态不改时间', () => {
-  const p = applyChanges({ goalSubId: null, skills: {} }, { cli: 'done' }, 't1')
-  const q = applyChanges(p, { cli: 'done', http: 'learning' }, 't2')
-  assert.equal(q.skills.cli.updatedAt, 't1')
-  assert.equal(q.skills.http.updatedAt, 't2')
-  assert.deepEqual(Object.keys(applyChanges(q, { cli: null }).skills), ['http'])
+  const p = applyChanges({ goalSubId: null, skills: {} }, { linux: 'done' }, 't1')
+  const q = applyChanges(p, { linux: 'done', docker: 'learning' }, 't2')
+  assert.equal(q.skills.linux.updatedAt, 't1')
+  assert.equal(q.skills.docker.updatedAt, 't2')
+  assert.deepEqual(Object.keys(applyChanges(q, { linux: null }).skills), ['docker'])
 })
 
-test('搜索：名字前缀优先，也能搜到介绍和学会的标志', () => {
-  assert.equal(searchTree(tree, 'http')[0].id, 'http')
+test('搜索：名字前缀优先，也能搜到介绍', () => {
+  assert.equal(searchTree(tree, 'git')[0].id, 'git')
   assert.equal(searchTree(tree, 'Docker')[0].id, 'docker')
-  assert.ok(searchTree(tree, 'raft').some((h) => h.id === 'consensus'))
-  assert.ok(searchTree(tree, 'curl').some((h) => h.id === 'http'))
+  assert.ok(searchTree(tree, '共识').some((h) => h.id === 'distributed'))
+  assert.ok(searchTree(tree, 'REST').some((h) => h.id === 'http'))
   assert.ok(searchTree(tree, '后端').some((h) => h.kind === 'sub' && h.id === 'backend'))
   assert.deepEqual(searchTree(tree, '   '), [])
 })
@@ -59,11 +59,11 @@ test('搜索：名字前缀优先，也能搜到介绍和学会的标志', () =>
 test('sanitize 去掉已不存在的技能和方向，没问题时原样返回', () => {
   const skills = new Set(tree.skills.keys())
   const subs = new Set(tree.subs.keys())
-  const ok: Progress = { goalSubId: 'backend', skills: { cli: { status: 'done', updatedAt: 't' } } }
+  const ok: Progress = { goalSubId: 'backend', skills: { linux: { status: 'done', updatedAt: 't' } } }
   assert.equal(sanitize(ok, skills, subs).progress, ok)
-  const bad: Progress = { goalSubId: 'gone-sub', skills: { cli: { status: 'done', updatedAt: 't' }, 'gone-skill': { status: 'done', updatedAt: 't' } } }
+  const bad: Progress = { goalSubId: 'gone-sub', skills: { linux: { status: 'done', updatedAt: 't' }, 'gone-skill': { status: 'done', updatedAt: 't' } } }
   const r = sanitize(bad, skills, subs)
   assert.deepEqual(r.dropped, ['gone-skill'])
   assert.equal(r.progress.goalSubId, null)
-  assert.deepEqual(Object.keys(r.progress.skills), ['cli'])
+  assert.deepEqual(Object.keys(r.progress.skills), ['linux'])
 })

@@ -24,8 +24,10 @@ export interface Skill {
   tier: number
   /** 从无前置的技能出发的最长前置链长度，从 1 开始 */
   depth: number
-  /** 星图上的等级：1 入门 · 2 基础 · 3 进阶 · 4 专精 · 5 前沿。由视图 skill_level 算出 */
+  /** 等级：1 入门 · 2 基础 · 3 进阶 · 4 专精 · 5 前沿 */
   level: number
+  /** Lucide 图标名，或 'si:' 开头的 Simple Icons 品牌图标 */
+  icon: string
   /** 直接前置 */
   prerequisites: string[]
   /** 直接依赖它的技能 */

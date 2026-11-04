@@ -117,7 +117,7 @@ export function seed(db: DatabaseSync): SeedResult {
   } catch (e) {
     db.exec('ROLLBACK')
     // 临时视图可能留在连接上，清掉免得下次播种报“已存在”
-    for (const v of ['area_rows', 'concept_rows', 'tool_rows', 'resource_rows', 'category_rows', 'sub_rows']) {
+    for (const v of ['area_rows', 'skill_rows', 'category_rows', 'sub_rows']) {
       db.exec(`DROP VIEW IF EXISTS temp.${v}`)
     }
     throw e
@@ -162,19 +162,21 @@ export function check(db: DatabaseSync): Finding[] {
   for (const r of all('SELECT skill_id FROM skill_ancestors WHERE skill_id = ancestor_id')) {
     error('prerequisite-cycle', `技能 ${r.skill_id} 的前置绕了一圈又回到了自己`)
   }
-  // 前置只能在同层或更低的层：工具层算最高层，知识点不能依赖工具
+  // 前置的等级不能比它高：技能树上线一律从上往下（或同一行横着）走
   for (const r of all(`
-    WITH lvl AS (
-      SELECT s.id, COALESCE(l.position, (SELECT MAX(position) + 1 FROM layers)) AS level
-        FROM skills s LEFT JOIN areas a ON a.id = s.area_id LEFT JOIN layers l ON l.id = a.layer_id
-    )
-    SELECT p.skill_id, p.prerequisite_id
+    SELECT p.skill_id, p.prerequisite_id, a.level AS la, b.level AS lb
       FROM skill_prerequisites p
-      JOIN lvl a ON a.id = p.skill_id
-      JOIN lvl b ON b.id = p.prerequisite_id
+      JOIN skills a ON a.id = p.skill_id
+      JOIN skills b ON b.id = p.prerequisite_id
      WHERE b.level > a.level
   `)) {
-    error('prerequisite-layer', `技能 ${r.skill_id} 的前置 ${r.prerequisite_id} 在更高的层，树会画反`)
+    error('prerequisite-level', `技能 ${r.skill_id}（${r.la} 级）的前置 ${r.prerequisite_id} 是 ${r.lb} 级，比它还高`)
+  }
+  for (const r of all('SELECT id FROM skills WHERE level IS NULL OR icon IS NULL')) {
+    error('missing-level-or-icon', `技能 ${r.id} 没写等级或图标`)
+  }
+  for (const r of all('SELECT icon, group_concat(id) AS ids, COUNT(*) AS n FROM skills GROUP BY icon HAVING n > 1')) {
+    error('duplicate-icon', `图标 ${r.icon} 被 ${r.ids} 共用，每个技能要有自己的图标`)
   }
   // 直接前置里写了另一个直接前置的祖先，多余
   for (const r of all(`
@@ -188,11 +190,11 @@ export function check(db: DatabaseSync): Finding[] {
   // 既不依赖别人、也没人依赖的知识点，在树上是一座孤岛
   for (const r of all(`
     SELECT id FROM skills
-     WHERE kind = 'concept'
-       AND id NOT IN (SELECT skill_id FROM skill_prerequisites)
+     WHERE id NOT IN (SELECT skill_id FROM skill_prerequisites)
        AND id NOT IN (SELECT prerequisite_id FROM skill_prerequisites)
+       AND id NOT IN (SELECT skill_id FROM sub_requirements)
   `)) {
-    warning('isolated-skill', `知识点 ${r.id} 既没有前置，也不是任何技能的前置`)
+    warning('isolated-skill', `技能 ${r.id} 既没有前置，也不是任何技能的前置`)
   }
 
   // ── 编号必须从 1 连续 ──
@@ -212,16 +214,11 @@ export function check(db: DatabaseSync): Finding[] {
 
   // ── 内容齐不齐 ──
   const required: [string, string, string, string][] = [
-    ["(SELECT id FROM skills WHERE kind = 'concept')", 'skill_checks', 'skill_id', '学会的标志'],
-    ["(SELECT id FROM skills WHERE kind = 'tool')", 'skill_topics', 'skill_id', '要学的内容'],
-    ["(SELECT id FROM skills WHERE kind = 'tool')", 'skill_resources', 'skill_id', '官方链接'],
-    ['areas', 'area_courses', 'area_id', '推荐公开课'],
+    ['skills', 'skill_resources', 'skill_id', '去哪学的链接'],
     ['areas', "(SELECT area_id FROM skills WHERE area_id IS NOT NULL)", 'area_id', '技能'],
-    ['tool_groups', "(SELECT group_id FROM skills WHERE group_id IS NOT NULL)", 'group_id', '工具'],
     ['categories', 'category_items', 'category_id', '方块文字'],
     ['categories', 'subs', 'category_id', '细分方向'],
     ['subs', 'sub_items', 'sub_id', '方块文字'],
-    ['subs', 'sub_topics', 'sub_id', '具体做什么'],
     ['subs', 'sub_projects', 'sub_id', '代表项目'],
     ['subs', '(SELECT sub_id FROM sub_requirements WHERE choice IS NULL)', 'sub_id', '必学技能'],
   ]
@@ -230,11 +227,13 @@ export function check(db: DatabaseSync): Finding[] {
       error('missing-content', `${r.id} 没有“${what}”`)
     }
   }
-  for (const r of all("SELECT skill_id, COUNT(*) AS n FROM skill_checks GROUP BY skill_id HAVING n > 4")) {
-    warning('too-many-checks', `技能 ${r.skill_id} 有 ${r.n} 条“学会的标志”，2~3 条最好读`)
+  for (const r of all("SELECT id, length(intro) AS n FROM skills WHERE length(intro) > 50")) {
+    warning('long-intro', `技能 ${r.id} 的介绍有 ${r.n} 个字，一句话最好控制在 50 字以内`)
   }
-  for (const r of all("SELECT id, length(intro) AS n FROM skills WHERE length(intro) > 90")) {
-    warning('long-intro', `技能 ${r.id} 的介绍有 ${r.n} 个字，一句话最好控制在 90 字以内`)
+  // 名字的显示宽度：中文算 2，英文数字算 1。技能树的节点下面放得下 16
+  const width = (t: string) => [...t].reduce((n, c) => n + (c.charCodeAt(0) > 0x2e80 ? 2 : 1), 0)
+  for (const r of all('SELECT id, name FROM skills')) {
+    if (width(r.name as string) > 16) warning('long-name', `技能 ${r.id} 的名字“${r.name}”太长，技能树上放不下`)
   }
 
   // ── 方向的要求写得对不对 ──
@@ -254,8 +253,8 @@ export function check(db: DatabaseSync): Finding[] {
   `)) {
     error('choice-in-core', `方向 ${r.sub_id} 的任选组“${r.choice}”里的 ${r.skill_id} 已经是必学的了`)
   }
-  for (const r of all("SELECT id FROM skills WHERE kind = 'tool' AND id NOT IN (SELECT skill_id FROM sub_skill_closure) AND id NOT IN (SELECT skill_id FROM sub_choices)")) {
-    warning('unused-tool', `工具 ${r.id} 没有任何方向用到`)
+  for (const r of all("SELECT id FROM skills WHERE id NOT IN (SELECT skill_id FROM sub_skill_closure) AND id NOT IN (SELECT skill_id FROM sub_choices)")) {
+    warning('unused-skill', `技能 ${r.id} 没有任何方向用到`)
   }
   const hot = (db.prepare('SELECT COUNT(*) AS n FROM subs WHERE is_hot = 1').get() as Row).n as number
   if (hot < 1 || hot > 4) warning('hot-count', `热门方向有 ${hot} 个，首页放 1~4 个比较合适`)

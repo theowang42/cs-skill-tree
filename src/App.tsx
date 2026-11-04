@@ -74,13 +74,14 @@ function Shell() {
   const { focus } = useApp()
   // 面板默认收起：第一次来只看到星图和圆心旁的提示
   const [panelOpen, setPanelOpen] = useState(false)
+  // 选中东西就打开面板，取消选中就收起；顶上的名字可以单独打开“我的进度”
   useEffect(() => {
-    if (focus) setPanelOpen(true)
+    setPanelOpen(focus !== null)
   }, [focus])
   return (
     <div className={`page${panelOpen ? ' panel-open' : ''}`}>
-      <SkillTree />
       <Hud onTogglePanel={() => setPanelOpen((o) => !o)} panelOpen={panelOpen} />
+      <SkillTree />
       <aside className="panel" aria-label="详情" aria-hidden={!panelOpen}>
         <div className="panel-body">
           <Panel />

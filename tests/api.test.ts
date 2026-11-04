@@ -25,11 +25,11 @@ async function call(method: string, path: string, body?: unknown) {
 test('内容接口', async () => {
   const health = await call('GET', '/health')
   assert.equal(health.status, 200)
-  assert.ok(health.body.skills > 200)
+  assert.ok(health.body.skills > 50)
   const roadmap = await call('GET', '/roadmap')
   assert.equal(roadmap.body.version, 2)
-  assert.equal((await call('GET', '/skills/http')).body.name, 'HTTP')
-  assert.equal((await call('GET', '/areas/os')).body.name, '操作系统')
+  assert.equal((await call('GET', '/skills/docker')).body.name, 'Docker')
+  assert.equal((await call('GET', '/areas/systems')).body.name, '系统')
   assert.equal((await call('GET', '/subs/backend')).body.categoryId, 'apps')
   assert.equal((await call('GET', '/categories/ai')).body.name, 'AI')
   assert.equal((await call('GET', '/skills/nope')).status, 404)
@@ -44,10 +44,10 @@ test('内容接口', async () => {
 })
 
 test('搜索：名字优先，通配符被转义', async () => {
-  const hits = (await call('GET', '/search?q=raft')).body
-  assert.equal(hits[0].id, 'consensus')
-  const http = (await call('GET', '/search?q=HTTP')).body
-  assert.equal(http[0].id, 'http')
+  const hits = (await call('GET', '/search?q=共识')).body
+  assert.equal(hits[0].id, 'distributed')
+  const http = (await call('GET', '/search?q=docker')).body
+  assert.equal(http[0].id, 'docker')
   assert.deepEqual((await call('GET', '/search?q=%25%25%25')).body, [])
   assert.deepEqual((await call('GET', '/search?q=')).body, [])
 })
@@ -61,33 +61,33 @@ test('学习者的完整流程', async () => {
   assert.equal((await call('PUT', `/learners/${id}/goal`, { subId: 'backend' })).body.goalSubId, 'backend')
   assert.equal((await call('PUT', `/learners/${id}/goal`, { subId: 'nope' })).status, 404)
 
-  const one = await call('PUT', `/learners/${id}/skills/cli`, { status: 'done' })
-  assert.equal(one.body.skills.cli.status, 'done')
-  assert.equal((await call('PUT', `/learners/${id}/skills/cli`, { status: 'meh' })).status, 400)
+  const one = await call('PUT', `/learners/${id}/skills/linux`, { status: 'done' })
+  assert.equal(one.body.skills.linux.status, 'done')
+  assert.equal((await call('PUT', `/learners/${id}/skills/linux`, { status: 'meh' })).status, 400)
   assert.equal((await call('PUT', `/learners/${id}/skills/nope`, { status: 'done' })).status, 404)
 
-  const batch = await call('PATCH', `/learners/${id}/skills`, { changes: { 'prog-basics': 'done', 'git-basics': 'learning', cli: null } })
-  assert.deepEqual(Object.keys(batch.body.skills).sort(), ['git-basics', 'prog-basics'])
+  const batch = await call('PATCH', `/learners/${id}/skills`, { changes: { python: 'done', git: 'learning', linux: null } })
+  assert.deepEqual(Object.keys(batch.body.skills).sort(), ['git', 'python'])
   // 有一个不认识的技能，整批都不写
-  const bad = await call('PATCH', `/learners/${id}/skills`, { changes: { 'data-types': 'done', nope: 'done' } })
+  const bad = await call('PATCH', `/learners/${id}/skills`, { changes: { dsa: 'done', nope: 'done' } })
   assert.equal(bad.status, 400)
-  assert.equal((await call('GET', `/learners/${id}`)).body.skills['data-types'], undefined)
+  assert.equal((await call('GET', `/learners/${id}`)).body.skills.dsa, undefined)
 
   const sum = (await call('GET', `/learners/${id}/summary`)).body
   assert.equal(sum.counts.done, 1)
   assert.equal(sum.counts.learning, 1)
   assert.equal(sum.goal.subId, 'backend')
-  assert.ok(sum.frontier.some((f: { skillId: string }) => f.skillId === 'functions'))
-  assert.ok(!sum.frontier.some((f: { skillId: string }) => f.skillId === 'prog-basics'))
+  assert.ok(sum.frontier.some((f: { skillId: string }) => f.skillId === 'dsa'))
+  assert.ok(!sum.frontier.some((f: { skillId: string }) => f.skillId === 'python'))
 
   const ev = (await call('GET', `/learners/${id}/events`)).body
-  assert.deepEqual(ev.map((e: { skillId: string; to: string | null }) => `${e.skillId}:${e.to}`), ['cli:null', 'git-basics:learning', 'prog-basics:done', 'cli:done'])
+  assert.deepEqual(ev.map((e: { skillId: string; to: string | null }) => `${e.skillId}:${e.to}`), ['linux:null', 'git:learning', 'python:done', 'linux:done'])
 
   const tl = (await call('GET', `/learners/${id}/timeline`)).body
   assert.equal(tl.length, 1)
-  assert.deepEqual(tl[0].lit, ['prog-basics'])
-  assert.deepEqual(tl[0].learning, ['git-basics'])
-  assert.deepEqual(tl[0].unlit, ['cli'])
+  assert.deepEqual(tl[0].lit, ['python'])
+  assert.deepEqual(tl[0].learning, ['git'])
+  assert.deepEqual(tl[0].unlit, ['linux'])
 
   const exported = (await call('GET', `/learners/${id}/export`)).body
   assert.equal(exported.format, 'cs-skill-tree-progress')
@@ -97,7 +97,7 @@ test('学习者的完整流程', async () => {
   const imported = await call('POST', `/learners/${other}/import`, { ...exported, skills: { ...exported.skills, gone: { status: 'done', updatedAt: '2020-01-01T00:00:00Z' } } })
   assert.equal(imported.status, 200)
   assert.deepEqual(imported.body.dropped, ['gone'])
-  assert.deepEqual(Object.keys(imported.body.learner.skills).sort(), ['git-basics', 'prog-basics'])
+  assert.deepEqual(Object.keys(imported.body.learner.skills).sort(), ['git', 'python'])
   assert.equal(imported.body.learner.goalSubId, 'backend')
   assert.equal((await call('POST', `/learners/${other}/import`, { format: 'x' })).status, 400)
 

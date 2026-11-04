@@ -71,6 +71,7 @@ erDiagram
 | `0001_content.sql` | 内容表。`STRICT` 表，CHECK 约束保证 id 格式、链接是 http(s)、知识点和工具的字段互斥 |
 | `0002_graph_views.sql` | `skill_ancestors`（全部前置）、`skill_tiers`（领域内第几行）、`sub_skill_closure`（方向必学的全部技能）、`sub_learning_plan`（第几步学）、`sub_choices`、`skill_unlocks`、`skill_weight`（被多少技能依赖） |
 | `0003_learners.sql` | `learners`、`learner_skills`、`learner_events`（三个触发器自动记录每次状态变化）；视图 `learner_skill_state`（四种状态）、`learner_frontier`（能力边界）、`learner_sub_readiness`（就绪度） |
+| `0005_resume_skills.sql` | 技能改成能写进简历的颗粒度：`skills` 加 `level`（1~5，手写）和 `icon`（Lucide 名或 `si:` 品牌图标）；`skill_level` 视图改为直接读 `level` |
 | `0004_skill_depth.sql` | `skill_depth`（全局最长前置链）、`skill_level`（星图的 5 个等级：入门 / 基础 / 进阶 / 专精 / 前沿，由所在层和领域内层级映射，再按前置抬高，保证前置不在更高级）、`learner_reach`（每个领域点亮到第几圈） |
 
 递归视图都用 `UNION` 去重，行数被限制在“节点数 × 深度”以内，数据里就算误写了环也能停下来，环由体检报错。
@@ -114,50 +115,39 @@ erDiagram
 ```
 src/
   types.ts              前后端共用的数据形状
+  generated/icons.ts    由 npm run db:export 生成：只 import 用到的图标（不进 git）
   lib/tree.ts           索引、四种状态、能力边界、就绪度（和数据库视图同一套算法）
-  lib/treeLayout.ts     技能树布局：行是等级、列是分支（纯函数，tests/treeLayout.test.ts）
-  lib/areaIcons.ts      每个知识领域一个线条图标
+  lib/branchLayout.ts   一个分支的布局：五行等级、行内排序、圆角拐弯的连线（tests/branchLayout.test.ts）
   lib/store.ts          进度存储：LocalStore（浏览器）/ ApiStore（服务端），接口一样
   lib/search.ts         页面内搜索
   lib/share.ts          分享链接：已掌握技能的位图 → base64url
-  state.tsx             全局状态和所有会改进度的动作（乐观更新、撤销、解锁动画、跳转请求）
+  state.tsx             全局状态和所有会改进度的动作（乐观更新、撤销、解锁动画）
   components/
-    SkillTree.tsx       树本体：平移缩放、节点、线、点亮卡
+    SkillTree.tsx       左边分支列表 + 中间一个分支的技能树
     Hud.tsx             顶栏：进度、快速点亮、目标、下一个、搜索
-    Panel.tsx           右侧面板路由：Dashboard / SkillPanel / AreaPanel / SubPanel / CategoryPanel
+    Panel.tsx           右侧面板：我的进度 / 技能 / 分支 / 方向，都只有一句话和链接
 ```
 
-布局规则（`lib/treeLayout.ts`）：
-
-- **行 = 等级**：五个带，由数据库视图 `skill_level` 算出。前置永远不在更低的带。
-- **列 = 分支**：每个知识领域一列，相关的挨着。工具没有领域，跟着它最深的前置走。
-- 每个分支在每一级上是一簇，簇按 `ceil(sqrt(n))` 列（最多 4 列）折行；带的高度由这一级最高的簇决定，分支的宽度由它最宽的簇决定。
-- 簇内按前置在上一级的平均横坐标排序，线不交叉。
-
-渲染和交互（`components/SkillTree.tsx`）：
-
-- SVG。平移缩放不走 React，直接改世界 `<g>` 的 transform；只有缩放跨过档位时才 setState。缩得很小时隐藏节点名。
-- 滚轮平移，Ctrl + 滚轮缩放，拖动平移，双指缩放。`0` 全图，`1` 我点亮的部分。
-- 同一分支里的线一直画；跨分支的线只在选中或悬停时画。选中一个节点时画出它到根的全部前置（实线）和它解锁的节点（虚线），其余节点淡掉。
-- 点节点：旁边弹出点亮卡（名字、状态、“点亮”/“在学”），右侧同时打开面板。前置没满足的节点给“连同 N 个前置一起点亮”。
+- 中间一次只看一个分支，五个等级永远是五行。行内按分支内前置的平均横坐标排序，线不交叉。
+- 线只画分支内的前置；跨分支的前置列在顶上“先要会”。悬停或选中节点时，相关的保持清楚，其余变淡。
+- 选中别的分支里的技能（搜索、下一个、面板里的链接）会自动切到那个分支。
 - 顶栏“快速点亮”：点节点直接切换 没学 → 已掌握 → 在学。
-- 设了目标后，最该学的那个节点上方有一个朱砂小三角；顶栏“下一个”跳过去。
-- 面板只有一句话和链接，见 [ART.md](ART.md)。
+- 设了目标后，左边列表标出每个分支还差几个，最该学的节点上方有一个朱砂小三角。
+- 美术规则见 [ART.md](ART.md)。
 
 进度的安全措施：
 
 - 内容更新后，浏览器里存的、导入的、分享链接里带的已删除技能和方向会被清掉（`sanitize`），页面不会因为旧数据出错
 - 两个标签页同时改进度不会互相覆盖：每次写之前重读 localStorage，并监听 `storage` 事件同步
-- API 模式下所有请求排队发出，顺序和界面一致；只有服务器明确返回 404 才会新建学习者，断网或服务器重启不会把人换成空白身份
+- API 模式下所有请求排队发出，顺序和界面一致；只有服务器明确返回 404 才会新建学习者
 - 导入、清空、用分享链接覆盖都可以撤销；万一渲染出错，错误页提供备份进度和清空重试
 
 ## 7. 常见修改
 
-- **加一个知识点**：在 `db/seed/2x_*.sql` 对应领域的 `INSERT INTO concept_rows` 里加一行（id、领域、名字、介绍、前置、学会的标志），跑 `npm run db:build`。
-- **加一个工具**：`db/seed/30_tools.sql` 加一行；图标在 `src/lib/icons.ts` 里按 id 对应，Simple Icons 没有的写进 `MONOGRAMS`。
+- **加一个技能**：在 `db/seed/20_skills.sql` 对应分支的 `INSERT INTO skill_rows` 里加一行（id、分支、等级、图标、名字、一句话、前置、链接），跑 `npm run db:build`。体检会查等级倒挂、重复图标、名字太长、缺链接；图标名不存在时导出直接报错。
 - **改方向要求**：`db/seed/40_directions.sql`，必学只写最高层的技能；任选组写成 `{"组名": ["a", "b"]}`。
-- **加一个知识领域**：`db/seed/10_areas.sql` 加一行，再在技能文件里给它加技能。
-- **改技能 id**：尽量别改，会让用户已有的进度和分享链接对不上。真要改，旧 id 的进度会在下次播种时被清掉。
+- **加一个分支**：`db/seed/10_areas.sql` 加一行，再在 `src/components/SkillTree.tsx` 的 `BRANCH_ICONS` 里给它配个图标。
+- **改技能 id**：尽量别改，会让用户已有的进度和分享链接对不上。真要改，旧 id 的进度会在下次加载时被清掉。
 
 ## 8. 以后可以做
 

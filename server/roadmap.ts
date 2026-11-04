@@ -67,6 +67,7 @@ export function getSkills(db: DatabaseSync): Skill[] {
       tier: r.tier as number,
       depth: r.depth as number,
       level: r.level as number,
+      icon: (r.icon as string | null) ?? 'circle',
       prerequisites: prereqs.get(id) ?? [],
       dependents: dependents.get(id) ?? [],
       weight: r.weight as number,

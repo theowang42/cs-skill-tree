@@ -10,12 +10,14 @@
 //   query    跑一条 SQL，例如 npm run db -- query "SELECT * FROM sub_learning_plan WHERE sub_id = 'agent'"
 //   events   最近的学习记录（API 模式下有数据）
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { check, DEFAULT_DB_PATH, migrate, openDatabase, rebuild, seed, tableCounts } from '../server/db.ts'
 import { getRoadmap } from '../server/roadmap.ts'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const require = createRequire(import.meta.url)
 export const EXPORT_PATH = join(ROOT, 'public', 'data', 'roadmap.json')
 
 const [command, ...args] = process.argv.slice(2)
@@ -34,12 +36,43 @@ function runCheck(db = openDatabase()): boolean {
   return errors === 0
 }
 
+const ICONS_PATH = join(ROOT, 'src', 'generated', 'icons.ts')
+const pascal = (s: string) => s.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join('')
+const siName = (s: string) => 'si' + s[0].toUpperCase() + s.slice(1)
+
+/**
+ * 生成前端用的图标表：只 import 用到的图标，打包时其余的都被摇掉。
+ * 名字不存在就直接报错，比运行时少一个图标好查。
+ */
+function writeIcons(names: string[]) {
+  const lucide = [...new Set(names.filter((n) => !n.startsWith('si:')))].sort()
+  const brands = [...new Set(names.filter((n) => n.startsWith('si:')).map((n) => n.slice(3)))].sort()
+  const lucideMod = require('lucide-react') as { icons: Record<string, unknown> }
+  const siMod = require('simple-icons') as Record<string, unknown>
+  const bad = [...lucide.filter((n) => !lucideMod.icons[pascal(n)]), ...brands.filter((n) => !siMod[siName(n)]).map((n) => 'si:' + n)]
+  if (bad.length) throw new Error(`这些图标不存在：${bad.join('、')}。Lucide 图标名见 https://lucide.dev/icons`)
+  const src = `// 由 npm run db:export 生成，别手改。改图标请改 db/seed 里技能的 icon 字段。
+import type { LucideIcon } from 'lucide-react'
+import { ${lucide.map(pascal).join(', ')} } from 'lucide-react'
+import { ${brands.map(siName).join(', ')} } from 'simple-icons'
+
+export type SkillIcon = { kind: 'lucide'; Icon: LucideIcon } | { kind: 'brand'; path: string; title: string }
+
+export const ICONS: Record<string, SkillIcon> = {
+${lucide.map((n) => `  ${JSON.stringify(n)}: { kind: 'lucide', Icon: ${pascal(n)} },`).join('\n')}
+${brands.map((n) => `  ${JSON.stringify('si:' + n)}: { kind: 'brand', path: ${siName(n)}.path, title: ${siName(n)}.title },`).join('\n')}
+}
+`
+  mkdirSync(dirname(ICONS_PATH), { recursive: true })
+  writeFileSync(ICONS_PATH, src)
+}
+
 function runExport(db = openDatabase()) {
   const roadmap = getRoadmap(db)
   mkdirSync(dirname(EXPORT_PATH), { recursive: true })
   writeFileSync(EXPORT_PATH, JSON.stringify(roadmap, null, 2) + '\n')
-  const tools = roadmap.skills.filter((s) => s.kind === 'tool').length
-  console.log(`已导出 ${EXPORT_PATH}：${roadmap.areas.length} 个领域、${roadmap.skills.length - tools} 个知识点、${tools} 个工具、${roadmap.subs.length} 个方向`)
+  writeIcons(roadmap.skills.map((s) => s.icon))
+  console.log(`已导出 ${EXPORT_PATH}：${roadmap.areas.length} 个分支、${roadmap.skills.length} 个技能、${roadmap.subs.length} 个方向`)
 }
 
 switch (command) {

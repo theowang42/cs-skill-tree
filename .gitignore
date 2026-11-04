@@ -5,3 +5,4 @@ dist
 # 由 npm run db:build 生成
 data/
 public/data/
+src/generated/

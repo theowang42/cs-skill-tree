@@ -1,31 +1,26 @@
 // 一个技能：一句话、去哪学、点亮。没有别的。
 import { useApp } from '../state'
 import { STATE_LABEL } from '../lib/format'
-import { LEVEL_NAMES } from '../lib/treeLayout'
+import { LEVEL_NAMES } from '../lib/branchLayout'
+import { SkillGlyph } from './SkillTree'
 import { Links, StatusControl } from './common'
-import { ToolIcon } from './ToolIcon'
 
 export function SkillPanel({ id }: { id: string }) {
   const { tree, states, setFocus } = useApp()
   const s = tree.skill(id)
   const state = states.get(id)!
-  const area = s.areaId ? tree.areas.get(s.areaId) : undefined
-  const group = s.groupId ? tree.groups.get(s.groupId) : undefined
-  const links = [...s.resources, ...(area?.courses ?? [])]
+  const area = tree.areas.get(s.areaId!)!
+  const links = s.resources
 
   return (
     <div className="detail" key={id}>
       <p className="eyebrow">
-        {area ? (
-          <button className="link-button" onClick={() => setFocus({ kind: 'area', id: area.id }, { scroll: true })}>{area.name}</button>
-        ) : (
-          group!.name
-        )}
+        <button className="link-button" onClick={() => setFocus({ kind: 'area', id: area.id })}>{area.name}</button>
         {' · '}
         {LEVEL_NAMES[s.level]}
       </p>
-      <h2 className={s.kind === 'tool' ? 'with-icon' : ''}>
-        {s.kind === 'tool' && <ToolIcon id={id} />}
+      <h2 className="with-icon">
+        <span className={`panel-glyph s-${state}`}><SkillGlyph icon={s.icon} size={26} /></span>
         <span>{s.name}</span>
       </h2>
       <p className="summary">{s.intro}</p>
@@ -43,7 +38,7 @@ export function SkillPanel({ id }: { id: string }) {
           {s.prerequisites.map((p, i) => (
             <span key={p}>
               {i > 0 && '、'}
-              <button className="link-button inline" onClick={() => setFocus({ kind: 'skill', id: p }, { scroll: true })}>{tree.skill(p).name}</button>
+              <button className="link-button inline" onClick={() => setFocus({ kind: 'skill', id: p })}>{tree.skill(p).name}</button>
             </span>
           ))}
         </p>

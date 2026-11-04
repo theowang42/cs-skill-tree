@@ -20,18 +20,20 @@ test('迁移可以重复执行', () => {
   assert.equal(second.skipped.length, first.applied.length)
 })
 
-test('技能数量在预期范围内', () => {
+test('技能数量在预期范围内，每个都有等级和图标', () => {
   const db = sharedDb()
   const n = (sql: string) => (db.prepare(sql).get() as Row).n as number
-  assert.ok(n("SELECT COUNT(*) AS n FROM skills WHERE kind = 'concept'") >= 150)
-  assert.ok(n("SELECT COUNT(*) AS n FROM skills WHERE kind = 'tool'") >= 40)
-  assert.ok(n('SELECT COUNT(*) AS n FROM skill_prerequisites') >= 300)
-  assert.equal(n('SELECT COUNT(*) AS n FROM layers'), 3)
+  // 技能是能写进简历的能力，不是知识点：几十个，而不是几百个
+  const skills = n('SELECT COUNT(*) AS n FROM skills')
+  assert.ok(skills >= 50 && skills <= 90, `技能有 ${skills} 个`)
+  assert.ok(n('SELECT COUNT(*) AS n FROM skill_prerequisites') >= 50)
+  assert.equal(n('SELECT COUNT(*) AS n FROM skills WHERE level IS NULL OR icon IS NULL'), 0)
 })
 
 test('每个细分方向的学习计划都从没有前置的技能开始，并且每一步的前置都在更早的步骤', () => {
   const db = sharedDb()
   const plan = db.prepare('SELECT sub_id, skill_id, step FROM sub_learning_plan').all() as Row[]
+  assert.ok(plan.length > 0)
   const step = new Map(plan.map((r) => [`${r.sub_id}/${r.skill_id}`, r.step as number]))
   const prereqs = db.prepare('SELECT skill_id, prerequisite_id FROM skill_prerequisites').all() as Row[]
   for (const r of plan) {
@@ -47,30 +49,32 @@ test('每个细分方向的学习计划都从没有前置的技能开始，并�
   }
 })
 
-test('体检能发现成环、连反和编号断档', () => {
+test('体检能发现成环、等级倒挂、编号断档和重复图标', () => {
   const db = freshDb()
-  db.exec("INSERT INTO skill_prerequisites VALUES ('prog-basics', 'agents')") // 基础层依赖进阶层，并且成环
-  db.exec("UPDATE skill_checks SET position = 9 WHERE skill_id = 'cli' AND position = 2")
+  db.exec("INSERT INTO skill_prerequisites VALUES ('python', 'agent')") // 入门依赖专精，并且成环
+  db.exec("UPDATE skill_resources SET position = 9 WHERE skill_id = 'python' AND position = 2")
+  db.exec("UPDATE skills SET icon = 'si:python' WHERE id = 'javascript'")
   const rules = new Set(check(db).filter((f) => f.level === 'error').map((f) => f.rule))
   assert.ok(rules.has('prerequisite-cycle'))
-  assert.ok(rules.has('prerequisite-layer'))
+  assert.ok(rules.has('prerequisite-level'))
   assert.ok(rules.has('position-gap'))
+  assert.ok(rules.has('duplicate-icon'))
 })
 
 test('表约束挡住不合法的数据', () => {
   const db = freshDb()
-  assert.throws(() => db.exec("INSERT INTO skills (id, kind, area_id, position, name, intro) VALUES ('Bad Id', 'concept', 'math', 99, 'x', 'y')"))
-  assert.throws(() => db.exec("INSERT INTO skills (id, kind, group_id, position, name, intro) VALUES ('t1', 'tool', 'language', 99, 't1', 'y')"), /CHECK/)
-  assert.throws(() => db.exec("INSERT INTO skill_prerequisites VALUES ('cli', 'cli')"), /CHECK/)
-  assert.throws(() => db.exec("INSERT INTO skill_resources VALUES ('cli', 9, 'x', 'ftp://example.com')"), /CHECK/)
-  assert.throws(() => db.exec("INSERT INTO skill_prerequisites VALUES ('cli', 'no-such-skill')"), /FOREIGN KEY/)
+  assert.throws(() => db.exec("INSERT INTO skills (id, kind, area_id, position, name, intro) VALUES ('Bad Id', 'concept', 'lang', 99, 'x', 'y')"))
+  assert.throws(() => db.exec("UPDATE skills SET level = 6 WHERE id = 'python'"), /CHECK/)
+  assert.throws(() => db.exec("INSERT INTO skill_prerequisites VALUES ('linux', 'linux')"), /CHECK/)
+  assert.throws(() => db.exec("INSERT INTO skill_resources VALUES ('linux', 9, 'x', 'ftp://example.com')"), /CHECK/)
+  assert.throws(() => db.exec("INSERT INTO skill_prerequisites VALUES ('linux', 'no-such-skill')"), /FOREIGN KEY/)
 })
 
 test('重新播种保留学习者的进度，只清掉指向已删除技能的记录', () => {
   const db = freshDb()
   const id = 'a'.repeat(32)
   db.prepare("INSERT INTO learners (id, goal_sub_id) VALUES (?, 'backend')").run(id)
-  db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'cli', 'done'), (?, 'http', 'learning')").run(id, id)
+  db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'linux', 'done'), (?, 'docker', 'learning')").run(id, id)
   // 模拟一个已经从内容里删掉的技能
   db.exec('PRAGMA foreign_keys = OFF')
   db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'removed-skill', 'done')").run(id)
@@ -80,14 +84,14 @@ test('重新播种保留学习者的进度，只清掉指向已删除技能的�
   assert.equal(r.orphaned, 1)
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM learner_events').get() as Row).n, eventsBefore, '清理不该留下用户没做过的操作记录')
   const rows = db.prepare('SELECT skill_id, status FROM learner_skills ORDER BY skill_id').all() as Row[]
-  assert.deepEqual(rows.map((x) => `${x.skill_id}:${x.status}`), ['cli:done', 'http:learning'])
+  assert.deepEqual(rows.map((x) => `${x.skill_id}:${x.status}`), ['docker:learning', 'linux:done'])
   assert.equal((db.prepare('SELECT goal_sub_id FROM learners').get() as Row).goal_sub_id, 'backend')
 })
 
 test('种子文件出错时整体回滚，原来的内容不受影响', () => {
   const db = freshDb()
   const before = (db.prepare('SELECT COUNT(*) AS n FROM skills').get() as Row).n
-  db.exec('DROP TABLE skill_checks') // 让种子文件跑不下去
+  db.exec('DROP TABLE skill_resources') // 让种子文件跑不下去
   assert.throws(() => seed(db))
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM skills').get() as Row).n, before)
 })
@@ -96,7 +100,7 @@ test('操作记录由触发器自动写入', () => {
   const db = freshDb()
   const id = 'b'.repeat(32)
   db.prepare('INSERT INTO learners (id) VALUES (?)').run(id)
-  db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'cli', 'learning')").run(id)
+  db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'linux', 'learning')").run(id)
   db.prepare("UPDATE learner_skills SET status = 'done' WHERE learner_id = ?").run(id)
   db.prepare("UPDATE learner_skills SET status = 'done' WHERE learner_id = ?").run(id) // 没变化，不记
   db.prepare('DELETE FROM learner_skills WHERE learner_id = ?').run(id)
@@ -119,10 +123,10 @@ test('API 的整棵树缓存：别的连接改了内容就失效，自己写学�
     server.prepare("INSERT INTO learners (id) VALUES (?)").run('c'.repeat(32))
     assert.equal(cachedRoadmap(server), first, '学习者数据不该让缓存失效')
     const editor = openDatabase(path)
-    editor.exec("UPDATE skills SET name = '变量、条件与循环' WHERE id = 'prog-basics'")
+    editor.exec("UPDATE skills SET name = 'Python 3' WHERE id = 'python'")
     const second = cachedRoadmap(server)
     assert.notEqual(second, first)
-    assert.equal(second.skills.find((s) => s.id === 'prog-basics')!.name, '变量、条件与循环')
+    assert.equal(second.skills.find((s) => s.id === 'python')!.name, 'Python 3')
     editor.close()
     server.close()
   } finally {
