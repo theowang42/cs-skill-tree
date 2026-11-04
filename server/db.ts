@@ -162,18 +162,18 @@ export function check(db: DatabaseSync): Finding[] {
   for (const r of all('SELECT skill_id FROM skill_ancestors WHERE skill_id = ancestor_id')) {
     error('prerequisite-cycle', `技能 ${r.skill_id} 的前置绕了一圈又回到了自己`)
   }
-  // 前置的等级不能比它高：技能树上线一律从上往下（或同一行横着）走
+  // 前置的等级不能比它高：技能树上线一律从里往外走
   for (const r of all(`
     SELECT p.skill_id, p.prerequisite_id, a.level AS la, b.level AS lb
       FROM skill_prerequisites p
-      JOIN skills a ON a.id = p.skill_id
-      JOIN skills b ON b.id = p.prerequisite_id
+      JOIN skill_level a ON a.skill_id = p.skill_id
+      JOIN skill_level b ON b.skill_id = p.prerequisite_id
      WHERE b.level > a.level
   `)) {
     error('prerequisite-level', `技能 ${r.skill_id}（${r.la} 级）的前置 ${r.prerequisite_id} 是 ${r.lb} 级，比它还高`)
   }
-  for (const r of all('SELECT id FROM skills WHERE level IS NULL OR icon IS NULL')) {
-    error('missing-level-or-icon', `技能 ${r.id} 没写等级或图标`)
+  for (const r of all('SELECT id FROM skills WHERE icon IS NULL')) {
+    error('missing-icon', `技能 ${r.id} 没写图标`)
   }
   for (const r of all('SELECT icon, group_concat(id) AS ids, COUNT(*) AS n FROM skills GROUP BY icon HAVING n > 1')) {
     error('duplicate-icon', `图标 ${r.icon} 被 ${r.ids} 共用，每个技能要有自己的图标`)

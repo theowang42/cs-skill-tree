@@ -71,6 +71,7 @@ erDiagram
 | `0001_content.sql` | 内容表。`STRICT` 表，CHECK 约束保证 id 格式、链接是 http(s)、知识点和工具的字段互斥 |
 | `0002_graph_views.sql` | `skill_ancestors`（全部前置）、`skill_tiers`（领域内第几行）、`sub_skill_closure`（方向必学的全部技能）、`sub_learning_plan`（第几步学）、`sub_choices`、`skill_unlocks`、`skill_weight`（被多少技能依赖） |
 | `0003_learners.sql` | `learners`、`learner_skills`、`learner_events`（三个触发器自动记录每次状态变化）；视图 `learner_skill_state`（四种状态）、`learner_frontier`（能力边界）、`learner_sub_readiness`（就绪度） |
+| `0006_derived_level.sql` | 等级不写就按树的深度（最多 5） |
 | `0005_resume_skills.sql` | 技能改成能写进简历的颗粒度：`skills` 加 `level`（1~5，手写）和 `icon`（Lucide 名或 `si:` 品牌图标）；`skill_level` 视图改为直接读 `level` |
 | `0004_skill_depth.sql` | `skill_depth`（全局最长前置链）、`skill_level`（星图的 5 个等级：入门 / 基础 / 进阶 / 专精 / 前沿，由所在层和领域内层级映射，再按前置抬高，保证前置不在更高级）、`learner_reach`（每个领域点亮到第几圈） |
 
@@ -110,29 +111,35 @@ erDiagram
 - `GET /api/learners/:id/timeline` 按天汇总的成长记录（点亮、开始学、取消），来自触发器写的 `learner_events`
 - `POST /api/learners/:id/import` 接受前端导出的进度文件，不认识的技能丢掉并在 `dropped` 里报告
 
-## 6. 前端：技能树
+## 6. 前端：技能网
 
 ```
 src/
   types.ts              前后端共用的数据形状
   generated/icons.ts    由 npm run db:export 生成：只 import 用到的图标（不进 git）
   lib/tree.ts           索引、四种状态、能力边界、就绪度（和数据库视图同一套算法）
-  lib/branchLayout.ts   一个分支的布局：五行等级、行内排序、圆角拐弯的连线（tests/branchLayout.test.ts）
+  lib/webLayout.ts      技能网布局：中心发散、按领域定方向、力导向错落（tests/webLayout.test.ts）
   lib/store.ts          进度存储：LocalStore（浏览器）/ ApiStore（服务端），接口一样
   lib/search.ts         页面内搜索
   lib/share.ts          分享链接：已掌握技能的位图 → base64url
   state.tsx             全局状态和所有会改进度的动作（乐观更新、撤销、解锁动画）
   components/
-    SkillTree.tsx       左边分支列表 + 中间一个分支的技能树
+    SkillTree.tsx       技能网：平移缩放、节点、枝条、领域名
     Hud.tsx             顶栏：进度、快速点亮、目标、下一个、搜索
-    Panel.tsx           右侧面板：我的进度 / 技能 / 分支 / 方向，都只有一句话和链接
+    Panel.tsx           右侧面板：我的进度 / 技能 / 领域 / 方向，都只有一句话和链接
 ```
 
-- 中间一次只看一个分支，五个等级永远是五行。行内按分支内前置的平均横坐标排序，线不交叉。
-- 线只画分支内的前置；跨分支的前置列在顶上“先要会”。悬停或选中节点时，相关的保持清楚，其余变淡。
-- 选中别的分支里的技能（搜索、下一个、面板里的链接）会自动切到那个分支。
-- 顶栏“快速点亮”：点节点直接切换 没学 → 已掌握 → 在学。
-- 设了目标后，左边列表标出每个分支还差几个，最该学的节点上方有一个朱砂小三角。
+布局（`lib/webLayout.ts`）：
+
+- 目标半径由深度决定（视图 `skill_depth`），目标角度由领域决定（`SECTORS`），同领域的子节点再往父节点的方向偏一半，枝条就顺着长。地基朝它喂养的领域的平均方向。
+- 固定种子的力导向模拟 700 步：太近就推开、沿边轻轻拉近、径向和角度各有弹簧拉回目标。结果确定，测试会比对两次布局完全一样。
+- 枝条是三次贝塞尔，控制点在弦上再往外侧弯一点。
+
+交互：
+
+- 点节点：右侧面板打开（一句话、三段开关、去哪学）；顶栏“快速点亮”打开后点节点直接切换 没学 → 已掌握 → 在学。
+- 悬停或选中节点：前置路线和它解锁的保持清楚，其余变淡。悬停领域名：只亮这一支。
+- 设了目标后，最该学的节点上方有一个朱砂小三角；顶栏“下一个”飞过去。
 - 美术规则见 [ART.md](ART.md)。
 
 进度的安全措施：
@@ -144,9 +151,9 @@ src/
 
 ## 7. 常见修改
 
-- **加一个技能**：在 `db/seed/20_skills.sql` 对应分支的 `INSERT INTO skill_rows` 里加一行（id、分支、等级、图标、名字、一句话、前置、链接），跑 `npm run db:build`。体检会查等级倒挂、重复图标、名字太长、缺链接；图标名不存在时导出直接报错。
+- **加一个技能**：在 `db/seed/20_skills.sql` 对应领域的 `INSERT INTO skill_rows` 里加一行（id、领域、等级（一般写 NULL，按深度）、图标、名字、一句话、前置、链接），跑 `npm run db:build`。体检会查等级倒挂、重复图标、名字太长、缺链接；图标名不存在时导出直接报错。
 - **改方向要求**：`db/seed/40_directions.sql`，必学只写最高层的技能；任选组写成 `{"组名": ["a", "b"]}`。
-- **加一个分支**：`db/seed/10_areas.sql` 加一行，再在 `src/components/SkillTree.tsx` 的 `BRANCH_ICONS` 里给它配个图标。
+- **加一个领域**：`db/seed/10_areas.sql` 加一行，再在 `src/lib/webLayout.ts` 的 `SECTORS` 里给它一个方向。
 - **改技能 id**：尽量别改，会让用户已有的进度和分享链接对不上。真要改，旧 id 的进度会在下次加载时被清掉。
 
 ## 8. 以后可以做

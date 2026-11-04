@@ -1,7 +1,6 @@
 // 一个技能：一句话、去哪学、点亮。没有别的。
 import { useApp } from '../state'
 import { STATE_LABEL } from '../lib/format'
-import { LEVEL_NAMES } from '../lib/branchLayout'
 import { SkillGlyph } from './SkillTree'
 import { Links, StatusControl } from './common'
 
@@ -16,8 +15,6 @@ export function SkillPanel({ id }: { id: string }) {
     <div className="detail" key={id}>
       <p className="eyebrow">
         <button className="link-button" onClick={() => setFocus({ kind: 'area', id: area.id })}>{area.name}</button>
-        {' · '}
-        {LEVEL_NAMES[s.level]}
       </p>
       <h2 className="with-icon">
         <span className={`panel-glyph s-${state}`}><SkillGlyph icon={s.icon} size={26} /></span>

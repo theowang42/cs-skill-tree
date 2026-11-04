@@ -84,7 +84,7 @@ a {
   color: var(--goal);
 }
 
-/* ═════════════ 页面：顶栏 / 左边分支 / 中间技能树 / 右边面板 ═════════════ */
+/* ═════════════ 页面：顶栏 / 技能网 / 右边面板 ═════════════ */
 
 .page {
   position: relative;
@@ -94,191 +94,83 @@ a {
   overflow: hidden;
 }
 
-.tree-page {
+.web-wrap {
+  position: relative;
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  background: var(--paper);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
   transition: margin-right 0.35s var(--ease);
 }
 
-/* 面板打开时把树往左让，不盖住 */
 @media (min-width: 761px) {
-  .page.panel-open .tree-page {
+  .page.panel-open .web-wrap {
     margin-right: var(--panel-w);
   }
 }
 
-/* ── 左边：分支列表 ── */
-
-.branches {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 12px 24px 16px;
-  border-right: 1px solid var(--line-2);
-  overflow-y: auto;
-}
-
-.branch {
-  display: grid;
-  grid-template-columns: 18px 1fr auto auto;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 10px;
-  border: 0;
-  border-radius: 8px;
-  background: none;
-  color: var(--ink-2);
-  font-size: 14px;
-  text-align: left;
-}
-
-.branch:hover {
-  background: var(--wash);
-  color: var(--ink);
-}
-
-.branch.on {
-  background: var(--ink);
-  color: var(--paper);
-}
-
-.branch-count {
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.7;
-}
-
-.branch-goal {
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  background: var(--goal);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 18px;
-  text-align: center;
-}
-
-/* ── 中间：一个分支 ── */
-
-.branch-view {
-  min-width: 0;
-  overflow: auto;
-  padding: 8px 40px 40px;
-}
-
-.branch-head {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: baseline;
-  gap: 4px 20px;
-  max-width: 880px;
-  margin: 0 auto;
-}
-
-.branch-head h1 {
-  margin: 0;
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.branch-head p {
-  grid-column: 1 / -1;
-  margin: 0;
-  color: var(--ink-2);
-  font-size: 14px;
-}
-
-.branch-progress {
-  grid-row: 1;
-  grid-column: 2;
-  color: var(--ink-2);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-
-.branch-section {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  max-width: 880px;
-  margin: 18px auto 0;
-}
-
-.ext-label {
-  margin-right: 4px;
-  color: var(--ink-3);
-  font-size: 12px;
-  letter-spacing: 0.1em;
-}
-
-.ext {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--paper);
-  color: var(--ink-3);
-  font-size: 12.5px;
-}
-
-.ext.s-available,
-.ext.s-learning {
-  border-color: var(--ink);
-  color: var(--ink);
-}
-
-.ext.s-done {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--paper);
-}
-
-.ext.hl {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-}
-
-.canvas {
-  display: flex;
-  justify-content: center;
-  margin-top: 36px;
-}
-
-.branch-svg {
+.web {
   display: block;
-  max-width: 100%;
-  height: auto;
-  overflow: visible;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
 }
 
-.level-name {
+.web:active {
+  cursor: grabbing;
+}
+
+.web-wrap.quick .node {
+  cursor: crosshair;
+}
+
+/* ── 中心和树干 ── */
+
+.root-dot {
+  fill: var(--ink);
+}
+
+.trunk {
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+
+.trunk.done {
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.trunk.dim {
+  opacity: 0.3;
+}
+
+/* ── 领域名 ── */
+
+.area-label {
   fill: var(--ink-3);
-  font-size: 12px;
-  letter-spacing: 0.3em;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  cursor: pointer;
+  transition: fill 0.2s;
 }
 
-.level-line {
-  stroke: var(--line-2);
-  stroke-width: 1;
+.area-label:hover,
+.area-label.on {
+  fill: var(--ink);
 }
 
-/* ── 线 ── */
+/* ── 枝条 ── */
 
 .edge {
   fill: none;
   stroke: var(--line);
   stroke-width: 1.5;
   stroke-linecap: round;
-  stroke-linejoin: round;
   transition: stroke 0.3s, opacity 0.3s;
 }
 
@@ -288,12 +180,12 @@ a {
 
 .edge.e-done {
   stroke: var(--ink);
-  stroke-width: 2;
+  stroke-width: 2.25;
 }
 
 .edge.e-path {
   stroke: var(--ink);
-  stroke-width: 2;
+  stroke-width: 2.25;
 }
 
 .edge.e-unlock {
@@ -302,7 +194,7 @@ a {
 }
 
 .edge.e-dim {
-  opacity: 0.3;
+  opacity: 0.2;
 }
 
 /* ── 节点 ── */
@@ -321,16 +213,21 @@ a {
 
 .node .glyph {
   display: flex;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   color: var(--ink-3);
   transition: color 0.3s var(--ease);
 }
 
+/* 名字带一圈白边，枝条从下面穿过时不会和字搅在一起 */
 .node .lbl {
   fill: var(--ink-3);
   font-size: 13px;
   text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 5px;
+  stroke-linejoin: round;
 }
 
 .node.s-available .box,
@@ -378,7 +275,7 @@ a {
 }
 
 .node.r-dim {
-  opacity: 0.28;
+  opacity: 0.22;
 }
 
 .next-mark {
@@ -396,33 +293,42 @@ a {
     transform: scale(0.85);
   }
   50% {
-    transform: scale(1.1);
+    transform: scale(1.12);
   }
   100% {
     transform: scale(1);
   }
 }
 
-.tree-page.quick .node {
-  cursor: crosshair;
+.web-tools {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  overflow: hidden;
 }
 
-.branch-foot {
-  max-width: 880px;
-  margin: 24px auto 0;
-  color: var(--ink-3);
-  font-size: 12.5px;
+.web-tools button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-top: 1px solid var(--line-2);
+  background: none;
+  color: var(--ink-2);
+  font-size: 16px;
 }
 
-.goal-dot {
-  display: inline-block;
-  width: 0;
-  height: 0;
-  margin-right: 6px;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 7px solid var(--goal);
-  vertical-align: 1px;
+.web-tools button:first-child {
+  border-top: 0;
+}
+
+.web-tools button:hover {
+  background: var(--wash);
+  color: var(--ink);
 }
 
 .panel-glyph {
@@ -432,7 +338,7 @@ a {
   width: 44px;
   height: 44px;
   border: 1.5px solid var(--line);
-  border-radius: 10px;
+  border-radius: 50%;
   color: var(--ink-3);
   flex: none;
 }
@@ -1062,40 +968,6 @@ button.danger {
 
   .hud-text:not(.hud-goal) {
     display: none;
-  }
-
-  .tree-page {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-  }
-
-  .branches {
-    flex-direction: row;
-    gap: 4px;
-    padding: 8px 16px;
-    border-right: 0;
-    border-bottom: 1px solid var(--line-2);
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-
-  .branch {
-    grid-template-columns: auto auto;
-    padding: 6px 12px;
-    white-space: nowrap;
-  }
-
-  .branch svg,
-  .branch-count {
-    display: none;
-  }
-
-  .branch-view {
-    padding: 16px 16px 80px;
-  }
-
-  .canvas {
-    margin-top: 24px;
   }
 
   .panel {

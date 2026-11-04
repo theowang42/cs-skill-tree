@@ -1,17 +1,16 @@
--- 层和分支。分支就是技能树的一列，顺序就是页面上从左到右的顺序。
+-- 领域：技能树上的一支。地基在中心，其余从中心往外发散。
+-- 顺序就是绕圆一圈的顺序：主线 AI Infra 放在最上方，相关的领域挨着。
 INSERT INTO layers (id, name, position) VALUES
-  ('foundation', '基础', 1),
-  ('core',       '核心', 2),
-  ('advanced',   '方向', 3);
+  ('foundation', '地基', 1),
+  ('core',       '主线', 2),
+  ('advanced',   '边线', 3);
 
 INSERT INTO area_rows VALUES
-('lang',     'foundation', '编程语言',   '写代码用的语言。先精通一门，再按方向补第二门。'),
-('craft',    'foundation', '编程功底',   '不管用什么语言都要会的东西：数据结构与算法、面向对象设计。'),
-('tools',    'foundation', '工程工具',   '每天都在用的工具：版本控制、命令行、测试、容器、自动化。'),
-('web',      'core',       'Web 开发',   '网页前端和服务端：页面、接口、框架。岗位最多的一片。'),
-('data',     'core',       '数据',       '存数据、查数据、处理海量数据。'),
-('systems',  'core',       '系统',       '贴近操作系统和硬件：系统编程、并发、性能、嵌入式。'),
-('cloud',    'advanced',   '云与运维',   '让服务稳定地跑在服务器和云上：部署、编排、监控。'),
-('security', 'advanced',   '安全',       '找漏洞、补漏洞：Web 安全、渗透、逆向。'),
-('ai',       'advanced',   'AI',         '机器学习、深度学习和大模型应用。'),
-('client',   'advanced',   '客户端与游戏', '手机 App、跨平台应用、图形渲染和游戏。');
+('base',     'foundation', '地基',     '编程语言、工具、数学和写作。每样都要有，最可迁移。'),
+('infra',    'core',       'AI Infra', '让大模型跑得更快更省：推理引擎、GPU kernel、AI 编译器。'),
+('product',  'core',       'AI 产品',  '用大模型做出自己的产品：后端、前端、RAG、Agent。'),
+('systems',  'core',       '底层系统', '操作系统、并发、网络、编译器、分布式：AI Infra 的根。'),
+('quant',    'advanced',   '量化',     '用数据和统计研究市场。'),
+('security', 'advanced',   '安全',     '找漏洞、补漏洞。'),
+('robotics', 'advanced',   '机器人',   '让模型控制真实世界的机器。'),
+('chain',    'advanced',   '区块链',   '智能合约和去中心化应用。');

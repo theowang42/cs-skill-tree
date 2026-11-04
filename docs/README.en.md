@@ -2,17 +2,16 @@
 
 [简体中文](../README.md) | English
 
-**A computer science skill tree, like the talent tree in an action game: light up what you know and see where your frontier is.**
+**A computer science skill web that grows outward from the center: light up what you know and see your frontier and next step.**
 
-- 63 skills you could put on a résumé (Python, Docker, PostgreSQL, Linux systems programming, PyTorch…) in 10 branches, each with its own icon
-- Every branch has the same five rows, from beginner to frontier
-- Mastered skills are filled black, available ones have a black outline, the rest are light grey. Available skills are your **frontier**
-- Opening a skill shows one sentence and a few links to good places to learn it
-- Set a **goal direction** to mark what to learn next; progress lives in your browser with export, import and share links, or on an optional SQLite server
+- 46 skills you could put on a résumé (Python, C, Linux, CUDA, PyTorch, vLLM inference, OS kernels…), each with its own icon
+- Foundations sit at the center; AI infrastructure, systems, AI products, quant, security, robotics and blockchain grow out in different directions
+- Mastered skills are filled black, available ones have a black outline, the rest are light grey
+- Opening a skill shows one sentence and a few links
 
 👉 https://theowang42.github.io/cs-skill-tree/
 
-![The skill tree with some skills lit and one selected, showing its prerequisite path and a short panel of links](screenshot.jpg)
+![The skill web with foundations at the center and AI infrastructure growing upward](screenshot.jpg)
 
 ## Run locally
 

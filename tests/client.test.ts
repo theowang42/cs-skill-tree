@@ -13,13 +13,13 @@ const tree = new Tree(getRoadmap(freshDb()))
 
 test('分享链接来回编码不丢东西，只保留“学会了”', () => {
   const p: Progress = {
-    goalSubId: 'backend',
-    skills: { linux: { status: 'done', updatedAt: 'x' }, docker: { status: 'done', updatedAt: 'x' }, rust: { status: 'learning', updatedAt: 'x' } },
+    goalSubId: 'inference',
+    skills: { linux: { status: 'done', updatedAt: 'x' }, docker: { status: 'done', updatedAt: 'x' }, cpp: { status: 'learning', updatedAt: 'x' } },
   }
   const hash = encodeShare(tree, p)
   assert.ok(hash.length < 120, `链接太长：${hash.length}`)
   const back = decodeShare(tree, '#' + hash)!
-  assert.equal(back.goalSubId, 'backend')
+  assert.equal(back.goalSubId, 'inference')
   assert.deepEqual(Object.keys(back.skills).sort(), ['docker', 'linux'])
   assert.equal(decodeShare(tree, '#/skill/http'), null)
   assert.equal(decodeShare(tree, '#share=3.AAAA'), null, '技能数对不上要拒绝')
@@ -51,15 +51,15 @@ test('搜索：名字前缀优先，也能搜到介绍', () => {
   assert.equal(searchTree(tree, 'git')[0].id, 'git')
   assert.equal(searchTree(tree, 'Docker')[0].id, 'docker')
   assert.ok(searchTree(tree, '共识').some((h) => h.id === 'distributed'))
-  assert.ok(searchTree(tree, 'REST').some((h) => h.id === 'http'))
-  assert.ok(searchTree(tree, '后端').some((h) => h.kind === 'sub' && h.id === 'backend'))
+  assert.ok(searchTree(tree, 'REST').some((h) => h.id === 'web-api'))
+  assert.ok(searchTree(tree, '推理').some((h) => h.kind === 'sub' && h.id === 'inference'))
   assert.deepEqual(searchTree(tree, '   '), [])
 })
 
 test('sanitize 去掉已不存在的技能和方向，没问题时原样返回', () => {
   const skills = new Set(tree.skills.keys())
   const subs = new Set(tree.subs.keys())
-  const ok: Progress = { goalSubId: 'backend', skills: { linux: { status: 'done', updatedAt: 't' } } }
+  const ok: Progress = { goalSubId: 'inference', skills: { linux: { status: 'done', updatedAt: 't' } } }
   assert.equal(sanitize(ok, skills, subs).progress, ok)
   const bad: Progress = { goalSubId: 'gone-sub', skills: { linux: { status: 'done', updatedAt: 't' }, 'gone-skill': { status: 'done', updatedAt: 't' } } }
   const r = sanitize(bad, skills, subs)

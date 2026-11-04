@@ -25,9 +25,10 @@ test('技能数量在预期范围内，每个都有等级和图标', () => {
   const n = (sql: string) => (db.prepare(sql).get() as Row).n as number
   // 技能是能写进简历的能力，不是知识点：几十个，而不是几百个
   const skills = n('SELECT COUNT(*) AS n FROM skills')
-  assert.ok(skills >= 50 && skills <= 90, `技能有 ${skills} 个`)
+  assert.ok(skills >= 40 && skills <= 90, `技能有 ${skills} 个`)
   assert.ok(n('SELECT COUNT(*) AS n FROM skill_prerequisites') >= 50)
-  assert.equal(n('SELECT COUNT(*) AS n FROM skills WHERE level IS NULL OR icon IS NULL'), 0)
+  assert.equal(n('SELECT COUNT(*) AS n FROM skills WHERE icon IS NULL'), 0)
+  assert.equal(n('SELECT COUNT(*) AS n FROM skill_level WHERE level NOT BETWEEN 1 AND 5'), 0)
 })
 
 test('每个细分方向的学习计划都从没有前置的技能开始，并且每一步的前置都在更早的步骤', () => {
@@ -51,7 +52,9 @@ test('每个细分方向的学习计划都从没有前置的技能开始，并�
 
 test('体检能发现成环、等级倒挂、编号断档和重复图标', () => {
   const db = freshDb()
-  db.exec("INSERT INTO skill_prerequisites VALUES ('python', 'agent')") // 入门依赖专精，并且成环
+  db.exec("INSERT INTO skill_prerequisites VALUES ('python', 'agent')") // 成环
+  db.exec("UPDATE skills SET level = 1 WHERE id = 'cuda'") // 手写的等级比前置 C++ 还低
+  db.exec("UPDATE skills SET level = 3 WHERE id = 'cpp'")
   db.exec("UPDATE skill_resources SET position = 9 WHERE skill_id = 'python' AND position = 2")
   db.exec("UPDATE skills SET icon = 'si:python' WHERE id = 'javascript'")
   const rules = new Set(check(db).filter((f) => f.level === 'error').map((f) => f.rule))
@@ -73,7 +76,7 @@ test('表约束挡住不合法的数据', () => {
 test('重新播种保留学习者的进度，只清掉指向已删除技能的记录', () => {
   const db = freshDb()
   const id = 'a'.repeat(32)
-  db.prepare("INSERT INTO learners (id, goal_sub_id) VALUES (?, 'backend')").run(id)
+  db.prepare("INSERT INTO learners (id, goal_sub_id) VALUES (?, 'inference')").run(id)
   db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'linux', 'done'), (?, 'docker', 'learning')").run(id, id)
   // 模拟一个已经从内容里删掉的技能
   db.exec('PRAGMA foreign_keys = OFF')
@@ -85,7 +88,7 @@ test('重新播种保留学习者的进度，只清掉指向已删除技能的�
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM learner_events').get() as Row).n, eventsBefore, '清理不该留下用户没做过的操作记录')
   const rows = db.prepare('SELECT skill_id, status FROM learner_skills ORDER BY skill_id').all() as Row[]
   assert.deepEqual(rows.map((x) => `${x.skill_id}:${x.status}`), ['docker:learning', 'linux:done'])
-  assert.equal((db.prepare('SELECT goal_sub_id FROM learners').get() as Row).goal_sub_id, 'backend')
+  assert.equal((db.prepare('SELECT goal_sub_id FROM learners').get() as Row).goal_sub_id, 'inference')
 })
 
 test('种子文件出错时整体回滚，原来的内容不受影响', () => {

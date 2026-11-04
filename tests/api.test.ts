@@ -25,13 +25,13 @@ async function call(method: string, path: string, body?: unknown) {
 test('内容接口', async () => {
   const health = await call('GET', '/health')
   assert.equal(health.status, 200)
-  assert.ok(health.body.skills > 50)
+  assert.ok(health.body.skills > 40)
   const roadmap = await call('GET', '/roadmap')
   assert.equal(roadmap.body.version, 2)
   assert.equal((await call('GET', '/skills/docker')).body.name, 'Docker')
-  assert.equal((await call('GET', '/areas/systems')).body.name, '系统')
-  assert.equal((await call('GET', '/subs/backend')).body.categoryId, 'apps')
-  assert.equal((await call('GET', '/categories/ai')).body.name, 'AI')
+  assert.equal((await call('GET', '/areas/systems')).body.name, '底层系统')
+  assert.equal((await call('GET', '/subs/inference')).body.categoryId, 'ai-infra')
+  assert.equal((await call('GET', '/categories/ai-infra')).body.name, 'AI Infra')
   assert.equal((await call('GET', '/skills/nope')).status, 404)
   assert.equal((await call('GET', '/skills/..%2F..')).status, 404)
   assert.equal((await call('GET', '/whatever')).status, 404)
@@ -58,7 +58,7 @@ test('学习者的完整流程', async () => {
   const id = (created.body as Learner).id
   assert.match(id, /^[0-9a-f]{32}$/)
 
-  assert.equal((await call('PUT', `/learners/${id}/goal`, { subId: 'backend' })).body.goalSubId, 'backend')
+  assert.equal((await call('PUT', `/learners/${id}/goal`, { subId: 'inference' })).body.goalSubId, 'inference')
   assert.equal((await call('PUT', `/learners/${id}/goal`, { subId: 'nope' })).status, 404)
 
   const one = await call('PUT', `/learners/${id}/skills/linux`, { status: 'done' })
@@ -76,7 +76,7 @@ test('学习者的完整流程', async () => {
   const sum = (await call('GET', `/learners/${id}/summary`)).body
   assert.equal(sum.counts.done, 1)
   assert.equal(sum.counts.learning, 1)
-  assert.equal(sum.goal.subId, 'backend')
+  assert.equal(sum.goal.subId, 'inference')
   assert.ok(sum.frontier.some((f: { skillId: string }) => f.skillId === 'dsa'))
   assert.ok(!sum.frontier.some((f: { skillId: string }) => f.skillId === 'python'))
 
@@ -98,7 +98,7 @@ test('学习者的完整流程', async () => {
   assert.equal(imported.status, 200)
   assert.deepEqual(imported.body.dropped, ['gone'])
   assert.deepEqual(Object.keys(imported.body.learner.skills).sort(), ['git', 'python'])
-  assert.equal(imported.body.learner.goalSubId, 'backend')
+  assert.equal(imported.body.learner.goalSubId, 'inference')
   assert.equal((await call('POST', `/learners/${other}/import`, { format: 'x' })).status, 400)
 
   assert.equal((await call('DELETE', `/learners/${id}`)).status, 204)

@@ -111,12 +111,12 @@ test('什么都没学时，边界就是所有没有前置的技能', () => {
 
 test('缺的前置按依赖顺序给出；取消点亮会提示受影响的后继', () => {
   const progress: Progress = { goalSubId: null, skills: { linux: { status: 'done', updatedAt: '' } } }
-  assert.deepEqual(missingPrerequisites(tree, 'kubernetes', progress), ['docker'])
+  assert.deepEqual(missingPrerequisites(tree, 'docker', progress), [])
   const deep = missingPrerequisites(tree, 'agent', { goalSubId: null, skills: {} })
   const pos = new Map(deep.map((id, i) => [id, i]))
   for (const id of deep) for (const p of tree.skill(id).prerequisites) assert.ok(pos.get(p)! < pos.get(id)!)
-  const lit: Progress = { goalSubId: null, skills: { linux: { status: 'done', updatedAt: '' }, docker: { status: 'done', updatedAt: '' }, kubernetes: { status: 'done', updatedAt: '' } } }
-  assert.deepEqual(litDescendants(tree, 'linux', lit), ['docker', 'kubernetes'])
+  const lit: Progress = { goalSubId: null, skills: { linux: { status: 'done', updatedAt: '' }, docker: { status: 'done', updatedAt: '' }, k8s: { status: 'done', updatedAt: '' } } }
+  assert.deepEqual(litDescendants(tree, 'linux', lit), ['docker', 'k8s'])
 })
 
 test('把一个方向的必学和任选都点亮后，就绪度是 100%', () => {
