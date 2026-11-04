@@ -16,10 +16,10 @@ test('每颗星都有位置，同一份数据两次布局完全一样', () => {
   for (const [id, p] of layout.skills) assert.deepEqual(again.skills.get(id), p)
 })
 
-test('前置一定在更靠内的圈', () => {
+test('前置不在更靠外的圈', () => {
   for (const s of tree.roadmap.skills) {
     const me = layout.skills.get(s.id)!
-    for (const p of s.prerequisites) assert.ok(layout.skills.get(p)!.r < me.r, `${p} 应该在 ${s.id} 内侧`)
+    for (const p of s.prerequisites) assert.ok(layout.skills.get(p)!.level <= me.level, `${p} 应该不比 ${s.id} 靠外`)
   }
 })
 
@@ -38,25 +38,26 @@ test('任意两颗星至少隔 40 像素，信标之间至少隔 100 像素', ()
   }
 })
 
-test('扇区首尾相接盖满一圈，知识点落在自己领域的扇区里', () => {
+test('扇区首尾相接盖满一圈，每颗星都在自己领域的星云里', () => {
   const total = layout.sectors.reduce((n, s) => n + (s.end - s.start), 0)
   assert.ok(Math.abs(total - Math.PI * 2) < 1e-6)
   for (let i = 1; i < layout.sectors.length; i++) assert.ok(Math.abs(layout.sectors[i].start - layout.sectors[i - 1].end) < 1e-9)
-  const inSector = (angle: number, s: { start: number; end: number }) => {
-    const a = ((angle - s.start) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2)
-    return a <= s.end - s.start + 1e-6
-  }
-  let outside = 0
   for (const s of tree.roadmap.skills) {
-    if (!s.areaId) continue
     const p = layout.skills.get(s.id)!
-    assert.equal(p.sector, s.areaId)
-    // 最里面三圈是大家共用的基础，星少圈小，允许摊开；外圈必须待在自己的扇区里
-    if (p.depth <= 3) continue
-    const sec = layout.sectors.find((x) => x.id === s.areaId)!
-    if (!inSector(p.angle, sec)) outside++
+    if (s.areaId) assert.equal(p.sector, s.areaId)
+    if (p.level === 1) continue // 第 1 圈是共用的起点，不分星云
+    const cloud = layout.clouds.find((c) => c.sector === p.sector && c.level === p.level)
+    assert.ok(cloud, `${s.id} 没有星云`)
+    let d = Math.abs(p.angle - cloud!.angle) % (Math.PI * 2)
+    if (d > Math.PI) d = Math.PI * 2 - d
+    assert.ok(d * p.r <= cloud!.rx + 1, `${s.id} 在星云外面`)
   }
-  assert.ok(outside <= 6, `${outside} 颗星被挤出了自己的扇区`)
+  // 同一圈上的星云按扇区顺序排，不交叉
+  for (let lv = 2; lv <= 5; lv++) {
+    const cs = layout.clouds.filter((c) => c.level === lv)
+    const order = layout.sectors.map((s) => s.id)
+    for (let i = 1; i < cs.length; i++) assert.ok(order.indexOf(cs[i].sector) > order.indexOf(cs[i - 1].sector))
+  }
 })
 
 test('方向信标朝向它要求的技能', () => {
@@ -64,8 +65,8 @@ test('方向信标朝向它要求的技能', () => {
     const b = layout.subs.get(sub.id)!
     const req = [...tree.closures.get(sub.id)!].map((id) => layout.skills.get(id)!)
     // 信标方向和这些技能平均方向的夹角不超过 60°
-    const mx = req.reduce((n, p) => n + Math.cos(p.angle) * p.depth ** 2, 0)
-    const my = req.reduce((n, p) => n + Math.sin(p.angle) * p.depth ** 2, 0)
+    const mx = req.reduce((n, p) => n + Math.cos(p.angle) * p.level ** 2, 0)
+    const my = req.reduce((n, p) => n + Math.sin(p.angle) * p.level ** 2, 0)
     const mean = Math.atan2(my, mx)
     let diff = Math.abs(b.angle - mean) % (Math.PI * 2)
     if (diff > Math.PI) diff = Math.PI * 2 - diff

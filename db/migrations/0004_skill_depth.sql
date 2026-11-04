@@ -24,3 +24,38 @@ SELECT ls.learner_id,
   JOIN skill_depth d ON d.skill_id = ls.skill_id
  WHERE ls.status = 'done'
  GROUP BY ls.learner_id, container_id;
+
+-- 星图的等级：5 级固定尺度，同一级的星放在同一圈，每级的含义全图一致。
+--   1 入门：没有任何基础也能开始
+--   2 基础：所有方向都会用到
+--   3 进阶：某个领域的主干
+--   4 专精：某个领域的深处
+--   5 前沿：研究或大型系统才会碰到
+-- 知识点先由所在层（基础 / 核心 / 进阶）和领域内的层级（skill_tiers）映射出一个基础等级，
+-- 再取它和全部前置的基础等级里最大的那个，这样前置永远不会在更高的等级。
+-- 工具不单独定级，等于它全部前置里最高的等级（Python 和“变量与控制流”同级）。
+CREATE VIEW skill_level AS
+WITH base (skill_id, level) AS (
+  SELECT s.id,
+         CASE
+           WHEN s.kind = 'tool' THEN 1
+           -- 基础层：1 → 入门，2~3 → 基础，更深 → 进阶
+           WHEN l.position = 1 THEN CASE WHEN t.tier = 1 THEN 1 WHEN t.tier <= 3 THEN 2 ELSE 3 END
+           -- 核心层：1~2 → 基础，3 → 进阶，更深 → 专精
+           WHEN l.position = 2 THEN CASE WHEN t.tier <= 2 THEN 2 WHEN t.tier = 3 THEN 3 ELSE 4 END
+           -- 进阶层：1 → 进阶，2 → 专精，更深 → 前沿
+           ELSE CASE WHEN t.tier = 1 THEN 3 WHEN t.tier = 2 THEN 4 ELSE 5 END
+         END
+    FROM skills s
+    LEFT JOIN areas a ON a.id = s.area_id
+    LEFT JOIN layers l ON l.id = a.layer_id
+    JOIN skill_tiers t ON t.skill_id = s.id
+)
+SELECT b.skill_id,
+       MAX(b.level, COALESCE((
+         SELECT MAX(pb.level)
+           FROM skill_ancestors an
+           JOIN base pb ON pb.skill_id = an.ancestor_id
+          WHERE an.skill_id = b.skill_id
+       ), 1)) AS level
+  FROM base b;

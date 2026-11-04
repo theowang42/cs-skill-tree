@@ -1,5 +1,6 @@
 import { useApp } from '../state'
 import { STATE_LABEL } from '../lib/format'
+import { LEVEL_NAMES } from '../lib/starmap'
 import { litDescendants, missingPrerequisites } from '../lib/tree'
 import { Links, Section, SkillChip, StatusControl, SubChip } from './common'
 import { ToolIcon } from './ToolIcon'
@@ -22,10 +23,10 @@ export function SkillPanel({ id }: { id: string }) {
       <p className="eyebrow">
         {area ? (
           <button className="link-button" onClick={() => setFocus({ kind: 'area', id: area.id }, { scroll: true })}>
-            {area.name} · 第 {s.depth} 圈
+            {area.name} · {LEVEL_NAMES[s.level]}
           </button>
         ) : (
-          <>{group!.name} · 第 {s.depth} 圈</>
+          <>{group!.name} · {LEVEL_NAMES[s.level]}</>
         )}
       </p>
       <h2 className={s.kind === 'tool' ? 'with-icon' : ''}>

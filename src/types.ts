@@ -22,8 +22,10 @@ export interface Skill {
   groupId?: string
   /** 在领域里排第几行：领域内最长前置链的长度，从 1 开始 */
   tier: number
-  /** 星图上的第几圈：从无前置的技能出发的最长前置链长度，从 1 开始 */
+  /** 从无前置的技能出发的最长前置链长度，从 1 开始 */
   depth: number
+  /** 星图上的等级：1 入门 · 2 基础 · 3 进阶 · 4 专精 · 5 前沿。由视图 skill_level 算出 */
+  level: number
   /** 直接前置 */
   prerequisites: string[]
   /** 直接依赖它的技能 */

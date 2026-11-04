@@ -137,20 +137,53 @@ a {
   cursor: crosshair;
 }
 
-/* ── 星盘 ── */
+.sky {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
 
-.dial circle,
-.dial line {
+.map {
+  position: relative;
+}
+
+/* ── 等级圈 ── */
+
+.levels circle {
   fill: none;
-  stroke: var(--ink-3);
-  stroke-opacity: 0.45;
+  stroke: var(--ink);
+  stroke-opacity: 0.05;
   stroke-width: 0.75;
   vector-effect: non-scaling-stroke;
 }
 
-.dial .dial-outer {
-  stroke-opacity: 0.7;
+.level-name {
+  fill: var(--ink-3);
+  font-size: 11px;
+  letter-spacing: 0.4em;
+  text-anchor: middle;
+  opacity: 0;
+  transition: opacity 0.4s;
 }
+
+.map[data-zoom='2'] .level-name,
+.map[data-zoom='1'] .level-name {
+  opacity: 0.8;
+}
+
+.center-glow {
+  pointer-events: none;
+}
+
+#arrow path {
+  fill: context-stroke;
+}
+
+.next-mark {
+  fill: var(--goal);
+}
+
+/* ── 星盘 ── */
 
 .sector-name {
   fill: var(--ink-3);
@@ -174,60 +207,6 @@ a {
   font-size: 20px;
 }
 
-.territory {
-  fill: url(#g-territory);
-  stroke: var(--lit);
-  stroke-opacity: 0.35;
-  stroke-width: 0.75;
-  vector-effect: non-scaling-stroke;
-}
-
-.center-ring {
-  fill: var(--sky-2);
-  stroke: var(--lit);
-  stroke-opacity: 0.7;
-  stroke-width: 0.75;
-  vector-effect: non-scaling-stroke;
-}
-
-.center-pulse {
-  fill: none;
-  stroke: var(--lit);
-  stroke-width: 0.75;
-  vector-effect: non-scaling-stroke;
-  opacity: 0;
-}
-
-.center.first .center-pulse {
-  animation: center-pulse 3.2s var(--ease) infinite;
-}
-
-@keyframes center-pulse {
-  0% {
-    transform: scale(1);
-    opacity: 0.7;
-  }
-  100% {
-    transform: scale(2.6);
-    opacity: 0;
-  }
-}
-
-.center-you {
-  fill: var(--lit-2);
-  font-size: 15px;
-  font-weight: 700;
-  text-anchor: middle;
-}
-
-.center-sub {
-  fill: var(--ink-2);
-  font-family: var(--num);
-  font-size: 9.5px;
-  text-anchor: middle;
-  letter-spacing: 0.08em;
-}
-
 /* ── 星座线 ── */
 
 .edge {
@@ -239,7 +218,11 @@ a {
 }
 
 .edge.e-shadow {
-  stroke-opacity: 0.22;
+  stroke-opacity: 0.25;
+}
+
+.edge.e-dark {
+  stroke-opacity: 0.12;
 }
 
 .edge.e-known {
@@ -561,7 +544,8 @@ a {
 }
 
 .star.v-shadow .lbl,
-.star.v-ghost .lbl:not(.lbl-always) {
+.star.v-ghost .lbl:not(.lbl-always),
+.star.lbl-off .lbl:not(.lbl-always) {
   display: none;
 }
 
