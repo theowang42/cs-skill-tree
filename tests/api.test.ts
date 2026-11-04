@@ -83,6 +83,12 @@ test('学习者的完整流程', async () => {
   const ev = (await call('GET', `/learners/${id}/events`)).body
   assert.deepEqual(ev.map((e: { skillId: string; to: string | null }) => `${e.skillId}:${e.to}`), ['cli:null', 'git-basics:learning', 'prog-basics:done', 'cli:done'])
 
+  const tl = (await call('GET', `/learners/${id}/timeline`)).body
+  assert.equal(tl.length, 1)
+  assert.deepEqual(tl[0].lit, ['prog-basics'])
+  assert.deepEqual(tl[0].learning, ['git-basics'])
+  assert.deepEqual(tl[0].unlit, ['cli'])
+
   const exported = (await call('GET', `/learners/${id}/export`)).body
   assert.equal(exported.format, 'cs-skill-tree-progress')
 

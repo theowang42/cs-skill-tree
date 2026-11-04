@@ -26,7 +26,7 @@ export function SubPanel({ id }: { id: string }) {
   return (
     <div className="detail" key={id}>
       <p className="eyebrow">
-        <button className="link-button" onClick={() => setFocus({ kind: 'category', id: cat.id })}>应用层 · {cat.name}</button>
+        <button className="link-button" onClick={() => setFocus({ kind: 'category', id: cat.id })}>方向 · {cat.name}</button>
       </p>
       <h2>{sub.name}</h2>
       <p className="summary">{sub.intro}</p>

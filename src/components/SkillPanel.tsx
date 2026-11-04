@@ -22,10 +22,10 @@ export function SkillPanel({ id }: { id: string }) {
       <p className="eyebrow">
         {area ? (
           <button className="link-button" onClick={() => setFocus({ kind: 'area', id: area.id }, { scroll: true })}>
-            {tree.layers.get(area.layerId)!.name} · {area.name}
+            {area.name} · 第 {s.depth} 圈
           </button>
         ) : (
-          <>工具层 · {group!.name}</>
+          <>{group!.name} · 第 {s.depth} 圈</>
         )}
       </p>
       <h2 className={s.kind === 'tool' ? 'with-icon' : ''}>
@@ -112,7 +112,7 @@ export function SkillPanel({ id }: { id: string }) {
           <div className="chips">{s.requiredBy.map((sub) => <SubChip key={sub} id={sub} />)}</div>
         </Section>
       )}
-      <p className="kbd-hint muted small">快捷键：D 学会了 · L 在学 · X 清除 · Esc 返回</p>
+      <p className="kbd-hint muted small">快捷键：D 学会了 · L 在学 · X 清除 · Esc 返回 · 1 回到我的星域</p>
     </div>
   )
 }

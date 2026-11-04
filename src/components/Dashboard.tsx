@@ -13,14 +13,11 @@ function Welcome({ onStart, onClose }: { onStart: () => void; onClose: () => voi
   const { tree } = useApp()
   return (
     <div className="welcome">
-      <h3>你的 CS 技能树</h3>
+      <h3>你在星图的中心</h3>
       <p>
-        这里有 {tree.roadmap.skills.length} 个技能，从“变量与控制流”一直到“共识算法”。把你已经会的点亮，就能看清：
+        周围 {tree.roadmap.skills.length} 颗星是 CS 的技能，越靠内越基础。把你会的点亮，亮区的边缘就是你的<b>能力边界</b>：前置都会了、现在就能学的星。
       </p>
-      <ol>
-        <li>你的<b>能力边界</b>在哪——哪些技能前置都会了，现在就能学</li>
-        <li>离想去的<b>方向</b>还差多少，下一步学什么</li>
-      </ol>
+      <p>外圈的信标是职业方向。哪片星域亮了，你就离哪个方向近。</p>
       <div className="row-actions">
         <button className="primary" onClick={onStart}>开始自评（约 3 分钟）</button>
         <button onClick={onClose}>先随便看看</button>
@@ -101,7 +98,7 @@ export function Dashboard() {
   const startAssessment = () => {
     closeIntro()
     setQuick(true)
-    setFocus({ kind: 'area', id: tree.roadmap.layers[0].areaIds[0] }, { scroll: true })
+    setFocus({ kind: 'area', id: 'programming' }, { scroll: true })
   }
 
   const shownFront = showAllFrontier ? front : front.slice(0, goal ? 8 : 12)

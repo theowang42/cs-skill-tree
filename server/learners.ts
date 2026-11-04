@@ -1,7 +1,7 @@
 // 学习者：点亮状态、目标方向、操作记录。状态推导（边界、就绪度）全部用数据库视图。
 import { randomBytes } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
-import type { Learner, LearnerEvent, ProgressEntry, Readiness, SkillState, Status } from '../src/types.ts'
+import type { Learner, LearnerEvent, ProgressEntry, Readiness, SkillState, Status, TimelineDay } from '../src/types.ts'
 
 type Row = Record<string, unknown>
 
@@ -183,4 +183,30 @@ export function communityStats(db: DatabaseSync): CommunityStats {
        WHERE status = 'done' GROUP BY skill_id ORDER BY learners DESC, skillId LIMIT 10
     `).all() as unknown) as CommunityStats['mostDone'],
   }
+}
+
+/** 成长时间线：每天点亮了什么、开始学什么、取消了什么。按时间正序。 */
+export function timeline(db: DatabaseSync, learnerId: string): TimelineDay[] {
+  const rows = db.prepare(`
+    SELECT substr(at, 1, 10) AS date, skill_id, to_status
+      FROM learner_events
+     WHERE learner_id = ? AND skill_id IN (SELECT id FROM skills)
+     ORDER BY id
+  `).all(learnerId) as Row[]
+  const days = new Map<string, TimelineDay>()
+  for (const r of rows) {
+    const date = r.date as string
+    let day = days.get(date)
+    if (!day) days.set(date, (day = { date, lit: [], learning: [], unlit: [] }))
+    const id = r.skill_id as string
+    // 同一天反复改，只记最后一次
+    for (const list of [day.lit, day.learning, day.unlit]) {
+      const i = list.indexOf(id)
+      if (i >= 0) list.splice(i, 1)
+    }
+    if (r.to_status === 'done') day.lit.push(id)
+    else if (r.to_status === 'learning') day.learning.push(id)
+    else day.unlit.push(id)
+  }
+  return [...days.values()]
 }

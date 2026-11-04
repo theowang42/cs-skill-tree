@@ -22,6 +22,8 @@ export interface Skill {
   groupId?: string
   /** 在领域里排第几行：领域内最长前置链的长度，从 1 开始 */
   tier: number
+  /** 星图上的第几圈：从无前置的技能出发的最长前置链长度，从 1 开始 */
+  depth: number
   /** 直接前置 */
   prerequisites: string[]
   /** 直接依赖它的技能 */
@@ -148,6 +150,14 @@ export interface Readiness {
   choiceDone: number
   /** 0~100，保留一位小数 */
   percent: number
+}
+
+/** 成长时间线：按天汇总 */
+export interface TimelineDay {
+  date: string
+  lit: string[]
+  learning: string[]
+  unlit: string[]
 }
 
 export interface LearnerEvent {

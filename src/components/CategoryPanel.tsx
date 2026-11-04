@@ -6,7 +6,7 @@ export function CategoryPanel({ id }: { id: string }) {
   const c = tree.categories.get(id)!
   return (
     <div className="detail" key={id}>
-      <p className="eyebrow">应用层 · 大方向</p>
+      <p className="eyebrow">大方向</p>
       <h2>{c.name}</h2>
       <p className="summary">{c.intro}</p>
       <Section title="选一个细分方向">

@@ -22,7 +22,7 @@ export function AreaPanel({ id }: { id: string }) {
 
   return (
     <div className="detail" key={id}>
-      <p className="eyebrow">{layer.name} · 知识领域</p>
+      <p className="eyebrow">{layer.name} · 星域</p>
       <h2>{area.name}</h2>
       <p className="summary">{area.intro}</p>
       <div className="goal-meter">
@@ -70,7 +70,7 @@ export function AreaPanel({ id }: { id: string }) {
         </p>
       </Section>
 
-      <Section title={`${layer.name}的其他领域`}>
+      <Section title={`${layer.name}的其他星域`}>
         <div className="chips">
           {neighbours.filter((a) => a !== id).map((a) => (
             <button key={a} className="chip" onClick={() => setFocus({ kind: 'area', id: a }, { scroll: true })}>

@@ -38,7 +38,12 @@ export interface AppState {
   adoptShared: () => void
 
   focus: Focus
+  /** opts.scroll：让星图飞过去 */
   setFocus: (f: Focus, opts?: { scroll?: boolean }) => void
+  /** 每次要求星图飞到焦点时 +1，星图据此触发动画 */
+  flyRequest: number
+  hover: string | null
+  setHover: (id: string | null) => void
   /** 页面上高亮的方向：正在看的细分方向，否则是目标 */
   activeSubId: string | null
   openCategory: string | null
@@ -83,15 +88,6 @@ function loadPrefs(): { view: View; quick: boolean } {
   }
 }
 
-/** 页面上滚到某个节点 */
-export function scrollToNode(kind: FocusKind, id: string) {
-  // 等这一帧渲染完（比如刚展开大方向）再找元素
-  requestAnimationFrame(() => {
-    const el = document.querySelector(`[data-node="${kind}:${CSS.escape(id)}"]`)
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
-  })
-}
-
 export function AppProvider({
   tree, store, initial, shared: initialShared, children,
 }: { tree: Tree; store: ProgressStore; initial: Progress; shared: Progress | null; children: ReactNode }) {
@@ -106,6 +102,8 @@ export function AppProvider({
   )
 
   const [focus, setFocusState] = useState<Focus>(null)
+  const [flyRequest, setFlyRequest] = useState(0)
+  const [hover, setHover] = useState<string | null>(null)
   const [openCategory, setOpenCategory] = useState<string | null>(null)
   const prefs = useMemo(loadPrefs, [])
   const [view, setView] = useState<View>(prefs.view)
@@ -128,7 +126,7 @@ export function AppProvider({
     setFocusState(f)
     if (f?.kind === 'sub') setOpenCategory(tree.subs.get(f.id)!.categoryId)
     if (f?.kind === 'category') setOpenCategory(f.id)
-    if (f && opts?.scroll) scrollToNode(f.kind, f.id)
+    if (f && opts?.scroll) setFlyRequest((n) => n + 1)
   }, [tree])
 
   // 当前焦点同步到地址栏，方便复制链接和刷新后回到原处（看分享时不动地址栏）
@@ -273,7 +271,7 @@ export function AppProvider({
 
   const value: AppState = {
     tree, store, progress, states, readinessBySub, readOnly, shared, leaveShared, adoptShared,
-    focus, setFocus, activeSubId, openCategory, setOpenCategory,
+    focus, setFocus, flyRequest, hover, setHover, activeSubId, openCategory, setOpenCategory,
     view, setView, quick, setQuick, pulse,
     change, setStatus, lightWithPrerequisites, setGoal, replaceProgress, resetProgress,
     toasts, toast, dismissToast,

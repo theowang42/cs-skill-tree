@@ -29,7 +29,8 @@ const SKILL_ORDER = `
   LEFT JOIN areas sa ON sa.id = s.area_id
   LEFT JOIN layers sl ON sl.id = sa.layer_id
   LEFT JOIN tool_groups sg ON sg.id = s.group_id
-  JOIN skill_tiers st ON st.skill_id = s.id`
+  JOIN skill_tiers st ON st.skill_id = s.id
+  JOIN skill_depth sd ON sd.skill_id = s.id`
 const SKILL_ORDER_BY = 'COALESCE(sl.position, 99), sa.position, sg.position, st.tier, s.position'
 const SUB_ORDER = 'JOIN subs sb ON sb.id = x.sub_id JOIN categories sc ON sc.id = sb.category_id'
 const SUB_ORDER_BY = 'sc.position, sb.position'
@@ -51,7 +52,7 @@ export function getSkills(db: DatabaseSync): Skill[] {
     'skill_id', (r) => r.sub_id as string,
   )
   const rows = all(db, `
-    SELECT s.*, st.tier, w.dependents AS weight
+    SELECT s.*, st.tier, sd.depth, w.dependents AS weight
       FROM skills s ${SKILL_ORDER}
       JOIN skill_weight w ON w.skill_id = s.id
      ORDER BY ${SKILL_ORDER_BY}`)
@@ -63,6 +64,7 @@ export function getSkills(db: DatabaseSync): Skill[] {
       name: r.name as string,
       intro: r.intro as string,
       tier: r.tier as number,
+      depth: r.depth as number,
       prerequisites: prereqs.get(id) ?? [],
       dependents: dependents.get(id) ?? [],
       weight: r.weight as number,

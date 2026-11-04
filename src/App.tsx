@@ -5,9 +5,9 @@ import { createStore, readStorage, roadmapUrl, sanitize, USE_API, type ProgressS
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { decodeShare } from './lib/share'
 import { AppProvider, useApp, type Focus, type FocusKind } from './state'
-import { TreeView } from './components/TreeView'
+import { StarMap } from './components/StarMap'
 import { Panel } from './components/Panel'
-import { Toolbar } from './components/Toolbar'
+import { Hud } from './components/Hud'
 import { Toasts } from './components/Toasts'
 
 interface Loaded {
@@ -20,7 +20,7 @@ interface Loaded {
 
 async function load(): Promise<Loaded> {
   const res = await fetch(roadmapUrl())
-  if (!res.ok) throw new Error(`读不到技能树数据（${res.status}）`)
+  if (!res.ok) throw new Error(`读不到星图数据（${res.status}）`)
   const tree = new Tree((await res.json()) as Roadmap)
   const store = createStore()
   const skills = new Set(tree.skills.keys())
@@ -37,7 +37,7 @@ async function load(): Promise<Loaded> {
   return { tree, store, progress, shared, focus: known ? { kind: m![1] as FocusKind, id: m![2] } : null }
 }
 
-/** 全局快捷键：Esc 返回；选中技能时 D / L / X 改状态；Q 切换快速点亮 */
+/** 全局快捷键：Esc 返回；选中星时 D / L / X 改状态；Q 切换快速点亮 */
 function Shortcuts() {
   const { focus, setFocus, setStatus, readOnly, quick, setQuick } = useApp()
   useEffect(() => {
@@ -63,7 +63,7 @@ function Shortcuts() {
 function InitialFocus({ focus }: { focus: Focus }) {
   const { setFocus } = useApp()
   useEffect(() => {
-    if (focus) setFocus(focus, { scroll: true })
+    if (focus) window.setTimeout(() => setFocus(focus, { scroll: true }), 50)
     // 只在第一次加载时跑
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -71,38 +71,23 @@ function InitialFocus({ focus }: { focus: Focus }) {
 }
 
 function Shell() {
-  const { focus, quick, readOnly } = useApp()
-  // 第一次来（还没看过介绍）时把面板拉起来，手机上也能看到“开始自评”
-  const [sheetOpen, setSheetOpen] = useState(() => !readStorage('cs-skill-tree:intro-done'))
-  // 窄屏上选中东西时自动拉起底部面板
+  const { focus } = useApp()
+  // 第一次来（还没看过介绍）时把面板打开，能看到“开始自评”
+  const [panelOpen, setPanelOpen] = useState(() => !readStorage('cs-skill-tree:intro-done'))
   useEffect(() => {
-    if (focus) setSheetOpen(true)
+    if (focus) setPanelOpen(true)
   }, [focus])
   return (
-    <div className={`page${quick && !readOnly ? ' quick-mode' : ''}`}>
-      <aside className={`panel${sheetOpen ? ' open' : ''}`} aria-label="详情">
-        <header className="panel-head">
-          <h1>
-            <span aria-hidden>🌲</span> cs-skill-tree
-          </h1>
-          <span className="store-kind" title={USE_API ? '进度存在服务器数据库' : '进度存在这台设备的浏览器'}>{USE_API ? '云端' : '本地'}</span>
-          <button className="sheet-toggle" onClick={() => setSheetOpen(!sheetOpen)} aria-label={sheetOpen ? '收起面板' : '展开面板'}>
-            {sheetOpen ? '▾' : '▴'}
-          </button>
-        </header>
+    <div className={`page${panelOpen ? ' panel-open' : ''}`}>
+      <StarMap />
+      <Hud onTogglePanel={() => setPanelOpen((o) => !o)} panelOpen={panelOpen} />
+      <aside className="panel" aria-label="详情" aria-hidden={!panelOpen}>
         <div className="panel-body">
           <Panel />
         </div>
+        <button className="panel-close" onClick={() => setPanelOpen(false)} aria-label="收起面板">×</button>
       </aside>
-      <main className="main">
-        <Toolbar />
-        {quick && !readOnly && (
-          <p className="quick-banner">
-            快速点亮中：点技能直接切换 <b>没学 → 学会了 → 在学 → 没学</b>。从最下面的基础层开始最顺。
-          </p>
-        )}
-        <TreeView />
-      </main>
+      <span className="store-kind" title={USE_API ? '进度存在服务器数据库' : '进度存在这台设备的浏览器'}>{USE_API ? '云端' : '本地'}</span>
       <Toasts />
     </div>
   )
@@ -122,7 +107,7 @@ export default function App() {
       </div>
     )
   }
-  if (!data) return <div className="boot">🌲 正在加载技能树…</div>
+  if (!data) return <div className="boot">正在展开星图…</div>
   return (
     <ErrorBoundary>
       <AppProvider tree={data.tree} store={data.store} initial={data.progress} shared={data.shared}>

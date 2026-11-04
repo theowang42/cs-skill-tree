@@ -1,8 +1,8 @@
+// 顶部的仪表：进度、目标、视图、快速点亮、“带我去下一颗”、搜索
 import { useEffect, useRef, useState } from 'react'
 import { useApp, type View } from '../state'
 import { searchTree, snippet, type Hit } from '../lib/search'
-import { totals } from '../lib/tree'
-import { Meter } from './common'
+import { frontier, totals } from '../lib/tree'
 
 function Search() {
   const { tree, setFocus } = useApp()
@@ -14,7 +14,7 @@ function Search() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const typing = e.target instanceof HTMLElement && (e.target.closest('input, textarea, [contenteditable]') !== null)
+      const typing = e.target instanceof HTMLElement && e.target.closest('input, textarea, [contenteditable]') !== null
       if (e.key === '/' && !typing) {
         e.preventDefault()
         input.current?.focus()
@@ -37,7 +37,7 @@ function Search() {
         ref={input}
         id="search-input"
         type="search"
-        placeholder="搜索技能、领域、方向（/）"
+        placeholder="找一颗星（/）"
         value={q}
         autoComplete="off"
         onChange={(e) => { setQ(e.target.value); setSel(0); setOpen(true) }}
@@ -70,33 +70,47 @@ function Search() {
 }
 
 const VIEWS: [View, string, string][] = [
-  ['all', '全部', '显示所有技能'],
-  ['goal', '目标路线', '只突出当前方向要学的技能'],
-  ['frontier', '能力边界', '只看已经点亮的和现在就能学的，暗掉还够不着的'],
+  ['all', '全部', '显示所有星'],
+  ['goal', '目标', '只亮出当前方向要学的'],
+  ['frontier', '边界', '只亮出已掌握和现在能学的'],
 ]
 
-export function Toolbar() {
-  const { tree, states, progress, readinessBySub, view, setView, quick, setQuick, readOnly, setFocus, activeSubId } = useApp()
+export function Hud({ onTogglePanel, panelOpen }: { onTogglePanel: () => void; panelOpen: boolean }) {
+  const { tree, states, progress, readinessBySub, view, setView, quick, setQuick, readOnly, setFocus, activeSubId, focus } = useApp()
   const t = totals(states)
   const goal = progress.goalSubId ? tree.subs.get(progress.goalSubId) : null
   const r = goal ? readinessBySub.get(goal.id)! : null
+  const next = frontier(tree, states, progress.goalSubId)[0]
+
   return (
-    <div className="toolbar">
-      <div className="tb-progress" title={`已掌握 ${t.done}，在学 ${t.learning}，能力边界 ${t.available}`}>
-        <span>
-          <b>{t.done}</b>/{t.total}
-        </span>
-        <Meter value={t.done} partial={t.learning} max={t.total} label="总进度" />
+    <header className="hud">
+      <button className={`brand${panelOpen ? ' open' : ''}`} onClick={onTogglePanel} title={panelOpen ? '收起面板' : '打开面板'}>
+        <span className="brand-mark" aria-hidden />
+        <span className="brand-name">CS 星图</span>
+      </button>
+      <div className="hud-stats" title={`已掌握 ${t.done}，在学 ${t.learning}，能力边界 ${t.available}，还够不着 ${t.locked}`}>
+        <span className="st st-done"><b>{t.done}</b>已掌握</span>
+        <span className="st st-available"><b>{t.available}</b>能学</span>
+        <span className="st st-total"><b>{t.total}</b>颗星</span>
       </div>
-      <button className={`tb-goal${goal ? '' : ' empty'}`} onClick={() => (goal ? setFocus({ kind: 'sub', id: goal.id }, { scroll: true }) : setFocus({ kind: 'category', id: tree.roadmap.categories[0].id }, { scroll: true }))}>
+      <button
+        className={`hud-goal${goal ? '' : ' empty'}`}
+        onClick={() => (goal ? setFocus({ kind: 'sub', id: goal.id }, { scroll: true }) : setFocus({ kind: 'category', id: tree.roadmap.categories[0].id }, { scroll: true }))}
+      >
         {goal && r ? (
           <>
-            ★ {goal.name} <b>{Math.round(r.percent)}%</b>
+            <span className="goal-dot" aria-hidden />
+            {goal.name} <b>{Math.round(r.percent)}%</b>
           </>
         ) : (
           '选一个目标方向'
         )}
       </button>
+      {next && !readOnly && (
+        <button className="hud-next" onClick={() => setFocus({ kind: 'skill', id: next.id }, { scroll: true })} title="飞到最该学的那颗星">
+          下一颗 → {tree.skill(next.id).name}
+        </button>
+      )}
       <div className="segmented views" role="radiogroup" aria-label="显示">
         {VIEWS.map(([v, label, title]) => (
           <button key={v} role="radio" aria-checked={view === v} className={view === v ? 'on' : ''} onClick={() => setView(v)} title={title} disabled={v === 'goal' && !activeSubId}>
@@ -105,12 +119,13 @@ export function Toolbar() {
         ))}
       </div>
       {!readOnly && (
-        <label className={`quick-toggle${quick ? ' on' : ''}`} title="打开后点树上的技能直接切换：没学 → 学会了 → 在学 → 没学（快捷键 Q）">
+        <label className={`quick-toggle${quick ? ' on' : ''}`} title="打开后点星直接切换：没学 → 已掌握 → 在学 → 没学（快捷键 Q）">
           <input type="checkbox" checked={quick} onChange={(e) => setQuick(e.target.checked)} />
           <span>快速点亮</span>
         </label>
       )}
       <Search />
-    </div>
+      {focus && <span className="sr-only">当前选中 {focus.kind} {focus.id}</span>}
+    </header>
   )
 }

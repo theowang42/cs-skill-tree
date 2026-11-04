@@ -2,17 +2,18 @@
 
 [简体中文](../README.md) | English
 
-**A computer science skill tree you light up as you learn, so you always know where your learning frontier is.**
+**A star map of computer science. You sit at the center, the skills you know are lit stars, and the edge of the lit region is your learning frontier.**
 
-- 225 skills (183 concepts plus 42 languages, frameworks and platforms) linked by 325 prerequisite edges
-- Every skill lists concrete checks for "you have learned this", so self-assessment stays honest
-- **Learning frontier**: skills whose prerequisites you have all mastered but you have not learned yet
-- Pick a **goal direction** such as agent development, backend or OS kernels to see the skills it needs, the order to learn them and how ready you are
-- Progress lives in your browser, with export, import and share links; an optional server keeps it in SQLite
+- 225 stars (183 concepts plus 42 languages, frameworks and platforms) joined by 325 prerequisite edges. Fundamentals sit near the center; each ring outward is more advanced
+- Every star lists concrete checks for "you have learned this", so self-assessment stays honest
+- **Frontier** stars glow cyan: all prerequisites mastered, not learned yet. They are what to learn next
+- Beacons on the rim are career directions. Set one as your **goal** to see the learning order and how ready you are
+- Select a star to trace its prerequisite path back to the center and the stars it unlocks; lighting one sends light along the edges to newly unlocked stars
+- Progress lives in your browser with export, import, share links and a replay of your growth; an optional server keeps it in SQLite
 
 👉 https://theowang42.github.io/cs-skill-tree/
 
-![The skill tree with mastered skills filled in and one skill selected, showing its prerequisite path and the learning order for the backend goal](screenshot.jpg)
+![The star map with a lit region, one star selected with its prerequisite path drawn to the center, and the learning order for the backend goal](screenshot.jpg)
 
 ## Run locally
 

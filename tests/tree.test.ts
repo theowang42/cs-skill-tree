@@ -26,6 +26,21 @@ test('导出的树引用都对得上', () => {
   }
 })
 
+test('星图的圈数：前置一定在更靠内的圈，没有前置的在第 1 圈，并且和 JS 算的一致', () => {
+  const depth = new Map<string, number>()
+  const calc = (id: string): number => {
+    if (depth.has(id)) return depth.get(id)!
+    const pre = tree.skill(id).prerequisites
+    const d = pre.length ? 1 + Math.max(...pre.map(calc)) : 1
+    depth.set(id, d)
+    return d
+  }
+  for (const s of roadmap.skills) {
+    assert.equal(s.depth, calc(s.id), s.id)
+    for (const p of s.prerequisites) assert.ok(tree.skill(p).depth < s.depth, `${p} 应该比 ${s.id} 靠内`)
+  }
+})
+
 test('领域里的行号：同领域的前置一定在更靠上的行', () => {
   for (const s of roadmap.skills) {
     for (const p of s.prerequisites) {

@@ -17,6 +17,7 @@
 //   GET    /api/learners/:id/summary           状态计数、能力边界、目标就绪度、离得最近的方向
 //   GET    /api/learners/:id/readiness         所有方向的就绪度
 //   GET    /api/learners/:id/events?limit=50   最近的操作记录
+//   GET    /api/learners/:id/timeline          成长时间线，按天
 //   GET    /api/learners/:id/export            进度文件
 //   POST   /api/learners/:id/import            用进度文件整体替换
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -29,7 +30,7 @@ import { DEFAULT_DB_PATH, migrate, openDatabase, tableCounts } from './db.ts'
 import { getRoadmap, search } from './roadmap.ts'
 import {
   communityStats, createLearner, deleteLearner, events, getLearner, isStatus, learnerExists, readinessAll,
-  replaceProgress, setGoal, setStatuses, summary, unknownSkills,
+  replaceProgress, setGoal, setStatuses, summary, timeline, unknownSkills,
 } from './learners.ts'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -214,6 +215,9 @@ export async function handleApi(db: DatabaseSync, req: IncomingMessage, url: URL
       send(res, 200, events(db, requireLearner(db, b), limit))
       return true
     }
+    case 'GET /learners/:b/timeline':
+      send(res, 200, timeline(db, requireLearner(db, b)))
+      return true
     case 'GET /learners/:b/export': {
       const l = getLearner(db, requireLearner(db, b))!
       const file: ProgressFile = { format: 'cs-skill-tree-progress', version: 1, exportedAt: new Date().toISOString(), goalSubId: l.goalSubId, skills: l.skills }
