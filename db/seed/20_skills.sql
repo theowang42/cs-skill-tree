@@ -99,7 +99,7 @@ INSERT INTO skill_rows VALUES
  '云原生的语言：写网络服务和基础设施工具。', '["concurrency"]',
  '[["Go 语言之旅", "https://go.dev/tour/"]]'),
 ('distributed', 'systems', NULL, 'server', '分布式系统',
- '能实现 Raft 和分片的键值存储，让很多台机器像一台一样可靠。对应 6.824。', '["networking", "concurrency"]',
+ '能实现 Raft 共识和分片的键值存储，让很多台机器像一台一样可靠。对应 6.824。', '["networking", "concurrency"]',
  '[["MIT 6.5840（6.824）", "https://pdos.csail.mit.edu/6.824/"], ["DDIA", "https://dataintensive.net/"]]'),
 ('db-internals', 'systems', NULL, 'hard-drive', '数据库内核',
  '能实现存储引擎、索引、事务和查询执行。对应 CMU 15-445。', '["sql", "concurrency", "dsa"]',
