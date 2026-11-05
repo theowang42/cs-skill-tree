@@ -71,7 +71,7 @@ function runExport(db = openDatabase()) {
   const roadmap = getRoadmap(db)
   mkdirSync(dirname(EXPORT_PATH), { recursive: true })
   writeFileSync(EXPORT_PATH, JSON.stringify(roadmap, null, 2) + '\n')
-  writeIcons(roadmap.skills.map((s) => s.icon))
+  writeIcons([...roadmap.skills.map((s) => s.icon), ...roadmap.subs.map((s) => s.icon)])
   console.log(`已导出 ${EXPORT_PATH}：${roadmap.areas.length} 个分支、${roadmap.skills.length} 个技能、${roadmap.subs.length} 个方向`)
 }
 

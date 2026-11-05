@@ -90,6 +90,8 @@ export interface Sub {
   isHot: boolean
   /** 方向画在哪个技能后面（必学技能的第一个） */
   anchor: string
+  /** 终极节点中间的图标 */
+  icon: string
   items: string[]
   topics: string[]
   projects: Link[]

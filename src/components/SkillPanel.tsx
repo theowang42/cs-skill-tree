@@ -7,7 +7,7 @@ import { Links, StatusControl } from './common'
 const BADGE: Record<SkillState, string> = { locked: '未解锁', available: '可点亮', done: '已点亮' }
 
 /** 图标槽：和树上的节点同一个形状、同一套状态画法。卡头用大的，前置和解锁用小的 */
-function Slot({ uid, icon, language, state, size = 96 }: { uid: string; icon: string; language: boolean; state: SkillState; size?: number }) {
+export function SkillSlot({ uid, icon, language, state, size = 96 }: { uid: string; icon: string; language: boolean; state: SkillState; size?: number }) {
   const R = 34
   return (
     <svg className={`slot s-${state}`} width={size} height={size} viewBox="-48 -48 96 96" aria-hidden>
@@ -41,7 +41,7 @@ export function SkillPanel({ id }: { id: string }) {
   return (
     <div className={`detail skill-card s-${state}`} key={id}>
       <div className="card-head">
-        <Slot uid={`card-${id}`} icon={s.icon} language={s.language} state={state} />
+        <SkillSlot uid={`card-${id}`} icon={s.icon} language={s.language} state={state} />
         <div className="card-title">
           <p className="card-kind">
             {s.language ? '语言天赋' : '技能'} · {area.name} · 第 {row} 层
@@ -63,7 +63,7 @@ export function SkillPanel({ id }: { id: string }) {
               const st = states.get(p)!
               return (
                 <button key={p} className={`mini s-${st}`} onClick={() => setFocus({ kind: 'skill', id: p }, { scroll: true })}>
-                  <Slot uid={`req-${p}`} icon={q.icon} language={q.language} state={st} size={52} />
+                  <SkillSlot uid={`req-${p}`} icon={q.icon} language={q.language} state={st} size={52} />
                   <span className="mini-name">{q.name}</span>
                   <span className="mini-state">{st === 'done' ? '已点亮' : '未点亮'}</span>
                 </button>

@@ -5,7 +5,7 @@
 //   - 最下面一排是起点（没有前置的技能），往上一排深一层。最大的那棵子树放中间，起点之间等距，排成整齐的一排。
 //   - 列：子树按轮廓紧挨着排（每一层左右边界不重叠就行），父节点在第一个和最后一个孩子的正中间；
 //     只有一个孩子时和它对齐，链是直的。兄弟按领域排，AI 产品在左，AI Infra 在中间，底层系统和安全在右。
-//   - 方向排在最上面一排，从它挂的技能直直连上去。
+//   - 职业是最上面一排的终极节点（大徽章），从它挂的技能一根实线直直连上去。
 //   - 枝条是直角折线：从父节点顶上出发，往上到两排中间，横过去，再往上停在孩子名字的下面。线不穿过字。
 //
 // 纯函数，坐标单位是像素。最下面一排 y = 0，往上 y 变小。
@@ -19,8 +19,9 @@ export const LABEL_Y = NODE_R + 21
 const LABEL_BOTTOM = NODE_R + 28
 /** 同一排相邻两个节点的名字之间至少空多少 */
 const GAP = 26
-/** 方向的名字大概多宽的一半 */
-const TIP_HALF = 64
+/** 职业（终极节点）徽章的外半径，和它在一排里占多宽的一半（名字比徽章宽） */
+export const TIP_R = 46
+const TIP_HALF = 78
 
 /** 左右的顺序：AI 产品在左，AI Infra 在中间，底层系统和安全在右 */
 const AREA_ORDER: Record<string, number> = {
@@ -197,7 +198,7 @@ export function layoutWeb(tree: Tree): WebLayout {
 
   const nodes = new Map<string, WebNode>()
   for (const [id, d] of depth) nodes.set(id, { id, x: xs.get(id)!, y: yOf(d), depth: d, kind: 'skill' })
-  for (const [anchor, tip] of tipOf) nodes.set(tip, { id: tip, x: xs.get(anchor)!, y: yOf(top) - 20, depth: top, kind: 'sub' })
+  for (const [anchor, tip] of tipOf) nodes.set(tip, { id: tip, x: xs.get(anchor)!, y: yOf(top) - 50, depth: top, kind: 'sub' })
 
   // ── 枝条 ──
   const edges: WebEdge[] = []
@@ -212,14 +213,15 @@ export function layoutWeb(tree: Tree): WebLayout {
   for (const [anchor, tip] of tipOf) {
     const a = nodes.get(anchor)!
     const t = nodes.get(tip)!
-    edges.push({ from: anchor, to: tip, d: `M${f(a.x)},${f(up(anchor))} V${f(t.y + 10)}` })
+    edges.push({ from: anchor, to: tip, d: `M${f(a.x)},${f(up(anchor))} V${f(t.y + TIP_R + 8)}` })
   }
   // ── 边界 ──
   const ns = [...nodes.values()]
   const bounds = {
     minX: Math.min(...ns.map((n) => n.x)) - 90,
     maxX: Math.max(...ns.map((n) => n.x)) + 90,
-    minY: Math.min(...ns.map((n) => n.y)) - 60,
+    // 最上面一排的职业：徽章上面还有名字
+    minY: Math.min(...ns.map((n) => n.y)) - TIP_R - 70,
     maxY: LABEL_BOTTOM + 30,
   }
   const main = nodes.get('pytorch') ?? ns[0]

@@ -191,6 +191,9 @@ export function check(db: DatabaseSync): Finding[] {
   for (const r of all("SELECT id FROM skills WHERE icon LIKE 'text:%' AND length(icon) > 10")) {
     warning('long-code', `课程 ${r.id} 的课号太长，方块里放不下`)
   }
+  for (const r of all('SELECT id FROM subs WHERE icon IS NULL')) {
+    error('missing-icon', `职业 ${r.id} 没写图标`)
+  }
   for (const r of all('SELECT id FROM skills WHERE icon IS NULL')) {
     error('missing-icon', `技能 ${r.id} 没写图标`)
   }

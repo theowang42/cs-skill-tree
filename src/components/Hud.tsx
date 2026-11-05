@@ -71,11 +71,11 @@ function Search() {
 }
 
 export function Hud({ onTogglePanel, panelOpen }: { onTogglePanel: () => void; panelOpen: boolean }) {
-  const { tree, states, progress, readinessBySub, readOnly, setFocus, quick, setQuick } = useApp()
+  const { tree, states, readinessBySub, readOnly, setFocus, quick, setQuick } = useApp()
   const t = totals(states)
-  const goal = progress.goalSubId ? tree.subs.get(progress.goalSubId) : null
-  const r = goal ? readinessBySub.get(goal.id)! : null
-  const next = frontier(tree, states, progress.goalSubId)[0]
+  // 职业不用选：点够了自己达成。顶栏只显示达成了几个
+  const reachedCount = tree.roadmap.subs.filter((s) => { const r = readinessBySub.get(s.id)!; return r.coreDone >= r.coreTotal }).length
+  const next = frontier(tree, states, null)[0]
 
   return (
     <header className="hud">
@@ -91,17 +91,8 @@ export function Hud({ onTogglePanel, panelOpen }: { onTogglePanel: () => void; p
             快速点亮{quick ? ' ·开' : ''}
           </button>
         )}
-        <button
-          className={`hud-text hud-goal${goal ? '' : ' empty'}`}
-          onClick={() => (goal ? setFocus({ kind: 'sub', id: goal.id }, { scroll: true }) : setFocus({ kind: 'category', id: tree.roadmap.categories[0].id }))}
-        >
-          {goal && r ? (
-            <>
-              目标 <b>{goal.name}</b> {Math.round(r.percent)}%
-            </>
-          ) : (
-            '选一个目标'
-          )}
+        <button className="hud-text hud-goal" onClick={() => setFocus({ kind: 'category', id: tree.roadmap.categories[0].id })} title="最上面一排的终极节点">
+          职业 <b>{reachedCount}</b> / {tree.roadmap.subs.length}
         </button>
         {next && !readOnly && (
           <button className="hud-text" onClick={() => setFocus({ kind: 'skill', id: next.id }, { scroll: true })} title="跳到最该学的那个">

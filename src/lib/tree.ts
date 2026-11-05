@@ -241,3 +241,9 @@ export function enforcePrerequisites(tree: Tree, progress: Progress): { progress
   for (const id of dropped) delete skills[id]
   return { progress: { ...progress, skills }, dropped }
 }
+
+/** 职业达成了吗：它要学的全部技能（不算加分项）都点亮了。职业不用手动点，点够了自己亮 */
+export function isReached(tree: Tree, subId: string, progress: Progress): boolean {
+  for (const id of tree.closures.get(subId)!) if (progress.skills[id]?.status !== 'done') return false
+  return true
+}

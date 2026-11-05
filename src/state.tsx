@@ -3,7 +3,7 @@
 // 同时算出“新解锁了哪些技能”给树上做动画，并留一份撤销。
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Progress, Readiness, SkillState, Status } from './types'
-import { Tree, computeStates, enforcePrerequisites, planFor, readiness } from './lib/tree'
+import { Tree, computeStates, enforcePrerequisites, isReached, planFor, readiness } from './lib/tree'
 import { applyChanges, readStorage, sanitize, writeStorage, type Changes, type ProgressStore } from './lib/store'
 import { decodeShare } from './lib/share'
 
@@ -198,10 +198,11 @@ export function AppProvider({
     setOwn(after)
     store.apply(real).catch(resync)
 
-    // 新点亮的和新解锁的，闪一下
+    // 新点亮的和新解锁的，闪一下；新达成的职业放一次大的庆祝
     const lit = ids.filter((id) => real[id] === 'done')
     const unlocked = [...nextStates].filter(([id, s]) => s === 'available' && prevStates.get(id) === 'locked').map(([id]) => id)
-    setPulse(new Set([...lit, ...unlocked]))
+    const reached = tree.roadmap.subs.filter((s) => isReached(tree, s.id, after) && !isReached(tree, s.id, before))
+    setPulse(new Set([...lit, ...unlocked, ...reached.map((s) => `sub:${s.id}`)]))
     window.clearTimeout(pulseTimer.current)
     pulseTimer.current = window.setTimeout(() => setPulse(new Set()), 1600)
 
@@ -212,6 +213,7 @@ export function AppProvider({
       store.apply(inverse).catch(resync)
     }
     let text = opts.message
+    if (!text && reached.length) text = `达成职业：${reached.map((s) => `「${s.name}」`).join('')}`
     const undoable = opts.undo || plan.cascaded.length > 0
     if (!text && plan.cascaded.length) {
       const names = plan.cascaded.slice(0, 3).map((id) => tree.skill(id).name).join('、')

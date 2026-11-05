@@ -1,4 +1,4 @@
-// 我的进度：几个数、目标、下一个、数据。就这些。
+// 我的进度：几个数、离得最近的职业、下一个、数据。就这些。
 import { useRef, useState } from 'react'
 import { useApp } from '../state'
 import { frontier, totals } from '../lib/tree'
@@ -9,9 +9,12 @@ import { Meter } from './common'
 export function Dashboard() {
   const { tree, states, progress, readinessBySub, setFocus, readOnly, replaceProgress, resetProgress, store, toast } = useApp()
   const t = totals(states)
-  const goal = progress.goalSubId ? tree.subs.get(progress.goalSubId)! : null
-  const r = goal ? readinessBySub.get(goal.id)! : null
-  const next = frontier(tree, states, progress.goalSubId).slice(0, 5)
+  // 按“还差几个”排，最近的三个
+  const closest = tree.roadmap.subs
+    .map((sub) => ({ sub, r: readinessBySub.get(sub.id)! }))
+    .sort((a, b) => a.r.coreTotal - a.r.coreDone - (b.r.coreTotal - b.r.coreDone) || b.r.coreDone - a.r.coreDone)
+    .slice(0, 3)
+  const next = frontier(tree, states, null).slice(0, 5)
   const file = useRef<HTMLInputElement>(null)
   const [confirmReset, setConfirmReset] = useState(false)
 
@@ -50,31 +53,22 @@ export function Dashboard() {
       </div>
       <Meter value={t.done} max={t.total} />
 
-      <h4>目标</h4>
-      {goal && r ? (
-        <>
-          <button className="row-link big" onClick={() => setFocus({ kind: 'sub', id: goal.id }, { scroll: true })}>
-            <span>{goal.name}</span>
-            <small>{Math.round(r.percent)}%</small>
-          </button>
-          <Meter value={r.coreDone + r.choiceDone} max={r.coreTotal + r.choiceTotal} />
-        </>
-      ) : (
-        <ul className="plain-list">
-          {tree.roadmap.subs.filter((s) => s.isHot).map((s) => (
-            <li key={s.id}>
-              <button className="row-link" onClick={() => setFocus({ kind: 'sub', id: s.id }, { scroll: true })}>
-                <span>{s.name}</span>
-              </button>
-            </li>
-          ))}
-          <li>
-            <button className="row-link" onClick={() => setFocus({ kind: 'category', id: tree.roadmap.categories[0].id })}>
-              <span>全部方向（也画在树的最上面一排 ◇）→</span>
+      <h4>离得最近的职业</h4>
+      <ul className="plain-list">
+        {closest.map(({ sub, r }) => (
+          <li key={sub.id}>
+            <button className="row-link" onClick={() => setFocus({ kind: 'sub', id: sub.id }, { scroll: true })}>
+              <span>{r.coreDone >= r.coreTotal ? '★ ' : ''}{sub.name}</span>
+              <small>{r.coreDone >= r.coreTotal ? '已达成' : `${r.coreDone} / ${r.coreTotal}`}</small>
             </button>
           </li>
-        </ul>
-      )}
+        ))}
+        <li>
+          <button className="row-link" onClick={() => setFocus({ kind: 'category', id: tree.roadmap.categories[0].id })}>
+            <span>全部职业 →</span>
+          </button>
+        </li>
+      </ul>
 
       {next.length > 0 && (
         <>

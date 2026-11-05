@@ -5,9 +5,8 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
-import { LABEL_Y, layoutWeb, NODE_R, subNodeId } from '../lib/webLayout'
+import { LABEL_Y, layoutWeb, NODE_R, subNodeId, TIP_R } from '../lib/webLayout'
 import { ICONS } from '../generated/icons'
-import { frontier } from '../lib/tree'
 
 interface View {
   x: number
@@ -39,14 +38,13 @@ type Relation = 'none' | 'path' | 'dim'
  * 点亮了：节点外面一圈向外放射的光芒（长短相间的短线，像太阳），整圈慢慢旋转。
  * r 是光芒从哪里开始（离中心多远）；圆和六边形都用同一圈。
  */
-const RAYS = 24
-export function Rays({ r, delay }: { r: number; delay?: string }) {
+export function Rays({ r, delay, count = 24, long = 9, short = 5, className = '' }: { r: number; delay?: string; count?: number; long?: number; short?: number; className?: string }) {
   return (
-    <g className="rays" aria-hidden>
+    <g className={`rays ${className}`} aria-hidden>
       <g className="rays-spin" style={{ animationDelay: delay }}>
-        {Array.from({ length: RAYS }, (_, i) => {
-          const a = (Math.PI * 2 * i) / RAYS
-          const len = i % 2 === 0 ? 9 : 5
+        {Array.from({ length: count }, (_, i) => {
+          const a = (Math.PI * 2 * i) / count
+          const len = i % 2 === 0 ? long : short
           const c = Math.cos(a)
           const sn = Math.sin(a)
           return <line key={i} x1={(c * r).toFixed(1)} y1={(sn * r).toFixed(1)} x2={(c * (r + len)).toFixed(1)} y2={(sn * (r + len)).toFixed(1)} />
@@ -54,6 +52,15 @@ export function Rays({ r, delay }: { r: number; delay?: string }) {
       </g>
     </g>
   )
+}
+
+/** 印章形：n 个尖角，外半径 R、内半径 r。职业终极节点用 */
+export function sealPath(R: number, r: number, n: number): string {
+  return Array.from({ length: n * 2 }, (_, i) => {
+    const a = (Math.PI * i) / n - Math.PI / 2
+    const rr = i % 2 === 0 ? R : r
+    return `${i ? 'L' : 'M'}${(Math.cos(a) * rr).toFixed(1)},${(Math.sin(a) * rr).toFixed(1)}`
+  }).join(' ') + 'Z'
 }
 
 /** 每个节点的光芒转到不同的角度，整张图不会齐刷刷一起转 */
@@ -80,13 +87,12 @@ interface NodeProps {
   state: SkillState
   focused: boolean
   relation: Relation
-  next: boolean
   pulse: boolean
   onClick: (id: string) => void
   onHover: (id: string | null) => void
 }
 
-const Node = memo(function Node({ id, language, x, y, name, icon, state, focused, relation, next, pulse, onClick, onHover }: NodeProps) {
+const Node = memo(function Node({ id, language, x, y, name, icon, state, focused, relation, pulse, onClick, onHover }: NodeProps) {
   const cls = ['node', language && 'lang', `s-${state}`, focused && 'focused', relation !== 'none' && `r-${relation}`, pulse && 'pulse'].filter(Boolean).join(' ')
   return (
     <g
@@ -126,7 +132,6 @@ const Node = memo(function Node({ id, language, x, y, name, icon, state, focused
           ))}
         </g>
       )}
-      {next && <path className="next-mark" d={`M-7,${-NODE_R - 22} L7,${-NODE_R - 22} L0,${-NODE_R - 13}Z`} />}
       <text className="lbl" y={LABEL_Y}>{name}</text>
     </g>
   )
@@ -137,17 +142,25 @@ interface TipProps {
   x: number
   y: number
   name: string
-  percent: number
-  goal: boolean
+  icon: string
+  /** 要学的技能点亮了几个、一共几个 */
+  done: number
+  total: number
   focused: boolean
   dim: boolean
+  pulse: boolean
   onClick: (id: string) => void
   onHover: (id: string | null) => void
 }
 
-/** 最上面一排的方向：一个菱形，名字和进度写在上面。点它看要学什么、设为目标 */
-const Tip = memo(function Tip({ id, x, y, name, percent, goal, focused, dim, onClick, onHover }: TipProps) {
-  const cls = ['tip', goal && 'goal', focused && 'focused', dim && 'dim', percent >= 100 && 'reached'].filter(Boolean).join(' ')
+/**
+ * 职业：技能树最上面一排的终极节点。一枚印章形的徽章，中间是职业图标，
+ * 外面一圈进度环随着点亮要学的技能慢慢填满。全部点亮就自动达成：徽章变黑，外面一大圈光芒转起来。
+ */
+const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim, pulse, onClick, onHover }: TipProps) {
+  const reached = total > 0 && done >= total
+  const pct = total ? Math.round((100 * done) / total) : 0
+  const cls = ['tip', reached && 'reached', focused && 'focused', dim && 'dim', pulse && 'pulse'].filter(Boolean).join(' ')
   return (
     <g
       className={cls}
@@ -157,16 +170,34 @@ const Tip = memo(function Tip({ id, x, y, name, percent, goal, focused, dim, onC
       onPointerEnter={() => onHover(id)}
       onPointerLeave={() => onHover(null)}
     >
-      <rect className="hit" x={-62} y={-52} width={124} height={64} />
-      <path className="diamond" d="M0,-9 L9,0 L0,9 L-9,0Z" />
-      <text className="tip-name" y={-17}>{name}</text>
-      <text className="tip-pct" y={-35}>{Math.round(percent)}%</text>
+      <rect className="hit" x={-80} y={-TIP_R - 50} width={160} height={2 * TIP_R + 60} />
+      {reached && <Rays r={TIP_R + 12} count={32} long={14} short={7} delay={orbitDelay(id)} className="tip-rays" />}
+      {/* 进度环：要学的技能点亮了多少 */}
+      <circle className="tip-track" r={TIP_R + 5} />
+      <circle className="tip-progress" r={TIP_R + 5} pathLength={100} strokeDasharray={`${pct} 100`} transform="rotate(-90)" />
+      <path className="seal" d={sealPath(TIP_R, TIP_R - 6, 16)} />
+      <circle className="seal-inner" r={TIP_R - 12} />
+      <foreignObject x={-16} y={-16} width="32" height="32">
+        <div className="tip-glyph"><SkillGlyph icon={icon} size={32} /></div>
+      </foreignObject>
+      {/* 达成那一刻：两圈波纹和一圈光芒冲出去 */}
+      {pulse && reached && (
+        <g className="burst">
+          <circle className="burst-ring" r={TIP_R} />
+          <circle className="burst-ring late" r={TIP_R} />
+          {Array.from({ length: 16 }, (_, i) => (
+            <line key={i} x1={0} y1={-TIP_R - 16} x2={0} y2={-TIP_R - 34} transform={`rotate(${i * 22.5})`} />
+          ))}
+        </g>
+      )}
+      <text className="tip-name" y={-TIP_R - 30}>{name}</text>
+      <text className="tip-pct" y={-TIP_R - 13}>{reached ? '已达成' : `${done} / ${total}`}</text>
     </g>
   )
 })
 
 export function SkillTree() {
-  const { tree, states, focus, setFocus, hover, setHover, pulse, progress, quick, readOnly, change, flyRequest, readinessBySub } = useApp()
+  const { tree, states, focus, setFocus, hover, setHover, pulse, quick, readOnly, change, flyRequest, readinessBySub } = useApp()
   const layout = useMemo(() => layoutWeb(tree), [tree])
   const wrap = useRef<HTMLDivElement>(null)
   const svg = useRef<SVGSVGElement>(null)
@@ -350,10 +381,10 @@ export function SkillTree() {
   }
   const edgeState = (from: string, to: string) => {
     const a = from === 'root' ? 'done' : states.get(from)
-    const b = to.startsWith('sub:') ? (readinessBySub.get(to.slice(4))!.percent >= 100 ? 'done' : 'locked') : states.get(to)
+    const r = to.startsWith('sub:') ? readinessBySub.get(to.slice(4))! : null
+    const b = r ? (r.coreDone >= r.coreTotal ? 'done' : 'locked') : states.get(to)
     return a === 'done' && b === 'done' ? 'e-done' : a === 'done' ? 'e-open' : 'e-locked'
   }
-  const nextId = progress.goalSubId ? frontier(tree, states, progress.goalSubId).find((f) => f.inGoal)?.id ?? null : null
 
   const onTip = useCallback((id: string) => {
     if (drag.current?.moved) return
@@ -401,8 +432,10 @@ export function SkillTree() {
                   x={n.x}
                   y={n.y}
                   name={sub.name}
-                  percent={readinessBySub.get(sub.id)!.percent}
-                  goal={progress.goalSubId === sub.id}
+                  icon={sub.icon}
+                  done={readinessBySub.get(sub.id)!.coreDone}
+                  total={readinessBySub.get(sub.id)!.coreTotal}
+                  pulse={pulse.has(`sub:${sub.id}`)}
                   focused={focusedSub === sub.id}
                   dim={(subLens !== null && subLens !== sub.id) || (lens !== null && !tree.closures.get(sub.id)!.has(lens))}
                   onClick={onTip}
@@ -426,7 +459,6 @@ export function SkillTree() {
                   state={states.get(s.id)!}
                   focused={focusedSkill === s.id}
                   relation={relation(s.id)}
-                  next={nextId === s.id}
                   pulse={pulse.has(s.id)}
                   onClick={onClick}
                   onHover={setHover}

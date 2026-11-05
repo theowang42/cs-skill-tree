@@ -99,3 +99,20 @@ INSERT INTO sub_rows VALUES
  '["写合约", "做链上应用"]',
  '[["go-ethereum", "https://github.com/ethereum/go-ethereum"]]',
  '["dapp", "defi", "web-security"]', '{}');
+
+-- 每个职业的图标（终极节点中间那个）
+UPDATE subs SET icon = CASE id
+  WHEN 'inference'       THEN 'server-cog'
+  WHEN 'gpu-kernel'      THEN 'circuit-board'
+  WHEN 'ai-compiler-eng' THEN 'cog'
+  WHEN 'edge'            THEN 'laptop'
+  WHEN 'training-infra'  THEN 'factory'
+  WHEN 'indie'           THEN 'store'
+  WHEN 'ai-app'          THEN 'sparkles'
+  WHEN 'systems-eng'     THEN 'square-terminal'
+  WHEN 'distributed-eng' THEN 'container'
+  WHEN 'quant'           THEN 'trending-up'
+  WHEN 'security'        THEN 'shield'
+  WHEN 'robotics'        THEN 'person-standing'
+  WHEN 'blockchain'      THEN 'link-2'
+END;
