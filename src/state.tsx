@@ -4,7 +4,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Progress, Readiness, SkillState, Status } from './types'
 import { Tree, computeStates, enforcePrerequisites, isReached, planFor, readiness } from './lib/tree'
-import { applyChanges, readStorage, sanitize, writeStorage, type Changes, type ProgressStore } from './lib/store'
+import { applyChanges, sanitize, type Changes, type ProgressStore } from './lib/store'
 import { decodeShare } from './lib/share'
 
 export type FocusKind = 'skill' | 'area' | 'sub' | 'category'
@@ -48,8 +48,6 @@ export interface AppState {
   openCategory: string | null
   setOpenCategory: (id: string | null) => void
 
-  quick: boolean
-  setQuick: (q: boolean) => void
   /** 刚刚解锁或点亮的技能，树上闪一下 */
   pulse: Set<string>
 
@@ -73,17 +71,6 @@ export function useApp(): AppState {
   return v
 }
 
-const PREFS_KEY = 'cs-skill-tree:prefs'
-
-function loadPrefs(): { quick: boolean } {
-  try {
-    const p = JSON.parse(readStorage(PREFS_KEY) ?? '{}')
-    return { quick: p.quick === true }
-  } catch {
-    return { quick: false }
-  }
-}
-
 export function AppProvider({
   tree, store, initial, shared: initialShared, children,
 }: { tree: Tree; store: ProgressStore; initial: Progress; shared: Progress | null; children: ReactNode }) {
@@ -101,9 +88,6 @@ export function AppProvider({
   const [flyRequest, setFlyRequest] = useState(0)
   const [hover, setHover] = useState<string | null>(null)
   const [openCategory, setOpenCategory] = useState<string | null>(null)
-  const prefs = useMemo(loadPrefs, [])
-  const [quick, setQuick] = useState(prefs.quick)
-  useEffect(() => writeStorage(PREFS_KEY, JSON.stringify({ quick })), [quick])
 
   const [pulse, setPulse] = useState<Set<string>>(new Set())
   const pulseTimer = useRef<number>(0)
@@ -279,7 +263,7 @@ export function AppProvider({
   const value: AppState = {
     tree, store, progress, states, readinessBySub, readOnly, shared, leaveShared, adoptShared,
     focus, setFocus, flyRequest, hover, setHover, activeSubId, openCategory, setOpenCategory,
-    quick, setQuick, pulse,
+    pulse,
     change, setStatus, setGoal, replaceProgress, resetProgress,
     toasts, toast, dismissToast,
   }

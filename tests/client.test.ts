@@ -4,7 +4,6 @@ import assert from 'node:assert/strict'
 import { getRoadmap } from '../server/roadmap.ts'
 import { Tree } from '../src/lib/tree.ts'
 import { decodeShare, encodeShare } from '../src/lib/share.ts'
-import { searchTree } from '../src/lib/search.ts'
 import { applyChanges, parseFile, sanitize, toFile } from '../src/lib/store.ts'
 import type { Progress } from '../src/types.ts'
 import { freshDb } from './helpers.ts'
@@ -45,15 +44,6 @@ test('applyChanges：null 删除，相同状态不改时间', () => {
   assert.equal(q.skills.linux.updatedAt, 't1')
   assert.equal(q.skills.docker.updatedAt, 't2')
   assert.deepEqual(Object.keys(applyChanges(q, { linux: null }).skills), ['docker'])
-})
-
-test('搜索：名字前缀优先，也能搜到介绍', () => {
-  assert.equal(searchTree(tree, 'git')[0].id, 'git')
-  assert.equal(searchTree(tree, 'Docker')[0].id, 'docker')
-  assert.ok(searchTree(tree, '共识').some((h) => h.id === 'distributed'))
-  assert.ok(searchTree(tree, 'REST').some((h) => h.id === 'web-api'))
-  assert.ok(searchTree(tree, '推理').some((h) => h.kind === 'sub' && h.id === 'inference'))
-  assert.deepEqual(searchTree(tree, '   '), [])
 })
 
 test('sanitize 去掉已不存在的技能和方向，没问题时原样返回', () => {

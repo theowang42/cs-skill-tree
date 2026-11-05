@@ -194,7 +194,7 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
 })
 
 export function SkillTree() {
-  const { tree, states, focus, setFocus, hover, setHover, pulse, quick, readOnly, change, flyRequest, readinessBySub } = useApp()
+  const { tree, states, focus, setFocus, hover, setHover, pulse, flyRequest, readinessBySub } = useApp()
   const layout = useMemo(() => layoutWeb(tree), [tree])
   const wrap = useRef<HTMLDivElement>(null)
   const svg = useRef<SVGSVGElement>(null)
@@ -390,16 +390,11 @@ export function SkillTree() {
 
   const onClick = (id: string) => {
     if (drag.current?.moved) return
-    if (quick && !readOnly) {
-      // 前置没点亮会被挡下并提示；取消会连带熄灭依赖它的
-      change({ [id]: states.get(id) === 'done' ? null : 'done' })
-      return
-    }
     setFocus(focusedSkill === id ? null : { kind: 'skill', id })
   }
 
   return (
-    <div className={`web-wrap${quick && !readOnly ? ' quick' : ''}`} ref={wrap}>
+    <div className="web-wrap" ref={wrap}>
       <svg
         ref={svg}
         className="web"

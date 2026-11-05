@@ -2,19 +2,28 @@
 
 [简体中文](../README.md) | English
 
-**A computer science skill tree that grows from the bottom up: light up what you know and see your frontier and next step.**
+**A computer science skill tree that grows from the bottom up: light up what you know and see how far you are from each career.**
 
-- 169 skills you could put on a résumé, from intro programming, data structures, computer systems and operating systems to PyTorch, CUDA, vLLM inference and agents, each with its own icon
-- Like a game skill tree: columns growing upward, long chains that fork only at key nodes, and 17 career badges along the top row, covering where CS graduates usually end up, as final nodes that light up on their own once everything they need is lit
-- Two states only: lit or not lit
+- 169 skills you could put on a résumé, from intro programming, data structures and operating systems to PyTorch, CUDA and vLLM inference, each with its own icon
+- Like a game skill tree: chains grow upward, and a skill lights up only after everything below it is lit
+- The top row holds 17 career badges covering where CS graduates usually end up. Light everything a career needs and its badge lights up on its own; there is nothing to pick first
+- Opening a skill shows one sentence and where to learn it
 
 👉 https://theowang42.github.io/cs-skill-tree/
 
-![The skill tree growing up from intro programming, with the Python → NumPy → machine learning → PyTorch chain in the middle](screenshot.jpg)
+![The skill tree growing up from intro programming, lit skills in black with a ring of rays turning around them](screenshot.jpg)
+
+## How to use
+
+1. Start on the bottom row, open a skill you know, press “点亮” (light up)
+2. Keep going up until you reach what you don't know. That is where you are
+3. Open a career badge at the top to see every skill it needs on the tree
+
+Scroll to zoom, drag to pan. With a skill selected, `D` lights it, `X` clears it, `Esc` goes back.
 
 ## Run locally
 
-Requires Node 22.18 or newer. It uses the built-in `node:sqlite` and runs TypeScript directly, so no database server is needed.
+Requires Node 22.18 or newer. No database server needed.
 
 ```bash
 npm ci
@@ -23,4 +32,8 @@ npm run dev:api    # front end plus API, progress in SQLite
 npm test
 ```
 
-All content lives in `db/seed/*.sql`, one row per skill. `npm run db:build` rebuilds the database and checks it for cycles, layer violations, numbering gaps and missing content. See [ARCHITECTURE.md](ARCHITECTURE.md) for the schema, commands and API.
+## Change the content
+
+All content lives in `db/seed/*.sql`, one row per skill. `npm run db:build` rebuilds the database and checks it, reporting anything wrong.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the database, API and front end, and [ART.md](ART.md) for the visual rules.

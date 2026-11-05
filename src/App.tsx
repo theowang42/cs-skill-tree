@@ -38,16 +38,15 @@ async function load(): Promise<Loaded> {
   return { tree, store, progress, shared, focus: known ? { kind: m![1] as FocusKind, id: m![2] } : null }
 }
 
-/** 全局快捷键：Esc 返回；选中技能时 D 点亮、X 取消；Q 切换快速点亮 */
+/** 全局快捷键：Esc 返回；选中技能时 D 点亮、X 取消 */
 function Shortcuts() {
-  const { focus, setFocus, setStatus, readOnly, quick, setQuick } = useApp()
+  const { focus, setFocus, setStatus, readOnly } = useApp()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       const typing = e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable]') !== null
       if (typing) return
       if (e.key === 'Escape') setFocus(null)
-      else if ((e.key === 'q' || e.key === 'Q') && !readOnly) setQuick(!quick)
       else if (focus?.kind === 'skill' && !readOnly) {
         const k = e.key.toLowerCase()
         if (k === 'd') setStatus(focus.id, 'done')
@@ -56,7 +55,7 @@ function Shortcuts() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [focus, setFocus, setStatus, readOnly, quick, setQuick])
+  }, [focus, setFocus, setStatus, readOnly])
   return null
 }
 

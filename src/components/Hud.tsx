@@ -1,77 +1,9 @@
-// 顶栏：左边名字和进度，右边目标、下一个、搜索。都是字，没有壳。
-import { useEffect, useRef, useState } from 'react'
+// 顶栏：左边名字和进度，右边达成了几个职业、下一个该学的。都是字，没有壳。
 import { useApp } from '../state'
-import { searchTree, snippet, type Hit } from '../lib/search'
 import { frontier, totals } from '../lib/tree'
 
-function Search() {
-  const { tree, setFocus } = useApp()
-  const [q, setQ] = useState('')
-  const [open, setOpen] = useState(false)
-  const [sel, setSel] = useState(0)
-  const input = useRef<HTMLInputElement>(null)
-  const hits = searchTree(tree, q)
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const typing = e.target instanceof HTMLElement && e.target.closest('input, textarea, [contenteditable]') !== null
-      if (e.key === '/' && !typing) {
-        e.preventDefault()
-        setOpen(true)
-        window.setTimeout(() => input.current?.focus(), 0)
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
-
-  const go = (h: Hit) => {
-    setFocus({ kind: h.kind, id: h.id }, { scroll: true })
-    setQ('')
-    setOpen(false)
-    input.current?.blur()
-  }
-
-  return (
-    <div className={`search${open ? ' open' : ''}`} role="combobox" aria-expanded={open && hits.length > 0} aria-haspopup="listbox">
-      <button className="search-btn" onClick={() => { setOpen(true); window.setTimeout(() => input.current?.focus(), 0) }} aria-label="搜索（/）">搜索</button>
-      <input
-        ref={input}
-        id="search-input"
-        type="search"
-        placeholder="技能、分支、方向"
-        value={q}
-        autoComplete="off"
-        onChange={(e) => { setQ(e.target.value); setSel(0) }}
-        onBlur={() => window.setTimeout(() => { if (!q) setOpen(false) }, 150)}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowDown') { e.preventDefault(); setSel((s) => Math.max(0, Math.min(s + 1, hits.length - 1))) }
-          else if (e.key === 'ArrowUp') { e.preventDefault(); setSel((s) => Math.max(s - 1, 0)) }
-          else if (e.key === 'Enter' && hits[sel]) go(hits[sel])
-          else if (e.key === 'Escape') { setQ(''); setOpen(false); input.current?.blur() }
-        }}
-        aria-label="搜索"
-      />
-      {open && q && (
-        <ul className="search-results" role="listbox">
-          {hits.length === 0 && <li className="empty">没有找到“{q}”</li>}
-          {hits.map((h, i) => (
-            <li key={`${h.kind}:${h.id}`} role="option" aria-selected={i === sel}>
-              <button onMouseDown={(e) => e.preventDefault()} onClick={() => go(h)} onMouseEnter={() => setSel(i)}>
-                <span className="hit-name">{h.name}</span>
-                <small className="hit-where">{h.where}</small>
-                {h.matched && <small className="hit-match">{snippet(h.matched, q)}</small>}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
-
 export function Hud({ onTogglePanel, panelOpen }: { onTogglePanel: () => void; panelOpen: boolean }) {
-  const { tree, states, readinessBySub, readOnly, setFocus, quick, setQuick } = useApp()
+  const { tree, states, readinessBySub, readOnly, setFocus } = useApp()
   const t = totals(states)
   // 职业不用选：点够了自己达成。顶栏只显示达成了几个
   const reachedCount = tree.roadmap.subs.filter((s) => { const r = readinessBySub.get(s.id)!; return r.coreDone >= r.coreTotal }).length
@@ -86,11 +18,6 @@ export function Hud({ onTogglePanel, panelOpen }: { onTogglePanel: () => void; p
         </span>
       </button>
       <div className="hud-right">
-        {!readOnly && (
-          <button className={`hud-text${quick ? ' on' : ''}`} onClick={() => setQuick(!quick)} title="打开后点节点直接切换：没学 → 已掌握 → 在学（Q）">
-            快速点亮{quick ? ' ·开' : ''}
-          </button>
-        )}
         <button className="hud-text hud-goal" onClick={() => setFocus({ kind: 'category', id: tree.roadmap.categories[0].id })} title="最上面一排的终极节点">
           职业 <b>{reachedCount}</b> / {tree.roadmap.subs.length}
         </button>
@@ -99,7 +26,6 @@ export function Hud({ onTogglePanel, panelOpen }: { onTogglePanel: () => void; p
             下一个 <b>{tree.skill(next.id).name}</b>
           </button>
         )}
-        <Search />
       </div>
     </header>
   )
