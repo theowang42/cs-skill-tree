@@ -108,7 +108,18 @@ test('操作记录由触发器自动写入；只有点亮一种状态', () => {
   db.prepare('DELETE FROM learner_skills WHERE learner_id = ?').run(id)
   const ev = db.prepare('SELECT from_status, to_status FROM learner_events WHERE learner_id = ? ORDER BY id').all(id) as Row[]
   assert.deepEqual(ev.map((e) => `${e.from_status}->${e.to_status}`), ['null->done', 'done->null'])
-  assert.throws(() => db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'git', 'learning')").run(id), /只能是 done/)
+  assert.throws(() => db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'linux', 'learning')").run(id), /只能是 done/)
+})
+
+test('数据库里也挡着：前置没点亮不能点亮，取消前置会一层层熄灭后继', () => {
+  const db = freshDb()
+  const id = 'c'.repeat(32)
+  db.prepare('INSERT INTO learners (id) VALUES (?)').run(id)
+  const light = db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, ?, 'done')")
+  assert.throws(() => light.run(id, 'docker'), /前置还没点亮/)
+  for (const s of ['linux', 'docker', 'git', 'github']) light.run(id, s)
+  db.prepare("DELETE FROM learner_skills WHERE learner_id = ? AND skill_id = 'linux'").run(id)
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM learner_skills WHERE learner_id = ?').get(id) as Row).n, 0)
 })
 
 test('API 的整棵树缓存：别的连接改了内容就失效，自己写学习者数据不失效', async () => {

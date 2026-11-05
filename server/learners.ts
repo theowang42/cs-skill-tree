@@ -1,6 +1,7 @@
 // 学习者：点亮状态、目标方向、操作记录。状态推导（边界、就绪度）全部用数据库视图。
 import { randomBytes } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
+import { planChanges } from '../src/lib/tree.ts'
 import type { Learner, LearnerEvent, ProgressEntry, Readiness, SkillState, Status, TimelineDay } from '../src/types.ts'
 
 type Row = Record<string, unknown>
@@ -59,11 +60,47 @@ export function unknownSkills(db: DatabaseSync, ids: string[]): string[] {
   return ids.filter((id) => !known.has(id))
 }
 
+/** 违反“前置都点亮了才能点亮”时抛出 */
+export class PrerequisiteError extends Error {
+  readonly blocked: { id: string; missing: string[] }[]
+  constructor(blocked: { id: string; missing: string[] }[]) {
+    const b = blocked[0]
+    super(`先点亮 ${b.missing.join('、')}，才能点亮 ${b.id}`)
+    this.blocked = blocked
+  }
+}
+
+/** 技能的前置和后继，从表里一次读完 */
+function graph(db: DatabaseSync) {
+  const pre = new Map<string, string[]>()
+  const dep = new Map<string, string[]>()
+  for (const r of db.prepare('SELECT skill_id, prerequisite_id FROM skill_prerequisites').all() as Row[]) {
+    const s = r.skill_id as string
+    const p = r.prerequisite_id as string
+    pre.set(s, [...(pre.get(s) ?? []), p])
+    dep.set(p, [...(dep.get(p) ?? []), s])
+  }
+  return { pre: (id: string) => pre.get(id) ?? [], dep: (id: string) => dep.get(id) ?? [] }
+}
+
+/** 按依赖顺序排（前置在前），写入时数据库的触发器才不会拒绝 */
+function topoOrder(db: DatabaseSync, ids: string[]): string[] {
+  const depth = new Map((db.prepare('SELECT skill_id, depth FROM skill_depth').all() as Row[]).map((r) => [r.skill_id as string, r.depth as number]))
+  return [...ids].sort((a, b) => (depth.get(a) ?? 0) - (depth.get(b) ?? 0) || a.localeCompare(b))
+}
+
 /**
  * 批量点亮或取消。status 为 null 表示取消点亮。
+ * 规则和浏览器里一样（src/lib/tree.ts 的 planChanges）：前置都点亮了才能点亮，否则整批不写并抛 PrerequisiteError；
+ * 取消一个，依赖它的已点亮技能一起熄灭。返回连带熄灭的技能。
  * 调用前先用 unknownSkills 校验；这里在一个事务里写，要么全成功要么全不变。
  */
-export function setStatuses(db: DatabaseSync, learnerId: string, changes: Record<string, Status | null>, at?: string) {
+export function setStatuses(db: DatabaseSync, learnerId: string, changes: Record<string, Status | null>, at?: string): string[] {
+  const lit = new Set((db.prepare('SELECT skill_id FROM learner_skills WHERE learner_id = ?').all(learnerId) as Row[]).map((r) => r.skill_id as string))
+  const g = graph(db)
+  const plan = planChanges(g.pre, g.dep, lit, changes)
+  if (plan.blocked.length) throw new PrerequisiteError(plan.blocked)
+  changes = plan.diff
   const upsert = db.prepare(`
     INSERT INTO learner_skills (learner_id, skill_id, status, updated_at)
     VALUES (?1, ?2, ?3, COALESCE(?4, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')))
@@ -73,14 +110,24 @@ export function setStatuses(db: DatabaseSync, learnerId: string, changes: Record
   `)
   const remove = db.prepare('DELETE FROM learner_skills WHERE learner_id = ? AND skill_id = ?')
   transaction(db, () => {
-    for (const [skillId, status] of Object.entries(changes)) {
-      if (status === null) remove.run(learnerId, skillId)
-      else upsert.run(learnerId, skillId, status, at ?? null)
-    }
+    // 先熄灭，再按依赖顺序点亮
+    for (const [skillId, status] of Object.entries(changes)) if (status === null) remove.run(learnerId, skillId)
+    for (const skillId of topoOrder(db, Object.keys(changes).filter((k) => changes[k] !== null))) upsert.run(learnerId, skillId, 'done', at ?? null)
   })
+  return plan.cascaded
 }
 
-/** 用一份完整的进度替换学习者现在的进度（导入文件时用） */
+/** 去掉前置没点亮的条目（导入的文件可能是手改的、或内容改过前置），返回去掉的 id */
+export function dropUnreachable(db: DatabaseSync, skills: Record<string, ProgressEntry>): string[] {
+  const g = graph(db)
+  const ok = new Set<string>()
+  for (const id of topoOrder(db, Object.keys(skills))) if (g.pre(id).every((p) => ok.has(p))) ok.add(id)
+  const dropped = Object.keys(skills).filter((id) => !ok.has(id))
+  for (const id of dropped) delete skills[id]
+  return dropped
+}
+
+/** 用一份完整的进度替换学习者现在的进度（导入文件时用）。skills 要先过 dropUnreachable */
 export function replaceProgress(db: DatabaseSync, learnerId: string, goalSubId: string | null, skills: Record<string, ProgressEntry>) {
   transaction(db, () => {
     db.prepare('UPDATE learners SET goal_sub_id = ? WHERE id = ?').run(goalSubId, learnerId)
@@ -93,7 +140,7 @@ export function replaceProgress(db: DatabaseSync, learnerId: string, goalSubId: 
       ON CONFLICT (learner_id, skill_id) DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at
         WHERE status IS NOT excluded.status
     `)
-    for (const [skillId, e] of Object.entries(skills)) upsert.run(learnerId, skillId, e.status, e.updatedAt)
+    for (const skillId of topoOrder(db, Object.keys(skills))) upsert.run(learnerId, skillId, skills[skillId].status, skills[skillId].updatedAt)
   })
 }
 

@@ -45,18 +45,19 @@ export function SubChip({ id }: { id: string }) {
   )
 }
 
-/** 点亮 / 取消点亮：只有这两种状态 */
+/** 点亮 / 取消点亮：只有这两种状态。前置没点亮时按不了 */
 export function StatusControl({ id }: { id: string }) {
-  const { progress, setStatus, readOnly } = useApp()
+  const { progress, states, setStatus, readOnly } = useApp()
   const lit = progress.skills[id]?.status === 'done'
+  const locked = states.get(id) === 'locked'
   return (
     <button
-      className={`light-toggle${lit ? ' on' : ''}`}
+      className={`light-toggle${lit ? ' on' : ''}${locked ? ' locked' : ''}`}
       aria-pressed={lit}
-      disabled={readOnly}
+      disabled={readOnly || locked}
       onClick={() => setStatus(id, lit ? null : 'done')}
     >
-      {lit ? '已点亮 · 点一下取消' : '点亮'}
+      {lit ? '已点亮 · 点一下取消' : locked ? '前置都点亮后才能点亮' : '点亮'}
     </button>
   )
 }

@@ -1,13 +1,13 @@
 // 技能树：从下往上长，一列一列，最上面一排是方向。白底黑线。
 // 每个节点一个图标和名字。点亮了是实心黑，能点是黑框，还够不着是浅灰。只有点亮和没点亮两种状态。
-// 每个节点只画一根枝（连到主前置）；悬停或选中时，其余前置用虚线补出来，整条路线保持清楚，其余变淡。
+// 每个节点只画一根枝（连到主前置）；悬停或选中时，它的全部前置和它解锁的保持清楚，其余变淡。
 // 平移缩放不走 React：直接改 <g> 的 transform。
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
 import { LABEL_Y, layoutWeb, NODE_R, subNodeId } from '../lib/webLayout'
 import { ICONS } from '../generated/icons'
-import { frontier, missingPrerequisites } from '../lib/tree'
+import { frontier } from '../lib/tree'
 
 interface View {
   x: number
@@ -107,7 +107,7 @@ const Tip = memo(function Tip({ id, x, y, name, percent, goal, focused, dim, onC
 })
 
 export function SkillTree() {
-  const { tree, states, focus, setFocus, hover, setHover, pulse, progress, quick, readOnly, change, toast, lightWithPrerequisites, flyRequest, readinessBySub } = useApp()
+  const { tree, states, focus, setFocus, hover, setHover, pulse, progress, quick, readOnly, change, flyRequest, readinessBySub } = useApp()
   const layout = useMemo(() => layoutWeb(tree), [tree])
   const wrap = useRef<HTMLDivElement>(null)
   const svg = useRef<SVGSVGElement>(null)
@@ -151,7 +151,7 @@ export function SkillTree() {
   /** 打开时：从最下面的起点看起，主线在屏幕中间，字看得清；往上拖或点“看全图”再看方向 */
   const home = useCallback((ms?: number) => {
     if (!size.w) return
-    const k = size.w < 700 ? 0.62 : 0.82
+    const k = size.w < 700 ? 0.8 : 1
     flyTo({ x: size.w / 2 - layout.home.x * k, y: size.h - (size.w < 700 ? 120 : 80) - layout.home.y * k, k }, ms)
   }, [layout, size, flyTo])
 
@@ -292,12 +292,6 @@ export function SkillTree() {
     if (focusedArea) return !to.startsWith('sub:') && tree.skill(to).areaId === focusedArea ? '' : ' e-dim'
     return ''
   }
-  /** 平时不画的其余前置：只在它属于当前路线时补出来 */
-  const extraOn = (from: string, to: string): boolean => {
-    if (plan) return plan.has(from) && plan.has(to)
-    if (lens) return (to === lens || anc.has(to)) && anc.has(from)
-    return false
-  }
   const edgeState = (from: string, to: string) => {
     const a = from === 'root' ? 'done' : states.get(from)
     const b = to.startsWith('sub:') ? (readinessBySub.get(to.slice(4))!.percent >= 100 ? 'done' : 'locked') : states.get(to)
@@ -313,13 +307,8 @@ export function SkillTree() {
   const onClick = (id: string) => {
     if (drag.current?.moved) return
     if (quick && !readOnly) {
-      const cur = states.get(id)!
-      const next = cur === 'done' ? null : 'done'
-      change({ [id]: next })
-      if (next === 'done') {
-        const missing = missingPrerequisites(tree, id, progress)
-        if (missing.length) toast(`「${tree.skill(id).name}」还有 ${missing.length} 个前置没点亮`, { label: '一起点亮', run: () => lightWithPrerequisites(id) })
-      }
+      // 前置没点亮会被挡下并提示；取消会连带熄灭依赖它的
+      change({ [id]: states.get(id) === 'done' ? null : 'done' })
       return
     }
     setFocus(focusedSkill === id ? null : { kind: 'skill', id })
@@ -344,9 +333,6 @@ export function SkillTree() {
           <g className="edges">
             {layout.edges.map((e) => (
               <path key={`${e.from}>${e.to}`} d={e.d} className={`edge ${edgeState(e.from, e.to)}${edgeLens(e.from, e.to)}${e.to.startsWith('sub:') ? ' e-tip' : ''}`} />
-            ))}
-            {(lens || plan) && layout.extra.filter((e) => extraOn(e.from, e.to)).map((e) => (
-              <path key={`x:${e.from}>${e.to}`} d={e.d} className={`edge e-extra ${edgeState(e.from, e.to)}`} />
             ))}
           </g>
           <g className="tips">

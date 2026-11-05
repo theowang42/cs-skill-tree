@@ -3,7 +3,7 @@
 // 同时算出“新解锁了哪些技能”给树上做动画，并留一份撤销。
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Progress, Readiness, SkillState, Status } from './types'
-import { Tree, computeStates, missingPrerequisites, readiness } from './lib/tree'
+import { Tree, computeStates, enforcePrerequisites, planFor, readiness } from './lib/tree'
 import { applyChanges, readStorage, sanitize, writeStorage, type Changes, type ProgressStore } from './lib/store'
 import { decodeShare } from './lib/share'
 
@@ -56,7 +56,6 @@ export interface AppState {
   change: (changes: Changes, opts?: ChangeOptions) => void
   setStatus: (id: string, status: Status | null) => void
   /** 连同所有没点亮的前置一起点亮 */
-  lightWithPrerequisites: (id: string) => void
   setGoal: (subId: string | null) => void
   replaceProgress: (p: Progress) => Promise<void>
   resetProgress: () => Promise<void>
@@ -135,7 +134,12 @@ export function AppProvider({
 
   const ownRef = useRef(own)
   ownRef.current = own
-  const clean = useCallback((p: Progress) => sanitize(p, new Set(tree.skills.keys()), new Set(tree.subs.keys())), [tree])
+  // 去掉已删除的技能，再去掉前置没点亮的点亮记录
+  const clean = useCallback((p: Progress) => {
+    const a = sanitize(p, new Set(tree.skills.keys()), new Set(tree.subs.keys()))
+    const b = enforcePrerequisites(tree, a.progress)
+    return { progress: b.progress, dropped: [...a.dropped, ...b.dropped] }
+  }, [tree])
   const setOwnNow = useCallback((p: Progress) => {
     ownRef.current = p
     setOwn(p)
@@ -175,9 +179,15 @@ export function AppProvider({
   const change = useCallback((changes: Changes, opts: ChangeOptions = {}) => {
     if (readOnly) return
     const before = ownRef.current
-    // 去掉没有实际变化的项
-    const real: Changes = {}
-    for (const [id, st] of Object.entries(changes)) if ((before.skills[id]?.status ?? null) !== st) real[id] = st
+    // 按规则算：前置没点亮的不能点亮；取消一个，依赖它的一起熄灭
+    const plan = planFor(tree, before, changes)
+    if (plan.blocked.length) {
+      const { id, missing } = plan.blocked[0]
+      const names = missing.map((m) => `「${tree.skill(m).name}」`).join('')
+      toast(`先点亮${names}，才能点亮「${tree.skill(id).name}」`, { label: '去前置', run: () => setFocus({ kind: 'skill', id: missing[0] }, { scroll: true }) })
+      return
+    }
+    const real: Changes = plan.diff
     const ids = Object.keys(real)
     if (!ids.length) return
     const after = applyChanges(before, real)
@@ -202,20 +212,19 @@ export function AppProvider({
       store.apply(inverse).catch(resync)
     }
     let text = opts.message
+    const undoable = opts.undo || plan.cascaded.length > 0
+    if (!text && plan.cascaded.length) {
+      const names = plan.cascaded.slice(0, 3).map((id) => tree.skill(id).name).join('、')
+      text = `依赖它的 ${plan.cascaded.length} 个技能也一起熄灭了：${names}${plan.cascaded.length > 3 ? ' 等' : ''}`
+    }
     if (!text && unlocked.length) {
       const names = unlocked.slice(0, 3).map((id) => tree.skill(id).name).join('、')
       text = `解锁了 ${unlocked.length} 个新技能：${names}${unlocked.length > 3 ? ' 等' : ''}`
     }
-    if (text || opts.undo) toast(text ?? `改了 ${ids.length} 个技能`, opts.undo ? { label: '撤销', run: undo } : undefined)
-  }, [readOnly, tree, store, resync, toast, setOwnNow])
+    if (text || undoable) toast(text ?? `改了 ${ids.length} 个技能`, undoable ? { label: '撤销', run: undo } : undefined)
+  }, [readOnly, tree, store, resync, toast, setOwnNow, setFocus])
 
   const setStatus = useCallback((id: string, status: Status | null) => change({ [id]: status }), [change])
-
-  const lightWithPrerequisites = useCallback((id: string) => {
-    const missing = missingPrerequisites(tree, id, ownRef.current)
-    const changes: Changes = Object.fromEntries([...missing, id].map((x) => [x, 'done' as const]))
-    change(changes, { undo: true, message: missing.length ? `点亮了「${tree.skill(id).name}」和它的 ${missing.length} 个前置` : undefined })
-  }, [tree, change])
 
   const setGoal = useCallback((subId: string | null) => {
     if (readOnly) return
@@ -238,7 +247,7 @@ export function AppProvider({
     await store.replace(cleaned, new Set(tree.skills.keys()))
     setOwnNow(clean(await store.load()).progress)
     const n = Object.keys(cleaned.skills).length
-    toast(`已导入 ${n} 个技能的进度${dropped.length ? `，跳过了 ${dropped.length} 个已不存在的技能` : ''}`, { label: '撤销', run: () => restore(backup) })
+    toast(`已导入 ${n} 个技能的进度${dropped.length ? `，跳过了 ${dropped.length} 个（已不存在，或前置没点亮）` : ''}`, { label: '撤销', run: () => restore(backup) })
   }, [store, tree, toast, clean, setOwnNow, restore])
 
   const resetProgress = useCallback(async () => {
@@ -269,7 +278,7 @@ export function AppProvider({
     tree, store, progress, states, readinessBySub, readOnly, shared, leaveShared, adoptShared,
     focus, setFocus, flyRequest, hover, setHover, activeSubId, openCategory, setOpenCategory,
     quick, setQuick, pulse,
-    change, setStatus, lightWithPrerequisites, setGoal, replaceProgress, resetProgress,
+    change, setStatus, setGoal, replaceProgress, resetProgress,
     toasts, toast, dismissToast,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

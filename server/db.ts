@@ -15,6 +15,8 @@ export function openDatabase(path: string = DEFAULT_DB_PATH): DatabaseSync {
   const db = new DatabaseSync(path)
   db.exec('PRAGMA foreign_keys = ON')
   db.exec('PRAGMA journal_mode = WAL')
+  // 取消点亮时触发器一层层熄灭后继，要允许触发器里再触发触发器
+  db.exec('PRAGMA recursive_triggers = ON')
   return db
 }
 
@@ -105,6 +107,10 @@ export function seed(db: DatabaseSync): SeedResult {
     const lastEvent = (db.prepare('SELECT COALESCE(MAX(id), 0) AS id FROM learner_events').get() as { id: number }).id
     const orphaned =
       Number(db.prepare('DELETE FROM learner_skills WHERE skill_id NOT IN (SELECT id FROM skills)').run().changes) +
+      // 内容改了前置之后，前置没点亮的点亮记录也不算数了
+      Number(db.prepare(`DELETE FROM learner_skills WHERE EXISTS (
+        SELECT 1 FROM skill_ancestors a WHERE a.skill_id = learner_skills.skill_id
+           AND NOT EXISTS (SELECT 1 FROM learner_skills d WHERE d.learner_id = learner_skills.learner_id AND d.skill_id = a.ancestor_id))`).run().changes) +
       Number(db.prepare('UPDATE learners SET goal_sub_id = NULL WHERE goal_sub_id IS NOT NULL AND goal_sub_id NOT IN (SELECT id FROM subs)').run().changes)
     db.prepare('DELETE FROM learner_events WHERE id > ?').run(lastEvent)
     const broken = db.prepare('PRAGMA foreign_key_check').all() as { table: string; parent: string; rowid: number }[]

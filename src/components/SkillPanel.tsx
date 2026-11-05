@@ -22,7 +22,7 @@ export function SkillPanel({ id }: { id: string }) {
       </h2>
       <p className="summary">{s.intro}</p>
       <StatusControl id={id} />
-      <p className="state-line">{STATE_LABEL[state]}</p>
+      {state !== 'locked' && <p className="state-line">{STATE_LABEL[state]}</p>}
       {links.length > 0 && (
         <>
           <h4>去哪学</h4>
@@ -30,15 +30,22 @@ export function SkillPanel({ id }: { id: string }) {
         </>
       )}
       {s.prerequisites.length > 0 && (
-        <p className="prereq-line">
-          先会：
-          {s.prerequisites.map((p, i) => (
-            <span key={p}>
-              {i > 0 && '、'}
-              <button className="link-button inline" onClick={() => setFocus({ kind: 'skill', id: p })}>{tree.skill(p).name}</button>
-            </span>
-          ))}
-        </p>
+        <>
+          <h4>前置</h4>
+          <ul className="prereq-list">
+            {s.prerequisites.map((p) => {
+              const st = states.get(p)!
+              return (
+                <li key={p} className={`pq-${st}`}>
+                  <button className="row-link" onClick={() => setFocus({ kind: 'skill', id: p }, { scroll: true })}>
+                    <span><span className="pq-mark" aria-hidden>{st === 'done' ? '●' : '○'}</span>{tree.skill(p).name}</span>
+                    <small>{st === 'done' ? '已点亮' : '还没点亮'}</small>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </>
       )}
     </div>
   )

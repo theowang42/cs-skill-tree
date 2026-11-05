@@ -14,6 +14,7 @@
 //   PUT    /api/learners/:id/goal              { "subId": "backend" | null }
 //   PUT    /api/learners/:id/skills/:skill     { "status": "done" | null }       点亮 / 取消点亮
 //   PATCH  /api/learners/:id/skills            { "changes": { "<技能>": "done" | null, … } }
+//          规则：前置都点亮了才能点亮，否则 409、整批不写；取消一个，依赖它的一起熄灭
 //   GET    /api/learners/:id/summary           状态计数、能力边界、目标就绪度、离得最近的方向
 //   GET    /api/learners/:id/readiness         所有方向的就绪度
 //   GET    /api/learners/:id/events?limit=50   最近的操作记录
@@ -30,7 +31,7 @@ import { DEFAULT_DB_PATH, migrate, openDatabase, tableCounts } from './db.ts'
 import { getRoadmap, search } from './roadmap.ts'
 import {
   communityStats, createLearner, deleteLearner, events, getLearner, isStatus, learnerExists, readinessAll,
-  replaceProgress, setGoal, setStatuses, summary, timeline, unknownSkills,
+  dropUnreachable, PrerequisiteError, replaceProgress, setGoal, setStatuses, summary, timeline, unknownSkills,
 } from './learners.ts'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -54,6 +55,16 @@ const ID = /^[a-z0-9][a-z0-9-]*$/
 const LEARNER_ID = /^[0-9a-f]{32}$/
 const notFound = (what: string) => new HttpError(404, `${what}不存在`)
 const badRequest = (msg: string) => new HttpError(400, msg)
+
+/** 写状态：前置没点亮时回 409，说清楚缺哪几个 */
+function writeStatuses(db: DatabaseSync, id: string, changes: Record<string, Status | null>) {
+  try {
+    setStatuses(db, id, changes)
+  } catch (e) {
+    if (e instanceof PrerequisiteError) throw new HttpError(409, e.message)
+    throw e
+  }
+}
 
 function send(res: ServerResponse, status: number, body: unknown) {
   if (status === 204) {
@@ -102,9 +113,11 @@ export function parseProgressFile(db: DatabaseSync, body: Record<string, unknown
     const at = typeof entry.updatedAt === 'string' && !Number.isNaN(Date.parse(entry.updatedAt)) ? new Date(entry.updatedAt).toISOString() : new Date().toISOString()
     skills[id] = { status: entry.status, updatedAt: at }
   }
+  // 前置没点亮的点亮记录不算数，和不认识的技能一样跳过
+  const unreachable = dropUnreachable(db, skills)
   let goal = body.goalSubId ?? null
   if (goal !== null && (typeof goal !== 'string' || !db.prepare('SELECT 1 FROM subs WHERE id = ?').get(goal))) goal = null
-  return { goalSubId: goal as string | null, skills, dropped: [...unknown] }
+  return { goalSubId: goal as string | null, skills, dropped: [...unknown, ...unreachable] }
 }
 
 function requireLearner(db: DatabaseSync, id: string | undefined): string {
@@ -189,7 +202,7 @@ export async function handleApi(db: DatabaseSync, req: IncomingMessage, url: URL
       const { status } = await readJson(req)
       if (status !== null && !isStatus(status)) throw badRequest('status 只能是 done（点亮）或 null（取消点亮）')
       if (unknownSkills(db, [d]).length) throw notFound(`技能 ${d}`)
-      setStatuses(db, id, { [d]: status as Status | null })
+      writeStatuses(db, id, { [d]: status as Status | null })
       send(res, 200, getLearner(db, id))
       return true
     }
@@ -202,7 +215,7 @@ export async function handleApi(db: DatabaseSync, req: IncomingMessage, url: URL
       for (const [k, v] of entries) if (v !== null && !isStatus(v)) throw badRequest(`技能 ${k} 的状态只能是 done（点亮）或 null（取消点亮）`)
       const unknown = unknownSkills(db, entries.map(([k]) => k))
       if (unknown.length) throw badRequest(`没有这些技能：${unknown.join('、')}`)
-      setStatuses(db, id, changes as Record<string, Status | null>)
+      writeStatuses(db, id, changes as Record<string, Status | null>)
       send(res, 200, getLearner(db, id))
       return true
     }

@@ -1,7 +1,7 @@
 // 技能树的布局：像游戏的技能树一样从下往上长，一列一列。
 //
 //   - 每个技能只挂在它的“主前置”上（种子里前置的第一个）。画出来是一条条往上的链，只在关键节点分叉。
-//     其余前置平时不画，选中时才显示。
+//     其余前置不画线（会横穿整张图），选中时只让那些节点保持清楚，面板里列出来。
 //   - 最下面一排是起点（没有前置的技能），往上一排深一层。
 //   - 列：子树按轮廓紧挨着排（每一层左右边界不重叠就行），父节点在第一个和最后一个孩子的正中间；
 //     只有一个孩子时和它对齐，链是直的。兄弟按领域排，AI 产品在左，AI Infra 在中间，底层系统和安全在右。
@@ -47,8 +47,6 @@ export interface WebLayout {
   nodes: Map<string, WebNode>
   /** 树上画出来的枝：每个节点一根（起点没有） */
   edges: WebEdge[]
-  /** 其余前置：只在选中时画 */
-  extra: WebEdge[]
   /** 主线的位置，打开时从这里看起 */
   home: { x: number; y: number }
   bounds: { minX: number; minY: number; maxX: number; maxY: number }
@@ -69,12 +67,6 @@ function elbow(x1: number, y1: number, x2: number, y2: number, midY: number): st
   const r = Math.min(10, Math.abs(x2 - x1) / 2, Math.abs(y1 - midY), Math.abs(midY - y2))
   const s = Math.sign(x2 - x1)
   return `M${f(x1)},${f(y1)} V${f(midY + r)} Q${f(x1)},${f(midY)} ${f(x1 + s * r)},${f(midY)} H${f(x2 - s * r)} Q${f(x2)},${f(midY)} ${f(x2)},${f(midY - r)} V${f(y2)}`
-}
-
-/** 其余前置：一根柔和的 S 形曲线 */
-function curve(x1: number, y1: number, x2: number, y2: number): string {
-  const my = (y1 + y2) / 2
-  return `M${f(x1)},${f(y1)} C${f(x1)},${f(my)} ${f(x2)},${f(my)} ${f(x2)},${f(y2)}`
 }
 
 export function layoutWeb(tree: Tree): WebLayout {
@@ -214,16 +206,6 @@ export function layoutWeb(tree: Tree): WebLayout {
     const t = nodes.get(tip)!
     edges.push({ from: anchor, to: tip, d: `M${f(a.x)},${f(up(anchor))} V${f(t.y + 10)}` })
   }
-  const extra: WebEdge[] = []
-  for (const s of skills) {
-    for (const p of s.prerequisites) {
-      if (p === s.parent) continue
-      const a = nodes.get(p)!
-      const c = nodes.get(s.id)!
-      extra.push({ from: p, to: s.id, d: curve(a.x, up(p), c.x, below(s.id)) })
-    }
-  }
-
   // ── 边界 ──
   const ns = [...nodes.values()]
   const bounds = {
@@ -233,5 +215,5 @@ export function layoutWeb(tree: Tree): WebLayout {
     maxY: LABEL_BOTTOM + 30,
   }
   const main = nodes.get('pytorch') ?? ns[0]
-  return { nodes, edges, extra, home: { x: main.x, y: 0 }, bounds }
+  return { nodes, edges, home: { x: main.x, y: 0 }, bounds }
 }

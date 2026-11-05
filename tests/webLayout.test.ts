@@ -19,9 +19,8 @@ test('是一棵树：每个节点正好一根枝，枝连的是主前置', () =>
   const into = new Map(layout.edges.map((e) => [e.to, e.from]))
   for (const s of tree.roadmap.skills) assert.equal(into.get(s.id), s.parent ?? undefined)
   for (const sub of tree.roadmap.subs) assert.equal(into.get(subNodeId(sub.id)), sub.anchor)
-  // 其余前置不画在树上，但都留着选中时用
-  const extra = tree.roadmap.skills.reduce((n, s) => n + s.prerequisites.length - (s.parent ? 1 : 0), 0)
-  assert.equal(layout.extra.length, extra)
+  // 其余前置不画线：只有树上的枝
+  assert.equal(layout.edges.length, tree.roadmap.skills.filter((s) => s.parent).length + tree.roadmap.subs.length)
 })
 
 test('大部分节点只有一个孩子：是一条条链，只在关键节点分叉', () => {

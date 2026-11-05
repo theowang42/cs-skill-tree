@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { getRoadmap } from '../server/roadmap.ts'
 import { createLearner, readinessAll, setGoal, setStatuses, skillStates, summary } from '../server/learners.ts'
-import { Tree, computeStates, frontier, missingPrerequisites, readiness, litDescendants } from '../src/lib/tree.ts'
+import { Tree, computeStates, enforcePrerequisites, frontier, missingPrerequisites, planFor, readiness, litDescendants } from '../src/lib/tree.ts'
 import type { Progress, Status } from '../src/types.ts'
 import { freshDb, rng } from './helpers.ts'
 
@@ -70,11 +70,9 @@ test('随机进度下，三种状态、能力边界、方向就绪度在 SQL 和
     const learner = createLearner(db)
     const density = random()
     const changes: Record<string, Status> = {}
-    // 一半轮次按依赖顺序点亮（更像真人），另一半完全随机
-    const ordered = round % 2 === 0 ? tree.topoSort(ids) : ids
-    for (const id of ordered) {
-      const r = random()
-      if (r < density) changes[id] = 'done'
+    // 按依赖顺序随机点亮：前置都点亮了才有机会点亮
+    for (const id of tree.topoSort(ids)) {
+      if (tree.skill(id).prerequisites.every((p) => changes[p]) && random() < density) changes[id] = 'done'
     }
     setStatuses(db, learner.id, changes)
     const goal = roadmap.subs[Math.floor(random() * roadmap.subs.length)].id
@@ -126,4 +124,23 @@ test('把一个方向的必学和任选都点亮后，就绪度是 100%', () => 
     for (const c of sub.choices) skills[c.options[0]] = { status: 'done', updatedAt: '' }
     assert.equal(readiness(tree, sub.id, { goalSubId: null, skills }).percent, 100, sub.id)
   }
+})
+
+test('规则：前置都点亮了才能点亮；取消前置，后继一起熄灭', () => {
+  const none = { goalSubId: null, skills: {} }
+  const at = { status: 'done' as const, updatedAt: '' }
+  // 前置没点亮：挡下，什么都不写
+  const blocked = planFor(tree, none, { docker: 'done' })
+  assert.deepEqual(blocked.blocked, [{ id: 'docker', missing: ['linux'] }])
+  assert.deepEqual(blocked.diff, {})
+  // 同一批里先点亮前置就行，顺序随便
+  assert.deepEqual(Object.keys(planFor(tree, none, { docker: 'done', linux: 'done' }).diff).sort(), ['docker', 'linux'])
+  // 取消 Linux：Docker、Git、GitHub 一起熄灭，并报告连带的
+  const lit = { goalSubId: null, skills: { linux: at, docker: at, git: at, github: at } }
+  const off = planFor(tree, lit, { linux: null })
+  assert.deepEqual(Object.keys(off.diff).sort(), ['docker', 'git', 'github', 'linux'])
+  assert.deepEqual(off.cascaded.sort(), ['docker', 'git', 'github'])
+  // 旧数据里前置没点亮的记录被清掉
+  const bad = { goalSubId: null, skills: { git: at, github: at, docker: at, linux: at, numpy: at } }
+  assert.deepEqual(enforcePrerequisites(tree, bad).dropped, ['numpy'])
 })

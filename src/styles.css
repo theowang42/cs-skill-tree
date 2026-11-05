@@ -165,14 +165,6 @@ a {
   opacity: 0.2;
 }
 
-/* 平时不画的其余前置：选中时用细虚线补出来 */
-.edge.e-extra {
-  stroke: var(--ink);
-  stroke-width: 1.25;
-  stroke-dasharray: 2 5;
-  opacity: 0.75;
-}
-
 /* 通向方向的最后一段 */
 .edge.e-tip {
   stroke-dasharray: 1 5;
@@ -1022,4 +1014,32 @@ button.danger {
 
 .more {
   margin-top: 22px;
+}
+
+/* 前置还没点亮：按钮是灰的，按不了 */
+.light-toggle.locked {
+  border-color: var(--line);
+  background: var(--paper);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.prereq-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prereq-list .pq-mark {
+  display: inline-block;
+  width: 1.4em;
+  font-size: 11px;
+}
+
+.prereq-list .pq-done {
+  font-weight: 600;
+}
+
+.prereq-list li:not(.pq-done) small {
+  color: var(--goal);
 }

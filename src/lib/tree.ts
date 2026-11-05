@@ -1,6 +1,6 @@
 // 技能树的纯逻辑：索引、四种状态、能力边界、离方向还有多远。
 // 不依赖 React，也不依赖浏览器；服务端测试会拿它和数据库视图的结果逐个对比，保证两边一致。
-import type { Area, Category, Layer, Progress, Readiness, Roadmap, Skill, SkillState, Sub, ToolGroup } from '../types.ts'
+import type { Area, Category, Layer, Progress, Readiness, Roadmap, Skill, SkillState, Status, Sub, ToolGroup } from '../types.ts'
 
 export class Tree {
   readonly roadmap: Roadmap
@@ -170,4 +170,74 @@ export function totals(states: Map<string, SkillState>, filter?: (id: string) =>
     t[st]++
   }
   return t
+}
+
+// ───────────── 规则：前置都点亮了才能点亮 ─────────────
+
+type Changes = Record<string, Status | null>
+
+export interface Plan {
+  /** 真正要写的改动（含连带熄灭的） */
+  diff: Changes
+  /** 想点亮但前置没点亮的：一个都不写 */
+  blocked: { id: string; missing: string[] }[]
+  /** 因为取消了前置而一起熄灭的（不是直接要求的） */
+  cascaded: string[]
+}
+
+/**
+ * 按规则把一批改动算成真正要写的东西。服务端和浏览器用同一份：
+ *   - 取消点亮一个技能，所有依赖它的已点亮技能一起熄灭；
+ *   - 点亮一个技能，它的直接前置必须都已点亮（同一批里先点亮的前置也算）。
+ */
+export function planChanges(
+  prerequisitesOf: (id: string) => readonly string[],
+  dependentsOf: (id: string) => readonly string[],
+  lit: ReadonlySet<string>,
+  changes: Changes,
+): Plan {
+  const next = new Set(lit)
+  const cascaded: string[] = []
+  for (const [id, st] of Object.entries(changes)) {
+    if (st !== null || !next.has(id)) continue
+    const stack = [id]
+    while (stack.length) {
+      const x = stack.pop()!
+      if (!next.delete(x)) continue
+      if (x !== id && !(x in changes)) cascaded.push(x)
+      stack.push(...dependentsOf(x))
+    }
+  }
+  let pending = Object.entries(changes).filter(([id, st]) => st === 'done' && !next.has(id)).map(([id]) => id)
+  for (let moved = true; moved && pending.length; ) {
+    moved = false
+    pending = pending.filter((id) => {
+      if (!prerequisitesOf(id).every((p) => next.has(p))) return true
+      next.add(id)
+      moved = true
+      return false
+    })
+  }
+  const blocked = pending.map((id) => ({ id, missing: prerequisitesOf(id).filter((p) => !next.has(p)) }))
+  if (blocked.length) return { diff: {}, blocked, cascaded: [] }
+  const diff: Changes = {}
+  for (const id of new Set([...lit, ...next])) {
+    if (lit.has(id) && !next.has(id)) diff[id] = null
+    else if (!lit.has(id) && next.has(id)) diff[id] = 'done'
+  }
+  return { diff, blocked, cascaded }
+}
+
+export function planFor(tree: Tree, progress: Progress, changes: Changes): Plan {
+  const lit = new Set(Object.keys(progress.skills).filter((id) => progress.skills[id].status === 'done'))
+  return planChanges((id) => tree.skill(id).prerequisites, (id) => tree.skill(id).dependents, lit, changes)
+}
+
+/** 去掉前置没点亮的点亮记录（旧数据、导入的文件、分享链接、内容改过前置之后） */
+export function enforcePrerequisites(tree: Tree, progress: Progress): { progress: Progress; dropped: string[] } {
+  const dropped = Object.keys(progress.skills).filter((id) => tree.skills.has(id) && [...tree.ancestors(id)].some((a) => !progress.skills[a]))
+  if (!dropped.length) return { progress, dropped }
+  const skills = { ...progress.skills }
+  for (const id of dropped) delete skills[id]
+  return { progress: { ...progress, skills }, dropped }
 }

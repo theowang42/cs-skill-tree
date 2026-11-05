@@ -68,36 +68,49 @@ test('学习者的完整流程', async () => {
   assert.equal((await call('PUT', `/learners/${id}/skills/linux`, { status: 'learning' })).status, 400)
   assert.equal((await call('PUT', `/learners/${id}/skills/nope`, { status: 'done' })).status, 404)
 
-  const batch = await call('PATCH', `/learners/${id}/skills`, { changes: { python: 'done', git: 'done', linux: null } })
-  assert.deepEqual(Object.keys(batch.body.skills).sort(), ['git', 'python'])
+  // 前置没点亮不能点亮：409，什么都不写
+  const early = await call('PUT', `/learners/${id}/skills/python`, { status: 'done' })
+  assert.equal(early.status, 409)
+  assert.match(early.body.error, /cs61a/)
+  assert.equal((await call('GET', `/learners/${id}`)).body.skills.python, undefined)
+
+  // 同一批里先点亮前置就行，顺序随便写
+  const batch = await call('PATCH', `/learners/${id}/skills`, { changes: { python: 'done', git: 'done', cs61a: 'done' } })
+  assert.equal(batch.status, 200)
+  assert.deepEqual(Object.keys(batch.body.skills).sort(), ['cs61a', 'git', 'linux', 'python'])
+  // 取消 Linux，依赖它的 Git 一起熄灭
+  const off = await call('PATCH', `/learners/${id}/skills`, { changes: { linux: null } })
+  assert.deepEqual(Object.keys(off.body.skills).sort(), ['cs61a', 'python'])
   // 有一个不认识的技能，整批都不写
-  const bad = await call('PATCH', `/learners/${id}/skills`, { changes: { dsa: 'done', nope: 'done' } })
+  const bad = await call('PATCH', `/learners/${id}/skills`, { changes: { cs61b: 'done', nope: 'done' } })
   assert.equal(bad.status, 400)
-  assert.equal((await call('GET', `/learners/${id}`)).body.skills.dsa, undefined)
+  assert.equal((await call('GET', `/learners/${id}`)).body.skills.cs61b, undefined)
 
   const sum = (await call('GET', `/learners/${id}/summary`)).body
   assert.equal(sum.counts.done, 2)
   assert.equal(sum.goal.subId, 'inference')
   assert.ok(sum.frontier.some((f: { skillId: string }) => f.skillId === 'calculus'))
+  assert.ok(sum.frontier.some((f: { skillId: string }) => f.skillId === 'linux'))
   assert.ok(!sum.frontier.some((f: { skillId: string }) => f.skillId === 'python'))
 
   const ev = (await call('GET', `/learners/${id}/events`)).body
-  assert.deepEqual(ev.map((e: { skillId: string; to: string | null }) => `${e.skillId}:${e.to}`), ['linux:null', 'git:done', 'python:done', 'linux:done'])
+  assert.deepEqual(ev.map((e: { skillId: string; to: string | null }) => `${e.skillId}:${e.to}`).sort(), ['cs61a:done', 'git:done', 'git:null', 'linux:done', 'linux:null', 'python:done'])
 
   const tl = (await call('GET', `/learners/${id}/timeline`)).body
   assert.equal(tl.length, 1)
-  assert.deepEqual(tl[0].lit, ['python', 'git'])
-  assert.deepEqual(tl[0].unlit, ['linux'])
+  assert.deepEqual([...tl[0].lit].sort(), ['cs61a', 'python'])
+  assert.deepEqual([...tl[0].unlit].sort(), ['git', 'linux'])
 
   const exported = (await call('GET', `/learners/${id}/export`)).body
   assert.equal(exported.format, 'cs-skill-tree-progress')
 
-  // 导入到另一个学习者，不认识的技能丢掉并报告
+  // 导入到另一个学习者：不认识的技能、前置没点亮的技能都丢掉并报告
   const other = (await call('POST', '/learners')).body.id
-  const imported = await call('POST', `/learners/${other}/import`, { ...exported, skills: { ...exported.skills, gone: { status: 'done', updatedAt: '2020-01-01T00:00:00Z' } } })
+  const at = '2020-01-01T00:00:00Z'
+  const imported = await call('POST', `/learners/${other}/import`, { ...exported, skills: { ...exported.skills, gone: { status: 'done', updatedAt: at }, numpy: { status: 'done', updatedAt: at } } })
   assert.equal(imported.status, 200)
-  assert.deepEqual(imported.body.dropped, ['gone'])
-  assert.deepEqual(Object.keys(imported.body.learner.skills).sort(), ['git', 'python'])
+  assert.deepEqual(imported.body.dropped.sort(), ['gone', 'numpy'])
+  assert.deepEqual(Object.keys(imported.body.learner.skills).sort(), ['cs61a', 'python'])
   assert.equal(imported.body.learner.goalSubId, 'inference')
   assert.equal((await call('POST', `/learners/${other}/import`, { format: 'x' })).status, 400)
 
