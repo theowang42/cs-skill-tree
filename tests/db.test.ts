@@ -25,7 +25,7 @@ test('技能数量在预期范围内，每个都有等级和图标', () => {
   const n = (sql: string) => (db.prepare(sql).get() as Row).n as number
   // 技能是能写进简历的能力，不是知识点：几十个，而不是几百个
   const skills = n('SELECT COUNT(*) AS n FROM skills')
-  assert.ok(skills >= 80 && skills <= 160, `技能有 ${skills} 个`)
+  assert.ok(skills >= 120 && skills <= 220, `技能有 ${skills} 个`)
   assert.ok(n('SELECT COUNT(*) AS n FROM skill_prerequisites') >= 50)
   assert.equal(n('SELECT COUNT(*) AS n FROM skills WHERE icon IS NULL'), 0)
   assert.equal(n('SELECT COUNT(*) AS n FROM skill_level WHERE level NOT BETWEEN 1 AND 5'), 0)

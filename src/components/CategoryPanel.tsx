@@ -1,5 +1,6 @@
 // 全部职业：技能树最上面一排的终极节点，按大方向分组。不用选：点够了自己达成。
 import { useApp } from '../state'
+import { stars, tierOf } from '../lib/tree'
 
 export function CategoryPanel({ id }: { id: string }) {
   const { tree, readinessBySub, setFocus } = useApp()
@@ -20,7 +21,7 @@ export function CategoryPanel({ id }: { id: string }) {
                 <li key={sid}>
                   <button className={`row-link${reached ? ' is-reached' : ''}`} onClick={() => setFocus({ kind: 'sub', id: sid }, { scroll: true })}>
                     <span>{reached ? '★ ' : ''}{s.name}</span>
-                    <small>{reached ? '已达成' : `${r.coreDone} / ${r.coreTotal}`}</small>
+                    <small>{stars(tierOf(r.coreTotal))}　{reached ? '已达成' : `${r.coreDone} / ${r.coreTotal}`}</small>
                   </button>
                 </li>
               )

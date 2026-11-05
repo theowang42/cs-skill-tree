@@ -3,6 +3,7 @@
 import { useApp } from '../state'
 import { SkillGlyph, Rays, orbitDelay } from './SkillTree'
 import { Links, Meter } from './common'
+import { stars, tierOf } from '../lib/tree'
 import { SkillSlot } from './SkillPanel'
 
 export function SubPanel({ id }: { id: string }) {
@@ -39,7 +40,7 @@ export function SubPanel({ id }: { id: string }) {
           </foreignObject>
         </svg>
         <div className="card-title">
-          <p className="card-kind">职业 · {cat.name}</p>
+          <p className="card-kind">职业 · {cat.name} · <span className="tip-stars">{stars(tierOf(r.coreTotal))}</span></p>
           <h2>{sub.name}</h2>
           <span className={`badge ${reached ? 'b-done' : 'b-available'}`}>{reached ? '已达成' : `${r.coreDone} / ${r.coreTotal}`}</span>
         </div>

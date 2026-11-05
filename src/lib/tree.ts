@@ -247,3 +247,13 @@ export function isReached(tree: Tree, subId: string, progress: Progress): boolea
   for (const id of tree.closures.get(subId)!) if (progress.skills[id]?.status !== 'done') return false
   return true
 }
+
+/**
+ * 徽章的星级：要点亮的技能越多越难拿。一星 ≤ 22 个，二星 23–29 个，三星 ≥ 30 个。
+ * 像游戏里的稀有度：粒度一样的岗位，难度可以不一样。
+ */
+export function tierOf(total: number): 1 | 2 | 3 {
+  return total >= 30 ? 3 : total >= 23 ? 2 : 1
+}
+
+export const stars = (tier: number) => '★'.repeat(tier) + '☆'.repeat(3 - tier)

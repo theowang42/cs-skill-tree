@@ -6,6 +6,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEv
 import type { SkillState } from '../types'
 import { useApp } from '../state'
 import { LABEL_Y, layoutWeb, NODE_R, subNodeId, TIP_R } from '../lib/webLayout'
+import { stars, tierOf } from '../lib/tree'
 import { ICONS } from '../generated/icons'
 
 interface View {
@@ -183,7 +184,11 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
       )}
       {/* 名字和进度写在光芒外面，达成后转起来的光芒不会压到字 */}
       <text className="tip-name" y={-TIP_R - 48}>{name}</text>
-      <text className="tip-pct" y={-TIP_R - 31}>{reached ? '已达成' : `${done} / ${total}`}</text>
+      <text className="tip-pct" y={-TIP_R - 31}>
+        <tspan className="tip-stars">{stars(tierOf(total))}</tspan>
+        {'  '}
+        {reached ? '已达成' : `${done} / ${total}`}
+      </text>
     </g>
   )
 })
