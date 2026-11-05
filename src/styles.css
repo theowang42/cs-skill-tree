@@ -12,10 +12,6 @@
   --line-2: #ededed;
   --wash: #f4f4f4;
   --goal: #d94f3d;
-  /* 点亮专用的金色：只用在已点亮的节点、枝条和面板里的点亮状态 */
-  --lit: #f5a524;
-  --lit-deep: #c27800;
-  --lit-soft: #fff1c9;
   /* 没点亮的：线和字都要看得清，不能灰到看不见 */
   --off-line: #b9b9b9;
   --off-ink: #6b6b6b;
@@ -155,9 +151,9 @@ a {
   stroke-width: 2.25;
 }
 
-/* 两头都点亮了：金色的粗线 */
+/* 两头都点亮了：黑色的粗线 */
 .edge.e-done {
-  stroke: var(--lit);
+  stroke: var(--ink);
   stroke-width: 4.5;
 }
 
@@ -167,7 +163,6 @@ a {
 }
 
 .edge.e-done.e-path {
-  stroke: var(--lit);
   stroke-width: 4.5;
 }
 
@@ -227,8 +222,7 @@ a {
 }
 
 .tip.reached .diamond {
-  fill: var(--lit);
-  stroke: var(--lit-deep);
+  fill: var(--ink);
 }
 
 .tip.goal .diamond {
@@ -278,21 +272,6 @@ a {
   stroke-linejoin: round;
 }
 
-.node .halo,
-.node .shine {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.4s var(--ease);
-}
-
-.node .halo {
-  fill: url(#lit-halo);
-}
-
-.node .shine {
-  fill: #fff;
-}
-
 /* 外面那一圈：平时看不见 */
 .node .ring {
   fill: none;
@@ -324,31 +303,23 @@ a {
 }
 
 .node.s-available:hover .box {
-  fill: var(--lit-soft);
+  fill: var(--wash);
 }
 
-/* 已点亮：金色的宝石，身后有光，外面一圈金线 */
+/* 已点亮：黑底白图标，外面一圈黑色轨道，一道白光沿着轨道一直绕着转 */
 .node.s-done .box {
-  fill: url(#lit-fill);
-  stroke: var(--lit-deep);
+  fill: var(--ink);
+  stroke: var(--ink);
   stroke-width: 2.5;
 }
 
 .node.s-done .ring {
-  stroke: var(--lit);
-}
-
-.node.s-done .halo {
-  opacity: 1;
-  animation: breathe 3.6s ease-in-out infinite;
-}
-
-.node.s-done .shine {
-  opacity: 0.75;
+  stroke: var(--ink);
+  stroke-width: 4;
 }
 
 .node.s-done .glyph {
-  color: var(--ink);
+  color: var(--paper);
 }
 
 .node.s-done .lbl {
@@ -388,7 +359,7 @@ a {
 /* 点亮或解锁的那一刻：一圈波纹往外扩散，只放一次 */
 .node .ripple {
   fill: none;
-  stroke: var(--lit);
+  stroke: var(--ink);
   stroke-width: 3;
   pointer-events: none;
   transform-box: fill-box;
@@ -401,9 +372,9 @@ a {
   stroke-width: 2;
 }
 
-/* 点亮那一刻：八道金色光芒往外散开 */
+/* 点亮那一刻：八道光芒往外散开 */
 .node .sparks line {
-  stroke: var(--lit);
+  stroke: var(--ink);
   stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 12 12;
@@ -422,14 +393,57 @@ a {
   }
 }
 
-/* 点亮的光慢慢呼吸 */
-@keyframes breathe {
-  0%,
-  100% {
-    opacity: 0.7;
+/* 绕圈的白光：三段叠在一起，短的最亮在最前面，长的淡淡拖在后面，像一颗彗星。
+   轨道用 pathLength = 100，圆和六边形一样走 */
+.o {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 4;
+  stroke-linecap: round;
+  pointer-events: none;
+  animation-duration: 2.8s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.o26 {
+  opacity: 0.3;
+  animation-name: orbit26;
+}
+
+.o14 {
+  opacity: 0.6;
+  animation-name: orbit14;
+}
+
+.o6 {
+  animation-name: orbit6;
+}
+
+@keyframes orbit26 {
+  from {
+    stroke-dashoffset: 26;
   }
-  50% {
-    opacity: 1;
+  to {
+    stroke-dashoffset: -74;
+  }
+}
+
+@keyframes orbit14 {
+  from {
+    stroke-dashoffset: 14;
+  }
+  to {
+    stroke-dashoffset: -86;
+  }
+}
+
+@keyframes orbit6 {
+  from {
+    stroke-dashoffset: 6;
+  }
+  to {
+    stroke-dashoffset: -94;
   }
 }
 
@@ -445,7 +459,7 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .node.s-done .halo {
+  .o {
     animation: none;
   }
 }
@@ -1132,18 +1146,13 @@ button.danger {
 }
 
 .slot.s-done .slot-box {
-  fill: var(--lit);
-  stroke: var(--lit-deep);
-  stroke-width: 2.5;
+  fill: var(--ink);
+  stroke: var(--ink);
 }
 
 .slot.s-done .slot-ring {
-  stroke: var(--lit);
-  stroke-width: 2.5;
-}
-
-.slot.s-done {
-  filter: drop-shadow(0 0 10px rgb(255 180 40 / 0.55));
+  stroke: var(--ink);
+  stroke-width: 4;
 }
 
 .slot-glyph {
@@ -1158,7 +1167,7 @@ button.danger {
 }
 
 .slot.s-done .slot-glyph {
-  color: var(--ink);
+  color: var(--paper);
 }
 
 .card-title {
@@ -1194,9 +1203,9 @@ button.danger {
 }
 
 .badge.b-done {
-  border-color: var(--lit-deep);
-  background: var(--lit);
-  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
 }
 
 /* 点亮按钮：一块黑色的大按钮，按下去会往下沉一点 */
@@ -1236,16 +1245,14 @@ button.danger {
   opacity: 0.7;
 }
 
-/* 已点亮：金色，悬停时换成“熄灭” */
+/* 已点亮：白底黑框，悬停时换成“熄灭” */
 .light-toggle.on {
-  border-color: var(--lit-deep);
-  background: var(--lit-soft);
+  background: var(--paper);
   color: var(--ink);
-  box-shadow: 4px 4px 0 var(--lit);
 }
 
 .light-toggle.on:hover {
-  background: var(--paper);
+  background: var(--wash);
 }
 
 .light-toggle .lt-off {
@@ -1307,8 +1314,8 @@ button.danger {
 }
 
 .req-list .ok .req-mark {
-  background: var(--lit);
-  color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
 }
 
 .req-list .miss button {
@@ -1343,9 +1350,9 @@ button.danger {
 }
 
 .unlock.s-done {
-  border-color: var(--lit-deep);
-  background: var(--lit);
-  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
 }
 
 .unlock:hover {

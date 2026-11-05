@@ -35,6 +35,16 @@ export function SkillGlyph({ icon, size }: { icon: string; size: number }) {
 
 type Relation = 'none' | 'path' | 'unlock' | 'dim'
 
+/** 绕圈的白光：三段，长的淡、短的亮，头对齐 */
+export const ORBIT = [26, 14, 6] as const
+
+/** 每个节点的光转到不同的位置，整张图不会齐刷刷一起转 */
+export function orbitDelay(id: string): string {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0
+  return `${-(Math.abs(h) % 2800)}ms`
+}
+
 /** 六边形（语言天赋）：尖朝上，外接圆半径 r */
 export const hexPath = (r: number) =>
   Array.from({ length: 6 }, (_, i) => {
@@ -69,8 +79,6 @@ const Node = memo(function Node({ id, language, x, y, name, icon, state, focused
       onPointerEnter={() => onHover(id)}
       onPointerLeave={() => onHover(null)}
     >
-      {/* 点亮了：身后一团金色的光 */}
-      <circle className="halo" r={NODE_R + 30} />
       {/* 点亮后外面多一圈：像游戏里激活了的技能槽 */}
       {language ? (
         <>
@@ -85,13 +93,23 @@ const Node = memo(function Node({ id, language, x, y, name, icon, state, focused
           <circle className="box" r={NODE_R} />
         </>
       )}
-      {/* 点亮了：左上角一道高光，像发亮的宝石 */}
-      <ellipse className="shine" cx={-NODE_R * 0.38} cy={-NODE_R * 0.5} rx={NODE_R * 0.34} ry={NODE_R * 0.16} transform="rotate(-32)" />
       <foreignObject x={-14} y={-14} width="28" height="28">
         <div className="glyph">
           <SkillGlyph icon={icon} size={28} />
         </div>
       </foreignObject>
+      {/* 点亮了：外圈轨道上一道白光一直绕着转（三段叠起来，头亮尾淡） */}
+      {state === 'done' && (
+        <g className="orbit" style={{ animationDelay: orbitDelay(id) }}>
+          {ORBIT.map((len) =>
+            language ? (
+              <path key={len} className={`o o${len}`} d={hexPath(NODE_R + 8)} pathLength={100} strokeDasharray={`${len} ${100 - len}`} style={{ animationDelay: orbitDelay(id) }} />
+            ) : (
+              <circle key={len} className={`o o${len}`} r={NODE_R + 6} pathLength={100} strokeDasharray={`${len} ${100 - len}`} style={{ animationDelay: orbitDelay(id) }} />
+            ),
+          )}
+        </g>
+      )}
       {/* 点亮那一刻：八道光芒往外散开 */}
       {pulse && state === 'done' && (
         <g className="sparks">
@@ -362,17 +380,6 @@ export function SkillTree() {
         role="img"
         aria-label="技能树"
       >
-        <defs>
-          {/* 点亮的节点：上亮下暖的金色 */}
-          <linearGradient id="lit-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#ffe58f" />
-            <stop offset="1" stopColor="#f5a524" />
-          </linearGradient>
-          <radialGradient id="lit-halo">
-            <stop offset="0.45" stopColor="#ffbe3d" stopOpacity="0.55" />
-            <stop offset="1" stopColor="#ffbe3d" stopOpacity="0" />
-          </radialGradient>
-        </defs>
         <g ref={world}>
           <g className="edges">
             {layout.edges.map((e) => (

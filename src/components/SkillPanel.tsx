@@ -2,7 +2,7 @@
 import { Check, Lock } from 'lucide-react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
-import { SkillGlyph, hexPath } from './SkillTree'
+import { ORBIT, SkillGlyph, hexPath } from './SkillTree'
 import { Links, StatusControl } from './common'
 
 const BADGE: Record<SkillState, string> = { locked: '未解锁', available: '可点亮', done: '已点亮' }
@@ -23,6 +23,14 @@ function Slot({ icon, language, state }: { icon: string; language: boolean; stat
           <circle className="slot-box" r={R} />
         </>
       )}
+      {state === 'done' &&
+        ORBIT.map((len) =>
+          language ? (
+            <path key={len} className={`o o${len}`} d={hexPath(R + 10)} pathLength={100} strokeDasharray={`${len} ${100 - len}`} />
+          ) : (
+            <circle key={len} className={`o o${len}`} r={R + 8} pathLength={100} strokeDasharray={`${len} ${100 - len}`} />
+          ),
+        )}
       <foreignObject x={-16} y={-16} width="32" height="32">
         <div className="slot-glyph"><SkillGlyph icon={icon} size={32} /></div>
       </foreignObject>
