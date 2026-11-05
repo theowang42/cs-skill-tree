@@ -208,7 +208,19 @@ export function SkillTree() {
   const focusedArea = focus?.kind === 'area' ? focus.id : null
 
   // ── 视图 ──
-  const apply = useCallback((v: View) => {
+  // 边界：最小缩到刚好装下整个圆；拖动时圆的边最多拖到屏幕边上
+  const minK = size.w ? Math.max(MIN_K, Math.min(size.w, size.h) / (layout.bounds.maxX - layout.bounds.minX)) : MIN_K
+  const limits = useRef({ minK, w: size.w, h: size.h, b: layout.bounds })
+  limits.current = { minK, w: size.w, h: size.h, b: layout.bounds }
+  const apply = useCallback((raw: View) => {
+    const { minK: lo, w, h, b } = limits.current
+    const k = Math.min(MAX_K, Math.max(lo, raw.k))
+    // 屏幕中心对着的世界坐标：圆的边最多拖到屏幕边上；屏幕比圆还大时，圆就在正中
+    const clamp = (c: number, lo: number, hi: number, half: number) =>
+      lo + half > hi - half ? (lo + hi) / 2 : Math.min(hi - half, Math.max(lo + half, c))
+    const cx = clamp((w / 2 - raw.x) / raw.k, b.minX, b.maxX, w / 2 / k)
+    const cy = clamp((h / 2 - raw.y) / raw.k, b.minY, b.maxY, h / 2 / k)
+    const v = { x: w / 2 - cx * k, y: h / 2 - cy * k, k }
     viewRef.current = v
     world.current?.setAttribute('transform', `translate(${v.x},${v.y}) scale(${v.k})`)
   }, [])
@@ -231,9 +243,9 @@ export function SkillTree() {
   const fit = useCallback((ms?: number) => {
     const b = layout.bounds
     if (!size.w) return
-    const k = Math.min(MAX_K, Math.max(MIN_K, Math.min(size.w / (b.maxX - b.minX), size.h / (b.maxY - b.minY))))
+    const k = Math.min(MAX_K, Math.max(minK, Math.min(size.w / (b.maxX - b.minX), size.h / (b.maxY - b.minY))))
     flyTo({ x: size.w / 2 - ((b.minX + b.maxX) / 2) * k, y: size.h / 2 - ((b.minY + b.maxY) / 2) * k, k }, ms)
-  }, [layout, size, flyTo])
+  }, [layout, size, minK, flyTo])
 
   /** 打开时：编程入门在屏幕正中，看得见里面几圈；缩小看整个圆，放大看清细节 */
   const home = useCallback((ms?: number) => {
@@ -295,7 +307,7 @@ export function SkillTree() {
     const px = sx - rect.left
     const py = sy - rect.top
     const v = viewRef.current
-    const nk = Math.min(MAX_K, Math.max(MIN_K, k))
+    const nk = Math.min(MAX_K, Math.max(limits.current.minK, k))
     apply({ x: px - ((px - v.x) / v.k) * nk, y: py - ((py - v.y) / v.k) * nk, k: nk })
   }, [apply])
 
