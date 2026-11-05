@@ -1,5 +1,6 @@
 // 面板里反复用到的小部件
 import type { ReactNode } from 'react'
+import { Check, ChevronsUp, Lock } from 'lucide-react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
 import { STATE_LABEL } from '../lib/format'
@@ -57,7 +58,24 @@ export function StatusControl({ id }: { id: string }) {
       disabled={readOnly || locked}
       onClick={() => setStatus(id, lit ? null : 'done')}
     >
-      {lit ? '已点亮 · 点一下取消' : locked ? '前置都点亮后才能点亮' : '点亮'}
+      {lit ? (
+        <>
+          <Check size={18} strokeWidth={3} />
+          <span className="lt-main">已点亮</span>
+          <span className="lt-off">熄灭</span>
+        </>
+      ) : locked ? (
+        <>
+          <Lock size={16} strokeWidth={2.4} />
+          <span className="lt-main">先点亮需要的技能</span>
+        </>
+      ) : (
+        <>
+          <ChevronsUp size={20} strokeWidth={2.6} />
+          <span className="lt-main">点亮</span>
+          <kbd>D</kbd>
+        </>
+      )}
     </button>
   )
 }

@@ -401,29 +401,6 @@ a {
   color: var(--ink);
 }
 
-.panel-glyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border: 1.5px solid var(--line);
-  border-radius: 50%;
-  color: var(--ink-3);
-  flex: none;
-}
-
-.panel-glyph.s-available {
-  border-color: var(--ink);
-  color: var(--ink);
-}
-
-.panel-glyph.s-done {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--paper);
-}
-
 /* ═════════════ 顶栏 ═════════════ */
 
 .hud {
@@ -711,18 +688,6 @@ a {
   color: var(--ink-2);
 }
 
-.state-line {
-  margin: 6px 0 0;
-  font-size: 12.5px;
-  color: var(--ink-2);
-}
-
-.prereq-line {
-  margin: 20px 0 0;
-  font-size: 13px;
-  color: var(--ink-2);
-}
-
 .links {
   margin: 0;
   padding: 0;
@@ -753,32 +718,6 @@ a {
 .note a {
   border-bottom: 1px solid var(--line);
   text-decoration: none;
-}
-
-/* 点亮按钮：没点亮是黑框，点亮了是实心黑 */
-.light-toggle {
-  display: block;
-  width: 100%;
-  padding: 9px 0;
-  border: 1.5px solid var(--ink);
-  background: var(--paper);
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 600;
-  transition: background 0.2s, color 0.2s;
-}
-
-.light-toggle:hover {
-  background: var(--wash);
-}
-
-.light-toggle.on {
-  background: var(--ink);
-  color: var(--paper);
-}
-
-.light-toggle.on:hover {
-  background: #333;
 }
 
 .link-button {
@@ -1065,30 +1004,246 @@ button.danger {
   margin-top: 22px;
 }
 
-/* 前置还没点亮：按钮是灰的，按不了 */
+/* ═════════════ 技能卡：像游戏里的技能说明 ═════════════ */
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 4px 0 18px;
+  padding: 12px 14px;
+  border: 2px solid var(--ink);
+  /* 外面再一道细框，像游戏里的卡片边 */
+  outline: 1px solid var(--line);
+  outline-offset: 3px;
+}
+
+.slot {
+  flex: none;
+}
+
+.slot .slot-box {
+  fill: var(--paper);
+  stroke: var(--line);
+  stroke-width: 2;
+}
+
+.slot .slot-ring {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 2;
+}
+
+.slot.s-available .slot-box {
+  stroke: var(--ink);
+  stroke-width: 2.5;
+}
+
+.slot.s-done .slot-box {
+  fill: var(--ink);
+  stroke: var(--ink);
+}
+
+.slot.s-done .slot-ring {
+  stroke: var(--ink);
+}
+
+.slot-glyph {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  color: var(--ink-3);
+}
+
+.slot.s-available .slot-glyph {
+  color: var(--ink);
+}
+
+.slot.s-done .slot-glyph {
+  color: var(--paper);
+}
+
+.card-title {
+  min-width: 0;
+}
+
+.card-kind {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.card-title h2 {
+  margin: 2px 0 8px;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border: 1.5px solid var(--line);
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+}
+
+.badge.b-available {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.badge.b-done {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* 点亮按钮：一块黑色的大按钮，按下去会往下沉一点 */
+.light-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 54px;
+  margin: 18px 0 6px;
+  border: 2px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  box-shadow: 4px 4px 0 var(--line);
+  transition: transform 0.1s, box-shadow 0.1s, background 0.2s, color 0.2s;
+}
+
+.light-toggle:hover {
+  background: #2a2a2a;
+}
+
+.light-toggle:active {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 var(--line);
+}
+
+.light-toggle kbd {
+  padding: 1px 6px;
+  border: 1px solid rgb(255 255 255 / 0.4);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0;
+  opacity: 0.7;
+}
+
+/* 已点亮：白底黑框，悬停时换成“熄灭” */
+.light-toggle.on {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.light-toggle .lt-off {
+  display: none;
+}
+
+.light-toggle.on:hover .lt-main {
+  display: none;
+}
+
+.light-toggle.on:hover .lt-off {
+  display: inline;
+  color: var(--goal);
+}
+
+/* 前置还没点亮：灰的，按不了 */
 .light-toggle.locked {
   border-color: var(--line);
-  background: var(--paper);
+  background: var(--wash);
   color: var(--ink-3);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  box-shadow: none;
   cursor: not-allowed;
 }
 
-.prereq-list {
+.card-sec h4 {
+  margin-top: 24px;
+}
+
+.req-list {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.prereq-list .pq-mark {
-  display: inline-block;
-  width: 1.4em;
-  font-size: 11px;
+.req-list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line-2);
+  background: none;
+  color: var(--ink);
+  font-size: 14.5px;
+  text-align: left;
 }
 
-.prereq-list .pq-done {
-  font-weight: 600;
+.req-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex: none;
 }
 
-.prereq-list li:not(.pq-done) small {
+.req-list .ok .req-mark {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.req-list .miss button {
+  color: var(--ink-2);
+}
+
+.req-list .miss .req-mark {
+  border: 1.5px solid var(--goal);
   color: var(--goal);
+}
+
+.unlock-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.unlock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1.5px solid var(--line);
+  background: var(--paper);
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.unlock.s-available {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.unlock.s-done {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.unlock:hover {
+  border-color: var(--ink);
 }

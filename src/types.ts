@@ -30,6 +30,8 @@ export interface Skill {
   icon: string
   /** 树上画出来的那根枝连向谁：主前置。没有前置的技能是 null，从中心长出来 */
   parent: string | null
+  /** 编程语言：一种特别的节点（天赋），树上画成六边形 */
+  language: boolean
   /** 直接前置 */
   prerequisites: string[]
   /** 直接依赖它的技能 */

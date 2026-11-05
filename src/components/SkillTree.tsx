@@ -35,8 +35,16 @@ export function SkillGlyph({ icon, size }: { icon: string; size: number }) {
 
 type Relation = 'none' | 'path' | 'unlock' | 'dim'
 
+/** 六边形（语言天赋）：尖朝上，外接圆半径 r */
+export const hexPath = (r: number) =>
+  Array.from({ length: 6 }, (_, i) => {
+    const a = (Math.PI / 3) * i - Math.PI / 2
+    return `${i ? 'L' : 'M'}${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`
+  }).join(' ') + 'Z'
+
 interface NodeProps {
   id: string
+  language: boolean
   x: number
   y: number
   name: string
@@ -50,8 +58,8 @@ interface NodeProps {
   onHover: (id: string | null) => void
 }
 
-const Node = memo(function Node({ id, x, y, name, icon, state, focused, relation, next, pulse, onClick, onHover }: NodeProps) {
-  const cls = ['node', `s-${state}`, focused && 'focused', relation !== 'none' && `r-${relation}`, pulse && 'pulse'].filter(Boolean).join(' ')
+const Node = memo(function Node({ id, language, x, y, name, icon, state, focused, relation, next, pulse, onClick, onHover }: NodeProps) {
+  const cls = ['node', language && 'lang', `s-${state}`, focused && 'focused', relation !== 'none' && `r-${relation}`, pulse && 'pulse'].filter(Boolean).join(' ')
   return (
     <g
       className={cls}
@@ -62,9 +70,19 @@ const Node = memo(function Node({ id, x, y, name, icon, state, focused, relation
       onPointerLeave={() => onHover(null)}
     >
       {/* 点亮后外面多一圈：像游戏里激活了的技能槽 */}
-      <circle className="ring" r={NODE_R + 6} />
-      {pulse && <circle className="ripple" r={NODE_R} />}
-      <circle className="box" r={NODE_R} />
+      {language ? (
+        <>
+          <path className="ring" d={hexPath(NODE_R + 8)} />
+          {pulse && <path className="ripple" d={hexPath(NODE_R + 2)} />}
+          <path className="box" d={hexPath(NODE_R + 2)} />
+        </>
+      ) : (
+        <>
+          <circle className="ring" r={NODE_R + 6} />
+          {pulse && <circle className="ripple" r={NODE_R} />}
+          <circle className="box" r={NODE_R} />
+        </>
+      )}
       <foreignObject x={-14} y={-14} width="28" height="28">
         <div className="glyph">
           <SkillGlyph icon={icon} size={28} />
@@ -365,6 +383,7 @@ export function SkillTree() {
                 <Node
                   key={s.id}
                   id={s.id}
+                  language={s.language}
                   x={n.x}
                   y={n.y}
                   name={s.name}

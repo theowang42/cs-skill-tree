@@ -70,6 +70,7 @@ erDiagram
 | `0001_content.sql` | 内容表。`STRICT` 表，CHECK 约束保证 id 格式、链接是 http(s)、知识点和工具的字段互斥 |
 | `0002_graph_views.sql` | `skill_ancestors`（全部前置）、`skill_tiers`（领域内第几行）、`sub_skill_closure`（方向必学的全部技能）、`sub_learning_plan`（第几步学）、`sub_choices`、`skill_unlocks`、`skill_weight`（被多少技能依赖） |
 | `0003_learners.sql` | `learners`、`learner_skills`、`learner_events`（三个触发器自动记录每次状态变化）；视图 `learner_skill_state`（四种状态）、`learner_frontier`（能力边界）、`learner_sub_readiness`（就绪度） |
+| `0010_language_talent.sql` | 编程语言标成语言天赋（`is_language`），树上画成六边形 |
 | `0009_prerequisites_first.sql` | 前置都点亮了才能点亮：清掉旧数据里不合规的，触发器挡住不合规的写入，取消时一层层熄灭后继 |
 | `0008_lit_only.sql` | 只有点亮一种状态：去掉“在学”，旧数据里的“在学”当作没点亮，触发器挡住新的 |
 | `0007_tree_parent.sql` | 树上画的那根枝：技能的主前置 `parent_id`，方向挂在哪 `anchor_id`（都取种子里写的第一个） |
