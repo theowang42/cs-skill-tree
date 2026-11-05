@@ -2,12 +2,38 @@
 
 [简体中文](../README.md) | English
 
-**What to learn for AI, web or systems? A CS roadmap that works backward from your career path.**
+**A computer science skill tree that grows from the bottom up: light up what you know and see how far you are from each career.**
 
-Pick a direction → the languages, tools and abilities you need light up → each links to free courses.
+- 169 skills you could put on a résumé, from intro programming, data structures and operating systems to PyTorch, CUDA and vLLM inference, each with its own icon
+- Like a game skill tree: chains grow upward, and a skill lights up only after everything below it is lit
+- The top row holds 17 career badges covering where CS graduates usually end up. Light everything a career needs and its badge lights up on its own; there is nothing to pick first
+- Opening a skill shows one sentence and where to learn it
 
 👉 https://theowang42.github.io/cs-skill-tree/
 
-![After choosing AI › Agent development, the tools and abilities it needs light up](screenshot.jpg)
+![The skill tree growing up from intro programming, lit skills in black with a ring of rays turning around them](screenshot.jpg)
 
-The site is in Chinese for now. Courses follow [csdiy.wiki](https://csdiy.wiki/) · Content lives in `src/data/` · Run locally with `npm ci && npm run dev`
+## How to use
+
+1. Start on the bottom row, open a skill you know, press “点亮” (light up)
+2. Keep going up until you reach what you don't know. That is where you are
+3. Open a career badge at the top to see every skill it needs on the tree
+
+Scroll to zoom, drag to pan. With a skill selected, `D` lights it, `X` clears it, `Esc` goes back.
+
+## Run locally
+
+Requires Node 22.18 or newer. No database server needed.
+
+```bash
+npm ci
+npm run dev        # front end only, progress in the browser
+npm run dev:api    # front end plus API, progress in SQLite
+npm test
+```
+
+## Change the content
+
+All content lives in `db/seed/*.sql`, one row per skill. `npm run db:build` rebuilds the database and checks it, reporting anything wrong.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the database, API and front end, and [ART.md](ART.md) for the visual rules.

@@ -1,368 +1,120 @@
-import { useState, type CSSProperties, type ReactNode } from 'react'
-import { CATEGORIES, LAYERS, SUBS, TOOL_GROUPS, closure, learningSteps } from './data/roadmap'
-import { BLOCK_DETAILS, CATEGORY_INTROS, SUB_DETAILS, TOOL_DETAILS, type Detail } from './data/details'
-import { ICONS, MONOGRAMS, STROKE_ICONS } from './data/icons'
+import { useEffect, useState } from 'react'
+import type { Progress, Roadmap } from './types'
+import { Tree, enforcePrerequisites } from './lib/tree'
+import { createStore, roadmapUrl, sanitize, USE_API, type ProgressStore } from './lib/store'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { decodeShare } from './lib/share'
+import { AppProvider, useApp, type Focus, type FocusKind } from './state'
+import { SkillTree } from './components/SkillTree'
+import { Panel } from './components/Panel'
+import { Hud } from './components/Hud'
+import { Toasts } from './components/Toasts'
 
-type Kind = 'category' | 'sub' | 'tool' | 'block'
-type Focus = { kind: Kind; id: string } | null
-
-const BLOCKS = LAYERS.flatMap((l) => l.blocks.map((b) => ({ ...b, layer: l.name })))
-const TOOLS = TOOL_GROUPS.flatMap((g) => g.tools.map((t) => ({ ...t, group: g.name })))
-const VISITED_KEY = 'cs-skill-tree:visited'
-
-// localStorage 在隐私模式等情况下可能不可用，读写都要兜底
-function hasFlag(key: string) {
-  try {
-    return localStorage.getItem(key) !== null
-  } catch {
-    return false
-  }
+interface Loaded {
+  tree: Tree
+  store: ProgressStore
+  progress: Progress
+  shared: Progress | null
+  focus: Focus
 }
 
-function setFlag(key: string) {
-  try {
-    localStorage.setItem(key, '1')
-  } catch {
-    // 存不了就只在本次访问里生效
-  }
+async function load(): Promise<Loaded> {
+  const res = await fetch(roadmapUrl())
+  if (!res.ok) throw new Error(`读不到数据（${res.status}）`)
+  const tree = new Tree((await res.json()) as Roadmap)
+  const store = createStore()
+  const skills = new Set(tree.skills.keys())
+  const subs = new Set(tree.subs.keys())
+  // 内容更新后，存着的进度里可能有已删除的技能或方向、或者前置改了没点亮，清掉并写回
+  const loaded = sanitize(await store.load(), skills, subs)
+  const enforced = enforcePrerequisites(tree, loaded.progress)
+  const progress = enforced.progress
+  if ((loaded.dropped.length || enforced.dropped.length) && store.kind === 'local') await store.replace(progress, skills)
+  const decoded = decodeShare(tree, location.hash)
+  const shared = decoded && enforcePrerequisites(tree, sanitize(decoded, skills, subs).progress).progress
+  // 地址栏里的 #/skill/http 这类链接
+  const m = /^#\/(skill|area|sub|category)\/([a-z0-9-]+)$/.exec(location.hash)
+  const known = m && { skill: tree.skills, area: tree.areas, sub: tree.subs, category: tree.categories }[m[1] as FocusKind].has(m[2])
+  return { tree, store, progress, shared, focus: known ? { kind: m![1] as FocusKind, id: m![2] } : null }
 }
 
-// 点亮动画：选中方向后，从工具层到基础层逐层亮起，同一行内从左到右
-const LAYER_STEP = 220
-const CELL_STEP = 25
-const delay = (layer: number, index: number) => ({ '--d': `${layer * LAYER_STEP + index * CELL_STEP}ms` }) as CSSProperties
-
-const SHORT_GROUP: Record<string, string> = { 编程语言: '语言', 框架与库: '框架', 平台与工具: '平台' }
-
-function ToolIcon({ id }: { id: string }) {
-  const icon = ICONS[id]
-  if (icon) {
-    return (
-      <svg className="icon" viewBox="0 0 24 24" aria-hidden>
-        <path d={icon.path} />
-      </svg>
-    )
-  }
-  const stroke = STROKE_ICONS[id]
-  if (stroke) {
-    return (
-      <svg className="icon stroke" viewBox="0 0 24 24" aria-hidden>
-        {stroke.map((d) => (
-          <path key={d} d={d} />
-        ))}
-      </svg>
-    )
-  }
-  return <span className="icon mono">{MONOGRAMS[id]}</span>
+/** 全局快捷键：Esc 返回；选中技能时 D 点亮、X 取消 */
+function Shortcuts() {
+  const { focus, setFocus, setStatus, readOnly } = useApp()
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const typing = e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable]') !== null
+      if (typing) return
+      if (e.key === 'Escape') setFocus(null)
+      else if (focus?.kind === 'skill' && !readOnly) {
+        const k = e.key.toLowerCase()
+        if (k === 'd') setStatus(focus.id, 'done')
+        else if (k === 'x') setStatus(focus.id, null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [focus, setFocus, setStatus, readOnly])
+  return null
 }
 
-function Layer({ num, name, children, className = '' }: { num: number; name: string; children: ReactNode; className?: string }) {
+function InitialFocus({ focus }: { focus: Focus }) {
+  const { setFocus } = useApp()
+  useEffect(() => {
+    if (focus) window.setTimeout(() => setFocus(focus, { scroll: true }), 50)
+    // 只在第一次加载时跑
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  return null
+}
+
+function Shell() {
+  const { focus } = useApp()
+  // 面板默认收起：第一次来只看到星图和圆心旁的提示
+  const [panelOpen, setPanelOpen] = useState(false)
+  // 选中东西就打开面板，取消选中就收起；顶上的名字可以单独打开“我的进度”
+  useEffect(() => {
+    setPanelOpen(focus !== null)
+  }, [focus])
   return (
-    <section className={`layer ${className}`}>
-      <header>
-        <span className="name">{name}</span>
-        <span className="num">L{num}</span>
-      </header>
-      <div className="content">{children}</div>
-    </section>
-  )
-}
-
-function Items({ items }: { items: string[] }) {
-  return (
-    <ul>
-      {items.map((x) => (
-        <li key={x}>{x}</li>
-      ))}
-    </ul>
+    <div className={`page${panelOpen ? ' panel-open' : ''}`}>
+      <Hud onTogglePanel={() => setPanelOpen((o) => !o)} panelOpen={panelOpen} />
+      <SkillTree />
+      <aside className="panel" aria-label="详情" aria-hidden={!panelOpen}>
+        <div className="panel-body">
+          <Panel />
+        </div>
+        <button className="panel-close" onClick={() => setPanelOpen(false)} aria-label="收起面板">×</button>
+      </aside>
+      <span className="store-kind" title={USE_API ? '进度存在服务器数据库' : '进度存在这台设备的浏览器'}>{USE_API ? '云端' : '本地'}</span>
+      <Toasts />
+    </div>
   )
 }
 
 export default function App() {
-  // 应用层要选两次：先选大方向，再选细分方向；点亮只看细分方向
-  const [activeCat, setActiveCat] = useState<string | null>(null)
-  const [activeSub, setActiveSub] = useState<string | null>(null)
-  const [focus, setFocus] = useState<Focus>(null)
-  // 新手引导：第一次来时圈出应用层并给一句提示，选过方向或点“知道了”后不再出现
-  const [guide, setGuide] = useState(() => !hasFlag(VISITED_KEY))
-
-  const closeGuide = () => {
-    setGuide(false)
-    setFlag(VISITED_KEY)
-  }
-
-  const pickCategory = (id: string) => {
-    if (activeCat === id) {
-      setActiveCat(null)
-      setActiveSub(null)
-      setFocus(null)
-    } else {
-      setActiveCat(id)
-      setActiveSub(null)
-      setFocus({ kind: 'category', id })
-    }
-    if (guide) closeGuide()
-  }
-
-  const pickSub = (id: string) => {
-    const sub = SUBS.find((x) => x.id === id)!
-    if (activeSub === id) {
-      setActiveSub(null)
-      setFocus({ kind: 'category', id: sub.category.id })
-    } else {
-      setActiveCat(sub.category.id)
-      setActiveSub(id)
-      setFocus({ kind: 'sub', id })
-    }
-    if (guide) closeGuide()
-  }
-
-  const cat = CATEGORIES.find((c) => c.id === activeCat)
-  const sub = SUBS.find((x) => x.id === activeSub)
-  const litBlocks = closure(sub?.requires ?? [])
-  // 亮起的能力块上标出第几步学
-  const steps = learningSteps(sub?.requires ?? [])
-  const litTools = new Set(sub?.tools ?? [])
-
-  const cls = (kind: Kind, id: string, lit: boolean, extra = '') =>
-    ['node', extra, lit && 'on', focus?.kind === kind && focus.id === id && 'focused'].filter(Boolean).join(' ')
-
-  const total = LAYERS.length + 2
-
-  return (
-    <div className={guide ? 'page guiding' : 'page'}>
-      <main className="tree">
-        <Layer num={total} name="应用层" className={guide ? 'layer-apps spotlight' : 'layer-apps'}>
-          {cat ? (
-            // 选了大方向后，这一行换成它的细分方向；最左边的大方向方块用来返回
-            <div className="row subs" key={cat.id}>
-              <button className={cls('category', cat.id, true, 'app back')} onClick={() => pickCategory(cat.id)}>
-                <strong>{cat.name}</strong>
-                <ul>
-                  <li>← 返回全部方向</li>
-                </ul>
-              </button>
-              {cat.subs.map((x) => (
-                <button key={x.id} className={cls('sub', x.id, activeSub === x.id, 'app')} onClick={() => pickSub(x.id)}>
-                  <strong>{x.name}</strong>
-                  <Items items={x.items} />
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="row">
-              {CATEGORIES.map((c) => (
-                <button key={c.id} className={cls('category', c.id, false, 'app')} onClick={() => pickCategory(c.id)}>
-                  <strong>{c.name}</strong>
-                  <Items items={c.items} />
-                </button>
-              ))}
-            </div>
-          )}
-          {guide && (
-            <div className="coach" role="note">
-              <span>先选一个方向，再选细分方向，下面变黑的就是你要学的。</span>
-              <button onClick={closeGuide}>知道了</button>
-            </div>
-          )}
-        </Layer>
-
-        <Layer num={total - 1} name="工具层">
-          {TOOL_GROUPS.map((g, gi) => (
-            <div key={g.name} className="group">
-              <h3>{SHORT_GROUP[g.name]}</h3>
-              <div className="row tools">
-                {g.tools.map((t, ti) => (
-                  <button
-                    key={t.id}
-                    className={cls('tool', t.id, litTools.has(t.id), 'tool')}
-                    style={delay(0, gi * 3 + ti)}
-                    onClick={() => setFocus({ kind: 'tool', id: t.id })}
-                    title={t.name}
-                  >
-                    <ToolIcon id={t.id} />
-                    <span className="tool-name" style={{ '--len': t.name.length } as CSSProperties}>
-                      {t.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </Layer>
-
-        {LAYERS.map((layer, i) => (
-          <Layer key={layer.name} num={LAYERS.length - i} name={layer.name}>
-            <div className="row">
-              {layer.blocks.map((b, bi) => (
-                <button
-                  key={b.id}
-                  className={cls('block', b.id, litBlocks.has(b.id))}
-                  style={delay(i + 1, bi)}
-                  onClick={() => setFocus({ kind: 'block', id: b.id })}
-                >
-                  {steps.has(b.id) && <span className="step">{steps.get(b.id)}</span>}
-                  <strong>{b.name}</strong>
-                  <Items items={b.items} />
-                </button>
-              ))}
-            </div>
-          </Layer>
-        ))}
-      </main>
-
-      <aside className="panel">
-        <h1>
-          <span aria-hidden>🌲</span> cs-skill-tree
-        </h1>
-        <button className="help" onClick={() => setGuide(true)}>
-          使用说明
-        </button>
-        <Panel focus={focus} onFocus={setFocus} onCategory={pickCategory} onSub={pickSub} />
-      </aside>
-    </div>
-  )
-}
-
-// 热门的细分方向，没选任何东西时在左栏给出快捷入口
-const HOT_SUBS = ['agent', 'backend', 'frontend']
-
-function Panel({
-  focus,
-  onFocus,
-  onCategory,
-  onSub,
-}: {
-  focus: Focus
-  onFocus: (f: Focus) => void
-  onCategory: (id: string) => void
-  onSub: (id: string) => void
-}) {
-  const chip = (kind: Kind, id: string, name: string) => (
-    <button
-      key={`${kind}-${id}`}
-      className="chip"
-      onClick={() => (kind === 'category' ? onCategory(id) : kind === 'sub' ? onSub(id) : onFocus({ kind, id }))}
-    >
-      {name}
-    </button>
-  )
-
-  if (!focus) {
+  const [data, setData] = useState<Loaded | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    load().then(setData, (e: Error) => setError(e.message))
+  }, [])
+  if (error) {
     return (
-      <div className="detail empty">
-        <p className="empty-tip">先在右边最上面选一个方向。</p>
-        <h4>试试热门方向</h4>
-        <div className="chips">{SUBS.filter((x) => HOT_SUBS.includes(x.id)).map((x) => chip('sub', x.id, x.name))}</div>
+      <div className="boot error">
+        <p>加载失败：{error}</p>
+        <button onClick={() => location.reload()}>重试</button>
       </div>
     )
   }
-
-  if (focus.kind === 'category') {
-    const c = CATEGORIES.find((x) => x.id === focus.id)!
-    return (
-      <div className="detail" key={`category-${c.id}`}>
-        <p className="eyebrow">应用层 · 大方向</p>
-        <h2>{c.name}</h2>
-        <p className="summary">{CATEGORY_INTROS[c.id]}</p>
-        <h4>再选一个细分方向</h4>
-        <div className="chips">{c.subs.map((x) => chip('sub', x.id, x.name))}</div>
-      </div>
-    )
-  }
-
-  let eyebrow = ''
-  let title: ReactNode = null
-  let detail: Detail
-  let relations: { label: string; chips: ReactNode[] }[] = []
-  // 各类内容的小标题，用大白话
-  let labels = { includes: '', links: '' }
-  let note: ReactNode = null
-
-  if (focus.kind === 'sub') {
-    const x = SUBS.find((y) => y.id === focus.id)!
-    const st = learningSteps(x.requires)
-    const max = Math.max(...st.values())
-    eyebrow = `应用层 · ${x.category.name}`
-    title = x.name
-    detail = SUB_DETAILS[x.id]
-    labels = { includes: '具体做这些', links: '去看看真实的开源项目' }
-    relations = [
-      { label: '会用到的工具', chips: TOOLS.filter((t) => x.tools.includes(t.id)).map((t) => chip('tool', t.id, t.name)) },
-      ...Array.from({ length: max }, (_, i) => ({
-        label: i === 0 ? `学习顺序 · 第 1 步` : `第 ${i + 1} 步`,
-        chips: BLOCKS.filter((b) => st.get(b.id) === i + 1).map((b) => chip('block', b.id, b.name)),
-      })),
-    ]
-  } else if (focus.kind === 'tool') {
-    const t = TOOLS.find((x) => x.id === focus.id)!
-    eyebrow = `工具层 · ${t.group}`
-    title = (
-      <>
-        <ToolIcon id={t.id} />
-        <span>
-          {t.name}
-          <small>{t.org}</small>
-        </span>
-      </>
-    )
-    detail = TOOL_DETAILS[t.id]
-    labels = { includes: '学它主要学这些', links: '官方入口' }
-    relations = [{ label: '这些方向会用到它', chips: SUBS.filter((x) => x.tools.includes(t.id)).map((x) => chip('sub', x.id, x.name)) }]
-  } else {
-    const b = BLOCKS.find((x) => x.id === focus.id)!
-    eyebrow = `${b.layer} · 能力`
-    title = b.name
-    detail = BLOCK_DETAILS[b.id]
-    labels = { includes: '会学到', links: '推荐公开课' }
-    note = (
-      <p className="note">
-        课程主要参考{' '}
-        <a href="https://csdiy.wiki/" target="_blank" rel="noreferrer">
-          CS 自学指南（csdiy.wiki）
-        </a>
-        ，那里有更多课程和学习建议。
-      </p>
-    )
-    relations = [
-      { label: '学之前最好先会', chips: b.requires.map((r) => chip('block', r, BLOCKS.find((x) => x.id === r)!.name)) },
-      { label: '学会了可以去做', chips: SUBS.filter((x) => closure(x.requires).has(b.id)).map((x) => chip('sub', x.id, x.name)) },
-    ]
-  }
-
+  if (!data) return <div className="boot">加载中</div>
   return (
-    <div className="detail" key={`${focus.kind}-${focus.id}`}>
-      <p className="eyebrow">{eyebrow}</p>
-      <h2 className={focus.kind === 'tool' ? 'with-icon' : ''}>{title}</h2>
-      <p className="summary">{detail.intro}</p>
-
-      <h4>{labels.includes}</h4>
-      <ul className="includes">
-        {detail.includes.map((x) => (
-          <li key={x}>{x}</li>
-        ))}
-      </ul>
-
-      <h4>{labels.links}</h4>
-      <ul className="links">
-        {detail.links.map((l) => (
-          <li key={l.url}>
-            <a href={l.url} target="_blank" rel="noreferrer">
-              {l.label} <span aria-hidden>↗</span>
-            </a>
-          </li>
-        ))}
-      </ul>
-      {note}
-
-      {relations
-        .filter((r) => r.chips.length > 0)
-        .map((r) => (
-          <div key={r.label}>
-            <h4>{r.label}</h4>
-            <div className="chips">{r.chips}</div>
-          </div>
-        ))}
-    </div>
+    <ErrorBoundary>
+      <AppProvider tree={data.tree} store={data.store} initial={data.progress} shared={data.shared}>
+        <InitialFocus focus={data.focus} />
+        <Shortcuts />
+        <Shell />
+      </AppProvider>
+    </ErrorBoundary>
   )
 }
