@@ -25,7 +25,7 @@ const TIP_HALF = 78
 
 /** 左右的顺序：AI 产品在左，AI Infra 在中间，底层系统和安全在右 */
 const AREA_ORDER: Record<string, number> = {
-  chain: 0, product: 1, quant: 2, infra: 3, robotics: 4, base: 5, systems: 6, security: 7,
+  chain: 0, product: 1, quant: 2, llm: 2.6, infra: 3, robotics: 4, base: 5, systems: 6, security: 7,
 }
 
 export interface WebNode {
@@ -127,17 +127,23 @@ export function layoutWeb(tree: Tree): WebLayout {
     const d = depth.get(id)!
     const kids = children.get(id)!
     const own: Contour = new Map([[d, [-half.get(id)!, half.get(id)!]]])
-    // 方向那一列：中间只有一根线，最上面一排要放下名字
-    const tip = tipOf.get(id)
-    if (tip) {
-      for (let k = d + 1; k < top; k++) own.set(k, [-6, 6])
-      own.set(top, [-TIP_HALF, TIP_HALF])
+    // 职业那一列：中间只有一根线，最上面一排要放下徽章和名字
+    const tipColumn = (from: number): Contour => {
+      const c: Contour = new Map()
+      for (let k = from; k < top; k++) c.set(k, [-6, 6])
+      c.set(top, [-TIP_HALF, TIP_HALF])
+      return c
     }
+    const tip = tipOf.get(id)
+    // 没有孩子：职业就在它正上方那一列
+    if (tip && !kids.length) for (const [k, lr] of tipColumn(d + 1)) own.set(k, lr)
     if (!kids.length) return own
+    // 有孩子：职业当成最右边的一个“孩子”，单独占一列，不会和孩子那一列叠在一起
+    const lanes = tip ? [...kids, tip] : kids
     const placed: { id: string; x: number }[] = []
     const acc: Contour = new Map()
-    for (const k of kids) {
-      const c = build(k)
+    for (const k of lanes) {
+      const c = k === tip ? tipColumn(d + 1) : build(k)
       let x = 0
       if (placed.length) {
         x = -Infinity
@@ -194,11 +200,13 @@ export function layoutWeb(tree: Tree): WebLayout {
     for (const k of children.get(id)!) absolute(k, x + rel.get(k)!)
   }
   for (const r of roots) absolute(r, rootX.get(r)!)
+  // 职业：挂在有孩子的技能上时单独占了一列（rel 里有它），否则就在技能正上方
+  for (const [anchor, tip] of tipOf) xs.set(tip, xs.get(anchor)! + (rel.get(tip) ?? 0))
   const yOf = (d: number) => (1 - d) * ROW
 
   const nodes = new Map<string, WebNode>()
   for (const [id, d] of depth) nodes.set(id, { id, x: xs.get(id)!, y: yOf(d), depth: d, kind: 'skill' })
-  for (const [anchor, tip] of tipOf) nodes.set(tip, { id: tip, x: xs.get(anchor)!, y: yOf(top) - 50, depth: top, kind: 'sub' })
+  for (const tip of tipOf.values()) nodes.set(tip, { id: tip, x: xs.get(tip)!, y: yOf(top) - 50, depth: top, kind: 'sub' })
 
   // ── 枝条 ──
   const edges: WebEdge[] = []
@@ -213,7 +221,7 @@ export function layoutWeb(tree: Tree): WebLayout {
   for (const [anchor, tip] of tipOf) {
     const a = nodes.get(anchor)!
     const t = nodes.get(tip)!
-    edges.push({ from: anchor, to: tip, d: `M${f(a.x)},${f(up(anchor))} V${f(t.y + TIP_R + 8)}` })
+    edges.push({ from: anchor, to: tip, d: elbow(a.x, up(anchor), t.x, t.y + TIP_R + 8, a.y - ROW / 2 + 4) })
   }
   // ── 边界 ──
   const ns = [...nodes.values()]

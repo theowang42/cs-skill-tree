@@ -447,6 +447,27 @@ INSERT INTO skill_rows VALUES
  'Android 原生开发的语言。', '["java"]',
  '[["Kotlin 官方文档", "https://kotlinlang.org/docs/getting-started.html"]]');
 
+-- ═════════ 大模型：训练和对齐模型本身 ═════════
+INSERT INTO skill_rows VALUES
+('llm-data', 'llm', NULL, 'list-filter', '预训练数据',
+ '抓取、清洗、去重、配比：决定模型能学到什么的那一步。', '["gpt", "data-eng"]',
+ '[["FineWeb 数据集说明", "https://huggingface.co/spaces/HuggingFaceFW/blogpost-fineweb-v1"], ["Dolma", "https://github.com/allenai/dolma"]]'),
+('scaling', 'llm', NULL, 'chart-no-axes-combined', '扩展规律',
+ '用小模型的实验预测大模型：参数、数据、算力怎么配。', '["llm-data"]',
+ '[["Chinchilla 论文", "https://arxiv.org/abs/2203.15556"], ["Scaling Laws 论文", "https://arxiv.org/abs/2001.08361"]]'),
+('pretrain-run', 'llm', NULL, 'flame', '从零预训练',
+ '在多卡上从零训一个十亿参数级的基座模型，盯住损失和稳定性。', '["scaling", "train-framework"]',
+ '[["Llama 3 论文", "https://arxiv.org/abs/2407.21783"], ["OLMo 论文", "https://arxiv.org/abs/2402.00838"]]'),
+('sft', 'llm', NULL, 'message-square-text', '指令微调',
+ '用高质量的指令和对话数据，把基座模型调成会听话的助手。', '["finetune"]',
+ '[["Hugging Face TRL：SFT", "https://huggingface.co/docs/trl/sft_trainer"]]'),
+('llm-eval', 'llm', NULL, 'trophy', '能力评测',
+ '用基准和人工评测量出模型哪里强、哪里弱，防止刷榜自欺。', '["sft"]',
+ '[["lm-evaluation-harness", "https://github.com/EleutherAI/lm-evaluation-harness"]]'),
+('reasoning-rl', 'llm', NULL, 'lightbulb', '推理强化学习',
+ '用 GRPO 这类方法训练模型一步步想清楚再回答。', '["rlhf", "llm-eval"]',
+ '[["DeepSeek-R1 论文", "https://arxiv.org/abs/2501.12948"]]');
+
 -- 编程语言是一种特别的节点：天赋。树上画成六边形
 UPDATE skills SET is_language = 1
  WHERE id IN ('python', 'c', 'cpp', 'rust', 'go', 'java', 'javascript', 'typescript', 'sql', 'shell', 'swift', 'kotlin');

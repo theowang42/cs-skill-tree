@@ -40,7 +40,9 @@ test('从下往上长：起点在最下面一排，孩子正好在父亲上面�
 test('只有一个孩子的节点和孩子对齐，链是直的', () => {
   for (const s of tree.roadmap.skills) {
     const kids = tree.roadmap.skills.filter((k) => k.parent === s.id)
-    if (kids.length === 1) assert.ok(Math.abs(node(kids[0].id).x - node(s.id).x) < 0.5, `${s.id} → ${kids[0].id} 歪了`)
+    // 同时挂着职业的技能，职业单独占一列，它在孩子和职业中间
+    const hasTip = tree.roadmap.subs.some((x) => x.anchor === s.id)
+    if (kids.length === 1 && !hasTip) assert.ok(Math.abs(node(kids[0].id).x - node(s.id).x) < 0.5, `${s.id} → ${kids[0].id} 歪了`)
   }
 })
 
