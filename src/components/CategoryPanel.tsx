@@ -1,4 +1,4 @@
-// 全部职业：技能树最外圈的终极节点，按大方向分组。不用选：点够了自己达成。
+// 全部职业：技能树最上面一排的终极节点，按大方向分组。不用选：点够了自己达成。
 import { useApp } from '../state'
 import { stars, tierOf } from '../lib/tree'
 
@@ -8,7 +8,7 @@ export function CategoryPanel({ id }: { id: string }) {
     <div className="detail" key={id}>
       <p className="eyebrow">职业</p>
       <h2>终极节点</h2>
-      <p className="summary">每个职业都是技能树最外圈的一枚徽章。把它要学的技能都点亮，它就自己亮起来。</p>
+      <p className="summary">每个职业都是技能树最上面一排的一枚徽章。把它要学的技能都点亮，它就自己亮起来。</p>
       {tree.roadmap.categories.map((c) => (
         <section key={c.id} className="dir-group">
           <h4>{c.name}</h4>

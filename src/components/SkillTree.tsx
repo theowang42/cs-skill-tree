@@ -1,4 +1,4 @@
-// 技能树：一个圆，编程入门在正中心，一圈一圈往外长，最外圈是职业。白底黑线。
+// 技能树：从下往上长，一列一列，最上面一排是方向。白底黑线。
 // 每个节点一个图标和名字。点亮了是实心黑，能点是黑框，还够不着是浅灰。只有点亮和没点亮两种状态。
 // 每个节点只画一根枝（连到主前置）；悬停或选中时，它的全部前置和它解锁的保持清楚，其余变淡。
 // 平移缩放不走 React：直接改 <g> 的 transform。
@@ -146,7 +146,7 @@ interface TipProps {
 }
 
 /**
- * 职业：技能树最外圈的终极节点。一枚双圈的奖章（外粗内细），中间是职业图标，
+ * 职业：技能树最上面一排的终极节点。一枚双圈的奖章（外粗内细），中间是职业图标，
  * 外面一圈进度环随着点亮要学的技能慢慢填满。全部点亮就自动达成：徽章变黑，外面一大圈光芒转起来。
  */
 const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim, pulse, onClick, onHover }: TipProps) {
@@ -208,7 +208,20 @@ export function SkillTree() {
   const focusedArea = focus?.kind === 'area' ? focus.id : null
 
   // ── 视图 ──
-  const apply = useCallback((v: View) => {
+  // 边界：最小缩到刚好装下整棵树；拖动时树的边最多拖到屏幕边上，不会拖进一片空白
+  const b0 = layout.bounds
+  const minK = size.w ? Math.max(MIN_K, Math.min(size.w / (b0.maxX - b0.minX), size.h / (b0.maxY - b0.minY))) : MIN_K
+  const limits = useRef({ minK, w: size.w, h: size.h, b: b0 })
+  limits.current = { minK, w: size.w, h: size.h, b: b0 }
+  const apply = useCallback((raw: View) => {
+    const { minK: lo, w, h, b } = limits.current
+    const k = Math.min(MAX_K, Math.max(lo, raw.k))
+    // 屏幕中心对着的世界坐标：树的边最多拖到屏幕边上；屏幕比树还宽（高）时，那个方向就居中
+    const clamp = (c: number, lo: number, hi: number, half: number) =>
+      lo + half > hi - half ? (lo + hi) / 2 : Math.min(hi - half, Math.max(lo + half, c))
+    const cx = clamp((w / 2 - raw.x) / raw.k, b.minX, b.maxX, w / 2 / k)
+    const cy = clamp((h / 2 - raw.y) / raw.k, b.minY, b.maxY, h / 2 / k)
+    const v = { x: w / 2 - cx * k, y: h / 2 - cy * k, k }
     viewRef.current = v
     world.current?.setAttribute('transform', `translate(${v.x},${v.y}) scale(${v.k})`)
   }, [])
@@ -231,15 +244,15 @@ export function SkillTree() {
   const fit = useCallback((ms?: number) => {
     const b = layout.bounds
     if (!size.w) return
-    const k = Math.min(MAX_K, Math.max(MIN_K, Math.min(size.w / (b.maxX - b.minX), size.h / (b.maxY - b.minY))))
+    const k = Math.min(MAX_K, Math.max(minK, Math.min(size.w / (b.maxX - b.minX), size.h / (b.maxY - b.minY))))
     flyTo({ x: size.w / 2 - ((b.minX + b.maxX) / 2) * k, y: size.h / 2 - ((b.minY + b.maxY) / 2) * k, k }, ms)
-  }, [layout, size, flyTo])
+  }, [layout, size, minK, flyTo])
 
-  /** 打开时：编程入门在屏幕正中，看得见里面几圈；缩小看整个圆，放大看清细节 */
+  /** 打开时：从最下面的起点看起，主线在屏幕中间，字看得清；往上拖或点“看全图”再看方向 */
   const home = useCallback((ms?: number) => {
     if (!size.w) return
-    const k = Math.min(1, Math.max(0.4, Math.min(size.w, size.h) / 2 / 760))
-    flyTo({ x: size.w / 2 - layout.home.x * k, y: size.h / 2 - layout.home.y * k, k }, ms)
+    const k = size.w < 700 ? 0.85 : 1.15
+    flyTo({ x: size.w / 2 - layout.home.x * k, y: size.h - (size.w < 700 ? 120 : 80) - layout.home.y * k, k }, ms)
   }, [layout, size, flyTo])
 
   const centerOn = useCallback((x: number, y: number) => {
@@ -295,7 +308,7 @@ export function SkillTree() {
     const px = sx - rect.left
     const py = sy - rect.top
     const v = viewRef.current
-    const nk = Math.min(MAX_K, Math.max(MIN_K, k))
+    const nk = Math.min(MAX_K, Math.max(limits.current.minK, k))
     apply({ x: px - ((px - v.x) / v.k) * nk, y: py - ((py - v.y) / v.k) * nk, k: nk })
   }, [apply])
 
@@ -409,9 +422,6 @@ export function SkillTree() {
         aria-label="技能树"
       >
         <g ref={world}>
-          <g className="rings" aria-hidden>
-            {layout.rings.map((r) => <circle key={r} r={r} />)}
-          </g>
           <g className="edges">
             {layout.edges.map((e) => (
               <path key={`${e.from}>${e.to}`} d={e.d} className={`edge ${edgeState(e.from, e.to)}${edgeLens(e.from, e.to)}${e.to.startsWith('sub:') ? ' e-tip' : ''}`} />

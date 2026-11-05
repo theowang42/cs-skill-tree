@@ -1,18 +1,19 @@
-// 技能树的布局：一个圆。编程入门在正中心，技能一圈一圈往外长，越往外越深；职业徽章在最外圈。
+// 技能树的布局：像游戏的技能树一样从下往上长，一列一列。
 //
-//   - 每个技能只挂在它的“主前置”上（种子里前置的第一个）。画出来是一条条往外的链，只在关键节点分叉。
-//     其余前置不画线，选中时只让那些节点保持清楚，面板里列出来。
-//   - 第 d 圈是深度 d。另外几个起点（Linux、微积分）没有前置，放在第一圈，和编程入门的孩子一起。
-//   - 角度：子树按轮廓紧挨着排（每一圈左右边界不重叠就行，宽度换算成弧度 = 像素宽 / 半径），
-//     父节点在第一个和最后一个孩子的正中间；只有一个孩子时和它同一个角度，链是直的。
-//     第一圈多大，二分找到刚好一圈排得下的那个；排完有剩的角度整体摊开。PyTorch 朝正上方。
-//   - 职业是最外圈的终极节点（大徽章），从它挂的技能连出去。
-//   - 枝条：从父节点往外到两圈中间，沿圆弧转过去，再往外停在孩子前面。线绕开名字。
+//   - 每个技能只挂在它的“主前置”上（种子里前置的第一个）。画出来是一条条往上的链，只在关键节点分叉。
+//     其余前置不画线（会横穿整张图），选中时只让那些节点保持清楚，面板里列出来。
+//   - 最下面一排是起点（没有前置的技能），都在同一排，往上一排深一层。最大的那棵子树放中间，几棵子树按轮廓紧挨着，中间不留大空白。
+//   - 列：子树按轮廓紧挨着排（每一层左右边界不重叠就行），父节点在第一个和最后一个孩子的正中间；
+//     只有一个孩子时和它对齐，链是直的。兄弟按领域排，AI 产品在左，AI Infra 在中间，底层系统和安全在右。
+//   - 职业是最上面一排的终极节点（大徽章），从它挂的技能一根实线直直连上去。
+//   - 枝条是直角折线：从父节点顶上出发，往上到两排中间，横过去，再往上停在孩子名字的下面。线不穿过字。
 //
-// 纯函数，坐标单位是像素，圆心是 (0, 0)。
+// 纯函数，坐标单位是像素。最下面一排 y = 0，往上 y 变小。
 import type { Tree } from './tree.ts'
 
 export const NODE_R = 31
+/** 两排之间多远 */
+export const ROW = 132
 /** 名字在节点下面多远（基线），和名字的底 */
 export const LABEL_Y = NODE_R + 21
 const LABEL_BOTTOM = NODE_R + 28
@@ -32,7 +33,7 @@ export interface WebNode {
   id: string
   x: number
   y: number
-  /** 第几圈，圆心是 0；职业在最外圈 */
+  /** 第几排，最下面是 1；方向在最上面一排 */
   depth: number
   kind: 'skill' | 'sub'
 }
@@ -49,8 +50,6 @@ export interface WebLayout {
   edges: WebEdge[]
   /** 主线的位置，打开时从这里看起 */
   home: { x: number; y: number }
-  /** 每一圈的半径（不含圆心），画成很淡的同心圆，缩小时看得出一圈一圈 */
-  rings: number[]
   bounds: { minX: number; minY: number; maxX: number; maxY: number }
 }
 
@@ -63,41 +62,16 @@ export function labelWidth(name: string): number {
 
 const f = (n: number) => Math.round(n * 10) / 10
 
-/** 一圈一圈往外：圆心到第一圈多远由排得下来定，之后每圈隔 RING */
-export const RING = 136
-
-/** 极坐标 → 屏幕坐标。角度 0 在正上方，顺时针 */
-const pt = (r: number, a: number) => ({ x: r * Math.sin(a), y: -r * Math.cos(a) })
-
-/** 圆形的枝：从父节点往外到两圈中间，沿着圆弧转过去，再往外到孩子 */
-function radialElbow(a1: number, r1: number, a2: number, r2: number, mid: number): string {
-  const p1 = pt(r1, a1)
-  const p4 = pt(r2, a2)
-  if (Math.abs(a2 - a1) < 1e-4) return `M${f(p1.x)},${f(p1.y)} L${f(p4.x)},${f(p4.y)}`
-  const p2 = pt(mid, a1)
-  const p3 = pt(mid, a2)
-  const large = Math.abs(a2 - a1) > Math.PI ? 1 : 0
-  const sweep = a2 > a1 ? 1 : 0
-  return `M${f(p1.x)},${f(p1.y)} L${f(p2.x)},${f(p2.y)} A${f(mid)},${f(mid)} 0 ${large} ${sweep} ${f(p3.x)},${f(p3.y)} L${f(p4.x)},${f(p4.y)}`
-}
-
-/** 从节点中心朝圆心走多远，线才不压到节点下面的名字 */
-function clearOfLabel(a: number, name: string): number {
-  const ux = -Math.sin(a)
-  const uy = Math.cos(a) // 朝圆心的方向（屏幕 y 向下）
-  let d = NODE_R + 4
-  if (uy > 0.05) {
-    // 名字在节点正下方：线要么从名字底下出去，要么从侧面出去
-    const bottom = (LABEL_BOTTOM + 4) / uy
-    const side = Math.abs(ux) > 1e-3 ? (labelWidth(name) / 2 + 4) / Math.abs(ux) : Infinity
-    d = Math.max(d, Math.min(bottom, side))
-  }
-  return d
+/** 从父节点顶上往上，到两排中间横过去，再往上到孩子名字的下面。拐角是圆的 */
+function elbow(x1: number, y1: number, x2: number, y2: number, midY: number): string {
+  if (Math.abs(x2 - x1) < 0.5) return `M${f(x1)},${f(y1)} V${f(y2)}`
+  const r = Math.min(10, Math.abs(x2 - x1) / 2, Math.abs(y1 - midY), Math.abs(midY - y2))
+  const s = Math.sign(x2 - x1)
+  return `M${f(x1)},${f(y1)} V${f(midY + r)} Q${f(x1)},${f(midY)} ${f(x1 + s * r)},${f(midY)} H${f(x2 - s * r)} Q${f(x2)},${f(midY)} ${f(x2)},${f(midY - r)} V${f(y2)}`
 }
 
 export function layoutWeb(tree: Tree): WebLayout {
   const skills = tree.roadmap.skills
-  const nameOf = new Map(skills.map((s) => [s.id, s.name]))
   const children = new Map<string, string[]>([['root', []]])
   const area = new Map<string, string>()
   const half = new Map<string, number>()
@@ -108,193 +82,151 @@ export function layoutWeb(tree: Tree): WebLayout {
   }
   for (const s of skills) children.get(s.parent ?? 'root')!.push(s.id)
 
-  // ── 子树大小 ──
-  const count = new Map<string, number>()
-  const size = (id: string): number => {
-    const c = 1 + children.get(id)!.reduce((n, k) => n + size(k), 0)
-    count.set(id, c)
-    return c
-  }
-  for (const r of children.get('root')!) size(r)
-
-  // ── 圆心：最大的那棵（编程入门）。其它起点放在第一圈，和它的孩子一起 ──
-  const roots = [...children.get('root')!].sort((a, b) => count.get(b)! - count.get(a)! || a.localeCompare(b))
-  const center = roots[0]
-  const ring1 = [...children.get(center)!, ...roots.slice(1)]
-
-  const depth = new Map<string, number>([[center, 0]])
+  // ── 每排：起点是 1 ──
+  const depth = new Map<string, number>()
   const setDepth = (id: string, d: number) => {
     depth.set(id, d)
     for (const k of children.get(id)!) setDepth(k, d + 1)
   }
-  for (const k of ring1) setDepth(k, 1)
+  for (const r of children.get('root')!) setDepth(r, 1)
   const top = Math.max(...depth.values()) + 1
 
+  // 方向：挂在技能上，占住从它往上直到最上面一排的那一列
   const tipOf = new Map<string, string>()
   for (const sub of tree.roadmap.subs) tipOf.set(sub.anchor, subNodeId(sub.id))
 
   // ── 兄弟的顺序：按子树的领域重心 ──
   const rankSum = new Map<string, number>()
-  const tally = (id: string): number => {
+  const count = new Map<string, number>()
+  const tally = (id: string) => {
     let rs = AREA_ORDER[area.get(id)!] ?? 5
-    for (const k of children.get(id)!) rs += tally(k)
+    let c = 1
+    for (const k of children.get(id)!) {
+      tally(k)
+      rs += rankSum.get(k)!
+      c += count.get(k)!
+    }
     rankSum.set(id, rs)
-    return rs
+    count.set(id, c)
   }
-  for (const r of roots) tally(r)
+  for (const r of children.get('root')!) tally(r)
   const rank = (id: string) => rankSum.get(id)! / count.get(id)!
-  const byRank = (a: string, b: string) => rank(a) - rank(b) || count.get(b)! - count.get(a)! || a.localeCompare(b)
-  for (const kids of children.values()) kids.sort(byRank)
-  ring1.sort(byRank)
+  for (const kids of children.values()) kids.sort((a, b) => rank(a) - rank(b) || count.get(b)! - count.get(a)! || a.localeCompare(b))
 
-  // ── 角度：子树按轮廓紧挨着排，单位是弧度；每一圈的宽度 = 像素宽 / 半径 ──
+  // ── 列：按轮廓把子树紧挨着排 ──
+  // 每棵子树算出相对它的根的 x，以及每一排的左右边界
   type Contour = Map<number, [number, number]>
+  const rel = new Map<string, number>()
   const merge = (into: Contour, c: Contour, dx: number) => {
     for (const [d, [l, r]] of c) {
       const cur = into.get(d)
       into.set(d, cur ? [Math.min(cur[0], l + dx), Math.max(cur[1], r + dx)] : [l + dx, r + dx])
     }
   }
-  const pack = (r1: number) => {
-    // 里圈节点少，外圈多：半径按 d^0.8 长，相邻两圈至少隔 RING
-    const radius = (d: number) => { let r = 0; for (let k = 1; k <= d; k++) r = Math.max(k === 1 ? 0 : r + RING, r1 * k ** 0.8); return r }
-    const tipR = radius(top) + 40
-    const rel = new Map<string, number>()
+  const build = (id: string): Contour => {
+    const d = depth.get(id)!
+    const kids = children.get(id)!
+    const own: Contour = new Map([[d, [-half.get(id)!, half.get(id)!]]])
+    // 职业那一列：中间只有一根线，最上面一排要放下徽章和名字
     const tipColumn = (from: number): Contour => {
       const c: Contour = new Map()
-      for (let k = from; k < top; k++) c.set(k, [-6 / radius(k), 6 / radius(k)])
-      c.set(top, [-TIP_HALF / tipR, TIP_HALF / tipR])
+      for (let k = from; k < top; k++) c.set(k, [-6, 6])
+      c.set(top, [-TIP_HALF, TIP_HALF])
       return c
     }
-    // 把一排孩子按轮廓排开，返回每个相对中间的角度和合起来的轮廓
-    const lay = (lanes: string[], build: (id: string) => Contour): Contour => {
-      const placed: { id: string; x: number }[] = []
-      const acc: Contour = new Map()
-      for (const k of lanes) {
-        const c = build(k)
-        let x = 0
-        if (placed.length) {
-          x = -Infinity
-          for (const [dd, [l]] of c) {
-            const a = acc.get(dd)
-            if (a) x = Math.max(x, a[1] - l)
-          }
-          if (x === -Infinity) x = placed[placed.length - 1].x
+    const tip = tipOf.get(id)
+    // 没有孩子：职业就在它正上方那一列
+    if (tip && !kids.length) for (const [k, lr] of tipColumn(d + 1)) own.set(k, lr)
+    if (!kids.length) return own
+    // 有孩子：职业当成最右边的一个“孩子”，单独占一列，不会和孩子那一列叠在一起
+    const lanes = tip ? [...kids, tip] : kids
+    const placed: { id: string; x: number }[] = []
+    const acc: Contour = new Map()
+    for (const k of lanes) {
+      const c = k === tip ? tipColumn(d + 1) : build(k)
+      let x = 0
+      if (placed.length) {
+        x = -Infinity
+        for (const [dd, [l]] of c) {
+          const a = acc.get(dd)
+          if (a) x = Math.max(x, a[1] - l)
         }
-        placed.push({ id: k, x })
-        merge(acc, c, x)
+        if (x === -Infinity) x = placed[placed.length - 1].x + 2 * NODE_R + GAP
       }
-      const mid = (placed[0].x + placed[placed.length - 1].x) / 2
-      for (const p of placed) rel.set(p.id, p.x - mid)
-      const out: Contour = new Map()
-      merge(out, acc, -mid)
-      return out
+      placed.push({ id: k, x })
+      merge(acc, c, x)
     }
-    const build = (id: string): Contour => {
-      const d = depth.get(id)!
-      const h = half.get(id)! / radius(d)
-      const own: Contour = new Map([[d, [-h, h]]])
-      const kids = children.get(id)!
-      const tip = tipOf.get(id)
-      if (tip && !kids.length) for (const [k, lr] of tipColumn(d + 1)) own.set(k, lr)
-      if (!kids.length) return own
-      const out = lay(tip ? [...kids, tip] : kids, (k) => (k === tip ? tipColumn(d + 1) : build(k)))
-      for (const [dd, lr] of own) {
-        const cur = out.get(dd)
-        out.set(dd, cur ? [Math.min(cur[0], lr[0]), Math.max(cur[1], lr[1])] : lr)
+    const mid = (placed[0].x + placed[placed.length - 1].x) / 2
+    for (const p of placed) rel.set(p.id, p.x - mid)
+    const out: Contour = new Map()
+    merge(out, acc, -mid)
+    // 自己这一排和方向那一列也要算进去
+    for (const [dd, lr] of own) {
+      const cur = out.get(dd)
+      out.set(dd, cur ? [Math.min(cur[0], lr[0]), Math.max(cur[1], lr[1])] : lr)
+    }
+    return out
+  }
+  // 几个起点也按轮廓排开
+  // 起点：最大的子树放中间，其余按原来的顺序左右交替放
+  const bySize = [...children.get('root')!].sort((a, b) => count.get(b)! - count.get(a)!)
+  const roots: string[] = []
+  bySize.forEach((r, i) => (i % 2 === 1 ? roots.unshift(r) : roots.push(r)))
+  const rootX = new Map<string, number>()
+  const all: Contour = new Map()
+  for (const r of roots) {
+    const c = build(r)
+    let x = 0
+    if (rootX.size) {
+      x = -Infinity
+      for (const [dd, [l]] of c) {
+        const a = all.get(dd)
+        if (a) x = Math.max(x, a[1] - l + GAP * 2)
       }
-      return out
     }
-    const all = lay(ring1, build)
-    let span = 0
-    for (const [l, r] of all.values()) span = Math.max(span, r - l)
-    return { rel, span, radius, tipR }
+    rootX.set(r, x)
+    merge(all, c, x)
   }
 
-  // 一个节点沿圆周方向占多宽：名字是横着写的，在左右两边占名字的宽，在上下两边占节点加名字的高。
-  // 先不知道角度，按名字宽排一次；再按排出来的角度重新算宽度，排几遍就稳了
-  const BOX_H = (NODE_R + LABEL_BOTTOM) / 2 + 6
-  const solve = () => {
-    // 第一圈要多大才能一圈排得下：二分
-    let lo = 10
-    let hi = RING * 40
-    for (let i = 0; i < 40; i++) {
-      const m = (lo + hi) / 2
-      if (pack(m).span <= Math.PI * 2) hi = m
-      else lo = m
-    }
-    const { rel, span, radius, tipR } = pack(Math.ceil(hi))
-    // 排完有剩的角度：整体摊开，绕满一圈
-    const stretch = (Math.PI * 2) / span
-    const angle = new Map<string, number>()
-    const absolute = (id: string, a: number) => {
-      angle.set(id, a)
-      for (const k of children.get(id)!) absolute(k, a + rel.get(k)! * stretch)
-    }
-    for (const k of ring1) absolute(k, rel.get(k)! * stretch)
-    for (const [anchor, tip] of tipOf) angle.set(tip, angle.get(anchor)! + (rel.get(tip) ?? 0) * stretch)
-    // 转一下：AI（PyTorch）朝正上方
-    const turn = -(angle.get('pytorch') ?? 0)
-    for (const [id, a] of angle) angle.set(id, a + turn)
-    angle.set(center, 0)
-    return { angle, radius, tipR }
+  // ── 绝对坐标 ──
+  const xs = new Map<string, number>()
+  const absolute = (id: string, x: number) => {
+    xs.set(id, x)
+    for (const k of children.get(id)!) absolute(k, x + rel.get(k)!)
   }
-  let solved = solve()
-  for (let pass = 0; pass < 4; pass++) {
-    for (const s of skills) {
-      const a = solved.angle.get(s.id)!
-      const w = Math.max(NODE_R, labelWidth(s.name) / 2)
-      half.set(s.id, Math.abs(Math.cos(a)) * w + Math.abs(Math.sin(a)) * BOX_H + GAP / 2)
-    }
-    solved = solve()
-  }
-  const { angle, radius, tipR } = solved
+  for (const r of roots) absolute(r, rootX.get(r)!)
+  // 职业：挂在有孩子的技能上时单独占了一列（rel 里有它），否则就在技能正上方
+  for (const [anchor, tip] of tipOf) xs.set(tip, xs.get(anchor)! + (rel.get(tip) ?? 0))
+  const yOf = (d: number) => (1 - d) * ROW
 
   const nodes = new Map<string, WebNode>()
-  for (const [id, d] of depth) {
-    const p = pt(radius(d), angle.get(id)!)
-    nodes.set(id, { id, x: f(p.x), y: f(p.y), depth: d, kind: 'skill' })
-  }
-  for (const tip of tipOf.values()) {
-    const p = pt(tipR, angle.get(tip)!)
-    nodes.set(tip, { id: tip, x: f(p.x), y: f(p.y), depth: top, kind: 'sub' })
-  }
+  for (const [id, d] of depth) nodes.set(id, { id, x: xs.get(id)!, y: yOf(d), depth: d, kind: 'skill' })
+  for (const tip of tipOf.values()) nodes.set(tip, { id: tip, x: xs.get(tip)!, y: yOf(top) - 50, depth: top, kind: 'sub' })
 
-  // ── 枝条：从父节点往外，到两圈中间沿圆弧转过去，再往外停在孩子前面 ──
+  // ── 枝条 ──
   const edges: WebEdge[] = []
+  const up = (id: string) => nodes.get(id)!.y - NODE_R - 3
+  const below = (id: string) => nodes.get(id)!.y + LABEL_BOTTOM + 4
   for (const s of skills) {
     if (!s.parent) continue
-    const d = depth.get(s.id)!
-    const a1 = angle.get(s.parent)!
-    const a2 = angle.get(s.id)!
-    // 从父节点朝外出发；名字在节点下面，朝下走的线要绕开名字
-    const start = d === 1 ? NODE_R + 8 : radius(d - 1) + outClear(a1, nameOf.get(s.parent)!)
-    const end = radius(d) - clearOfLabel(a2, s.name)
-    // 圆心发出的枝是直的辐条
-    const d1 = d === 1 ? `M${f(pt(start, a2).x)},${f(pt(start, a2).y)} L${f(pt(end, a2).x)},${f(pt(end, a2).y)}` : radialElbow(a1, start, a2, end, (radius(d - 1) + radius(d)) / 2)
-    edges.push({ from: s.parent, to: s.id, d: d1 })
+    const p = nodes.get(s.parent)!
+    const c = nodes.get(s.id)!
+    edges.push({ from: s.parent, to: s.id, d: elbow(p.x, up(s.parent), c.x, below(s.id), p.y - ROW / 2 + 4) })
   }
   for (const [anchor, tip] of tipOf) {
-    const d = depth.get(anchor)!
-    const a1 = angle.get(anchor)!
-    const a2 = angle.get(tip)!
-    const start = radius(d) + outClear(a1, nameOf.get(anchor)!)
-    edges.push({ from: anchor, to: tip, d: radialElbow(a1, start, a2, tipR - TIP_R - 10, (radius(d) + radius(d + 1)) / 2) })
+    const a = nodes.get(anchor)!
+    const t = nodes.get(tip)!
+    edges.push({ from: anchor, to: tip, d: elbow(a.x, up(anchor), t.x, t.y + TIP_R + 8, a.y - ROW / 2 + 4) })
   }
-
-  // ── 边界：最外圈的徽章，上面还有名字 ──
-  const R = tipR + TIP_R + 90
-  const bounds = { minX: -R, maxX: R, minY: -R, maxY: R }
-  const rings = Array.from({ length: top - 1 }, (_, i) => f(radius(i + 1)))
-  return { nodes, edges, home: { x: 0, y: 0 }, rings, bounds }
-}
-
-/** 从节点中心朝外走多远，线才不压到名字 */
-function outClear(a: number, name: string): number {
-  const ux = Math.sin(a)
-  const uy = -Math.cos(a)
-  if (uy <= 0.05) return NODE_R + 4
-  const bottom = (LABEL_BOTTOM + 4) / uy
-  const side = Math.abs(ux) > 1e-3 ? (labelWidth(name) / 2 + 4) / Math.abs(ux) : Infinity
-  return Math.max(NODE_R + 4, Math.min(bottom, side))
+  // ── 边界 ──
+  const ns = [...nodes.values()]
+  const bounds = {
+    minX: Math.min(...ns.map((n) => n.x)) - 90,
+    maxX: Math.max(...ns.map((n) => n.x)) + 90,
+    // 最上面一排的职业：徽章上面还有名字
+    minY: Math.min(...ns.map((n) => n.y)) - TIP_R - 90,
+    maxY: LABEL_BOTTOM + 30,
+  }
+  const main = nodes.get('pytorch') ?? ns[0]
+  return { nodes, edges, home: { x: main.x, y: 0 }, bounds }
 }
