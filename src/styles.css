@@ -148,7 +148,7 @@ a {
 
 .edge.e-done {
   stroke: var(--ink);
-  stroke-width: 2.25;
+  stroke-width: 3;
 }
 
 .edge.e-path {
@@ -241,8 +241,8 @@ a {
 
 .node .glyph {
   display: flex;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   color: var(--ink-3);
   transition: color 0.3s var(--ease);
 }
@@ -250,7 +250,7 @@ a {
 /* 名字带一圈白边，枝条从下面穿过时不会和字搅在一起 */
 .node .lbl {
   fill: var(--ink-3);
-  font-size: 13px;
+  font-size: 14px;
   text-anchor: middle;
   paint-order: stroke;
   stroke: var(--paper);
@@ -303,10 +303,59 @@ a {
   fill: var(--goal);
 }
 
-.node.pulse .box {
+/* 点亮后外面那一圈：平时看不见，点亮了是一圈细黑线，像激活了的技能槽 */
+.node .ring {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 2;
+  transition: stroke 0.3s var(--ease);
+}
+
+.node.s-done .ring {
+  stroke: var(--ink);
+}
+
+/* 能点亮的：悬停时底色变灰，提示“点我” */
+.node.s-available:hover .box {
+  fill: var(--wash);
+}
+
+/* 够不着的：图标再淡一点 */
+.node.s-locked .glyph {
+  opacity: 0.55;
+}
+
+.node.pulse .box,
+.node.pulse .ring {
   animation: pop 0.6s var(--ease) both;
   transform-box: fill-box;
   transform-origin: center;
+}
+
+/* 点亮或解锁的那一刻：一圈波纹往外扩散，只放一次 */
+.node .ripple {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ripple 0.9s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.node.s-available .ripple {
+  stroke: var(--ink-3);
+}
+
+@keyframes ripple {
+  from {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(2);
+    opacity: 0;
+  }
 }
 
 @keyframes pop {

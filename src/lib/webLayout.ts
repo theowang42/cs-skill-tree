@@ -2,7 +2,7 @@
 //
 //   - 每个技能只挂在它的“主前置”上（种子里前置的第一个）。画出来是一条条往上的链，只在关键节点分叉。
 //     其余前置不画线（会横穿整张图），选中时只让那些节点保持清楚，面板里列出来。
-//   - 最下面一排是起点（没有前置的技能），往上一排深一层。
+//   - 最下面一排是起点（没有前置的技能），往上一排深一层。最大的那棵子树放中间，起点之间等距，排成整齐的一排。
 //   - 列：子树按轮廓紧挨着排（每一层左右边界不重叠就行），父节点在第一个和最后一个孩子的正中间；
 //     只有一个孩子时和它对齐，链是直的。兄弟按领域排，AI 产品在左，AI Infra 在中间，底层系统和安全在右。
 //   - 方向排在最上面一排，从它挂的技能直直连上去。
@@ -11,14 +11,14 @@
 // 纯函数，坐标单位是像素。最下面一排 y = 0，往上 y 变小。
 import type { Tree } from './tree.ts'
 
-export const NODE_R = 27
+export const NODE_R = 31
 /** 两排之间多远 */
-export const ROW = 116
+export const ROW = 132
 /** 名字在节点下面多远（基线），和名字的底 */
-export const LABEL_Y = NODE_R + 18
-const LABEL_BOTTOM = NODE_R + 25
+export const LABEL_Y = NODE_R + 21
+const LABEL_BOTTOM = NODE_R + 28
 /** 同一排相邻两个节点的名字之间至少空多少 */
-const GAP = 24
+const GAP = 26
 /** 方向的名字大概多宽的一半 */
 const TIP_HALF = 64
 
@@ -54,9 +54,9 @@ export interface WebLayout {
 
 export const subNodeId = (subId: string) => `sub:${subId}`
 
-/** 名字的显示宽度：中文 13px，英文数字约 7.5px */
+/** 名字的显示宽度：中文 14px，英文数字约 8px */
 export function labelWidth(name: string): number {
-  return [...name].reduce((w, c) => w + (c.charCodeAt(0) > 0x2e80 ? 13 : 7.5), 0)
+  return [...name].reduce((w, c) => w + (c.charCodeAt(0) > 0x2e80 ? 14 : 8), 0)
 }
 
 const f = (n: number) => Math.round(n * 10) / 10
@@ -161,7 +161,10 @@ export function layoutWeb(tree: Tree): WebLayout {
     return out
   }
   // 几个起点也按轮廓排开
-  const roots = children.get('root')!
+  // 起点：最大的子树放中间，其余按原来的顺序左右交替放
+  const bySize = [...children.get('root')!].sort((a, b) => count.get(b)! - count.get(a)!)
+  const roots: string[] = []
+  bySize.forEach((r, i) => (i % 2 === 1 ? roots.unshift(r) : roots.push(r)))
   const rootX = new Map<string, number>()
   const all: Contour = new Map()
   for (const r of roots) {
@@ -177,6 +180,11 @@ export function layoutWeb(tree: Tree): WebLayout {
     rootX.set(r, x)
     merge(all, c, x)
   }
+  // 起点之间等距：把相邻起点的间距都拉到最大的那个，只往外挪，子树之间不会撞
+  const gaps = roots.slice(1).map((r, i) => rootX.get(r)! - rootX.get(roots[i])!)
+  const even = Math.max(0, ...gaps)
+  const mid = Math.floor(roots.length / 2)
+  roots.forEach((r, i) => rootX.set(r, rootX.get(roots[mid])! + (i - mid) * even))
 
   // ── 绝对坐标 ──
   const xs = new Map<string, number>()

@@ -73,3 +73,10 @@ test('主线在中间：AI Infra 在 AI 产品的右边、底层系统的左边'
   assert.ok(node('pytorch').x > node('react').x)
   assert.ok(node('pytorch').x < node('kernel').x)
 })
+
+test('起点排成整齐的一排：等距，最大的子树在中间', () => {
+  const roots = tree.roadmap.skills.filter((s) => !s.parent).map((s) => node(s.id)).sort((a, b) => a.x - b.x)
+  const gaps = roots.slice(1).map((r, i) => r.x - roots[i].x)
+  for (const g of gaps) assert.ok(Math.abs(g - gaps[0]) < 0.5, `起点间距不一样：${gaps.map((x) => x.toFixed(0)).join('、')}`)
+  assert.equal(roots[Math.floor(roots.length / 2)].id, 'cs61a')
+})

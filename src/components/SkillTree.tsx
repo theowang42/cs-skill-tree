@@ -61,13 +61,16 @@ const Node = memo(function Node({ id, x, y, name, icon, state, focused, relation
       onPointerEnter={() => onHover(id)}
       onPointerLeave={() => onHover(null)}
     >
+      {/* 点亮后外面多一圈：像游戏里激活了的技能槽 */}
+      <circle className="ring" r={NODE_R + 6} />
+      {pulse && <circle className="ripple" r={NODE_R} />}
       <circle className="box" r={NODE_R} />
-      <foreignObject x={-12} y={-12} width="24" height="24">
+      <foreignObject x={-14} y={-14} width="28" height="28">
         <div className="glyph">
-          <SkillGlyph icon={icon} size={24} />
+          <SkillGlyph icon={icon} size={28} />
         </div>
       </foreignObject>
-      {next && <path className="next-mark" d={`M-6,${-NODE_R - 13} L6,${-NODE_R - 13} L0,${-NODE_R - 6}Z`} />}
+      {next && <path className="next-mark" d={`M-7,${-NODE_R - 22} L7,${-NODE_R - 22} L0,${-NODE_R - 13}Z`} />}
       <text className="lbl" y={LABEL_Y}>{name}</text>
     </g>
   )
@@ -151,7 +154,7 @@ export function SkillTree() {
   /** 打开时：从最下面的起点看起，主线在屏幕中间，字看得清；往上拖或点“看全图”再看方向 */
   const home = useCallback((ms?: number) => {
     if (!size.w) return
-    const k = size.w < 700 ? 0.8 : 1
+    const k = size.w < 700 ? 0.85 : 1.15
     flyTo({ x: size.w / 2 - layout.home.x * k, y: size.h - (size.w < 700 ? 120 : 80) - layout.home.y * k, k }, ms)
   }, [layout, size, flyTo])
 
