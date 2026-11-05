@@ -5,7 +5,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
-import { LABEL_Y, layoutWeb, NODE_R, subNodeId, TIP_R } from '../lib/webLayout'
+import { LABEL_Y, layoutWeb, NODE_R, START_R, subNodeId, TIP_R } from '../lib/webLayout'
 import { stars, tierOf } from '../lib/tree'
 import { ICONS } from '../generated/icons'
 
@@ -416,6 +416,11 @@ export function SkillTree() {
             {layout.edges.map((e) => (
               <path key={`${e.from}>${e.to}`} d={e.d} className={`edge ${edgeState(e.from, e.to)}${edgeLens(e.from, e.to)}${e.to.startsWith('sub:') ? ' e-tip' : ''}`} />
             ))}
+          </g>
+          {/* 圆心：起点。三个基础技能从这里往外长 */}
+          <g className="start" aria-hidden>
+            <circle className="start-ring" r={START_R} />
+            <circle className="start-dot" r={9} />
           </g>
           <g className="tips">
             {tree.roadmap.subs.map((sub) => {

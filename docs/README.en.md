@@ -5,13 +5,13 @@
 **A circular computer science skill tree: light up what you know and see how far you are from each career.**
 
 - 169 skills you could put on a résumé, from intro programming, data structures and operating systems to PyTorch, CUDA and vLLM inference, each with its own icon
-- Like a game skill tree: intro programming sits in the center and skills grow outward ring by ring, and a skill lights up only after everything below it is lit
-- The outer ring holds 17 career badges covering where CS graduates usually end up. Light everything a career needs and its badge lights up on its own; there is nothing to pick first
+- Like a game skill tree: from a starting point in the center, intro programming, Linux and calculus sit on the first ring and skills grow outward ring by ring, and a skill lights up only after everything below it is lit
+- The outer ring holds 17 evenly spaced career badges covering where CS graduates usually end up. Light everything a career needs and its badge lights up on its own; there is nothing to pick first
 - Opening a skill shows one sentence and where to learn it
 
 👉 https://theowang42.github.io/cs-skill-tree/
 
-![The skill tree with intro programming in the center, growing outward ring by ring, lit skills in black with a ring of rays turning around them](screenshot.jpg)
+![The skill tree growing outward ring by ring from a starting point in the center, lit skills in black with a ring of rays turning around them](screenshot.jpg)
 
 ## How to use
 

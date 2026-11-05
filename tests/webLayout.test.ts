@@ -19,9 +19,10 @@ test('每个技能和方向都有位置，结果每次一样', () => {
 
 test('是一棵树：每个节点正好一根枝，枝连的是主前置', () => {
   const into = new Map(layout.edges.map((e) => [e.to, e.from]))
-  for (const s of tree.roadmap.skills) assert.equal(into.get(s.id), s.parent ?? undefined)
+  for (const s of tree.roadmap.skills) assert.equal(into.get(s.id), s.parent ?? 'root')
   for (const sub of tree.roadmap.subs) assert.equal(into.get(subNodeId(sub.id)), sub.anchor)
-  assert.equal(layout.edges.length, tree.roadmap.skills.filter((s) => s.parent).length + tree.roadmap.subs.length)
+  // 起点从圆心发出一根
+  assert.equal(layout.edges.length, tree.roadmap.skills.length + tree.roadmap.subs.length)
 })
 
 test('大部分节点只有一个孩子：是一条条链，只在关键节点分叉', () => {
@@ -31,12 +32,10 @@ test('大部分节点只有一个孩子：是一条条链，只在关键节点�
   assert.ok(forks <= tree.roadmap.skills.length * 0.13, `${forks} 个节点分出三根以上`)
 })
 
-test('编程入门在圆心，其它起点在第一圈', () => {
-  assert.ok(radius('cs61a') < 0.5)
-  const first = layout.rings[0]
-  for (const s of tree.roadmap.skills.filter((s) => !s.parent && s.id !== 'cs61a')) {
-    assert.ok(Math.abs(radius(s.id) - first) < 1, `${s.id} 不在第一圈`)
-  }
+test('三个起点都在第一圈', () => {
+  const roots = tree.roadmap.skills.filter((s) => !s.parent)
+  assert.deepEqual(roots.map((s) => s.id).sort(), ['calculus', 'cs61a', 'linux'].sort())
+  for (const s of roots) assert.ok(Math.abs(radius(s.id) - layout.rings[0]) < 1, `${s.id} 不在第一圈`)
 })
 
 test('一圈一圈往外：孩子正好在父亲外面一圈，同一圈半径相同', () => {
@@ -50,8 +49,8 @@ test('一圈一圈往外：孩子正好在父亲外面一圈，同一圈半径�
 })
 
 test('只有一个孩子的节点和孩子同一个角度，链是直的', () => {
-  for (const s of tree.roadmap.skills) {
-    if (s.id === 'cs61a') continue
+  // 起点在第一圈平均摆开，不算
+  for (const s of tree.roadmap.skills.filter((s) => s.parent)) {
     const kids = tree.roadmap.skills.filter((k) => k.parent === s.id)
     const hasTip = tree.roadmap.subs.some((x) => x.anchor === s.id)
     if (kids.length === 1 && !hasTip) assert.ok(Math.abs(angle(kids[0].id) - angle(s.id)) < 1e-3, `${s.id} → ${kids[0].id} 歪了`)
@@ -75,18 +74,16 @@ test('任意两个技能不重叠（节点加名字）', () => {
   }
 })
 
-test('职业都在最外圈，彼此不挤', () => {
+test('职业都在最外圈，平均分布', () => {
   const tips = tree.roadmap.subs.map((s) => subNodeId(s.id))
   const r = radius(tips[0])
   for (const t of tips) assert.ok(Math.abs(radius(t) - r) < 1)
   assert.ok(r > layout.rings[layout.rings.length - 1])
-  for (let i = 0; i < tips.length; i++) for (let j = i + 1; j < tips.length; j++) {
-    const d = Math.hypot(node(tips[i]).x - node(tips[j]).x, node(tips[i]).y - node(tips[j]).y)
-    assert.ok(d >= 110, `${tips[i]} 和 ${tips[j]} 的名字会撞`)
-  }
+  const as = tips.map(angle).sort((a, b) => a - b)
+  const step = (Math.PI * 2) / tips.length
+  for (let i = 1; i < as.length; i++) assert.ok(Math.abs(as[i] - as[i - 1] - step) < 1e-3, '职业之间不是等距')
 })
 
-test('AI 朝上：PyTorch 在正上方', () => {
-  assert.ok(Math.abs(angle('pytorch')) < 1e-3)
-  assert.ok(node('pytorch').y < 0)
+test('大模型算法工程师在正上方', () => {
+  assert.ok(Math.abs(angle(subNodeId('llm-algo'))) < 1e-3)
 })
