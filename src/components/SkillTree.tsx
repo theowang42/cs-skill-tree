@@ -54,15 +54,6 @@ export function Rays({ r, delay, count = 24, long = 9, short = 5, className = ''
   )
 }
 
-/** 印章形：n 个尖角，外半径 R、内半径 r。职业终极节点用 */
-export function sealPath(R: number, r: number, n: number): string {
-  return Array.from({ length: n * 2 }, (_, i) => {
-    const a = (Math.PI * i) / n - Math.PI / 2
-    const rr = i % 2 === 0 ? R : r
-    return `${i ? 'L' : 'M'}${(Math.cos(a) * rr).toFixed(1)},${(Math.sin(a) * rr).toFixed(1)}`
-  }).join(' ') + 'Z'
-}
-
 /** 每个节点的光芒转到不同的角度，整张图不会齐刷刷一起转 */
 export function orbitDelay(id: string): string {
   let h = 0
@@ -154,7 +145,7 @@ interface TipProps {
 }
 
 /**
- * 职业：技能树最上面一排的终极节点。一枚印章形的徽章，中间是职业图标，
+ * 职业：技能树最上面一排的终极节点。一枚双圈的奖章（外粗内细），中间是职业图标，
  * 外面一圈进度环随着点亮要学的技能慢慢填满。全部点亮就自动达成：徽章变黑，外面一大圈光芒转起来。
  */
 const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim, pulse, onClick, onHover }: TipProps) {
@@ -170,13 +161,13 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
       onPointerEnter={() => onHover(id)}
       onPointerLeave={() => onHover(null)}
     >
-      <rect className="hit" x={-80} y={-TIP_R - 50} width={160} height={2 * TIP_R + 60} />
+      <rect className="hit" x={-80} y={-TIP_R - 68} width={160} height={2 * TIP_R + 78} />
       {reached && <Rays r={TIP_R + 12} count={32} long={14} short={7} delay={orbitDelay(id)} className="tip-rays" />}
       {/* 进度环：要学的技能点亮了多少 */}
       <circle className="tip-track" r={TIP_R + 5} />
       <circle className="tip-progress" r={TIP_R + 5} pathLength={100} strokeDasharray={`${pct} 100`} transform="rotate(-90)" />
-      <path className="seal" d={sealPath(TIP_R, TIP_R - 6, 16)} />
-      <circle className="seal-inner" r={TIP_R - 12} />
+      <circle className="seal" r={TIP_R} />
+      <circle className="seal-inner" r={TIP_R - 7} />
       <foreignObject x={-16} y={-16} width="32" height="32">
         <div className="tip-glyph"><SkillGlyph icon={icon} size={32} /></div>
       </foreignObject>
@@ -190,8 +181,9 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
           ))}
         </g>
       )}
-      <text className="tip-name" y={-TIP_R - 30}>{name}</text>
-      <text className="tip-pct" y={-TIP_R - 13}>{reached ? '已达成' : `${done} / ${total}`}</text>
+      {/* 名字和进度写在光芒外面，达成后转起来的光芒不会压到字 */}
+      <text className="tip-name" y={-TIP_R - 48}>{name}</text>
+      <text className="tip-pct" y={-TIP_R - 31}>{reached ? '已达成' : `${done} / ${total}`}</text>
     </g>
   )
 })

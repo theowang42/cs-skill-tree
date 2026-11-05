@@ -221,7 +221,7 @@ export function layoutWeb(tree: Tree): WebLayout {
     minX: Math.min(...ns.map((n) => n.x)) - 90,
     maxX: Math.max(...ns.map((n) => n.x)) + 90,
     // 最上面一排的职业：徽章上面还有名字
-    minY: Math.min(...ns.map((n) => n.y)) - TIP_R - 70,
+    minY: Math.min(...ns.map((n) => n.y)) - TIP_R - 90,
     maxY: LABEL_BOTTOM + 30,
   }
   const main = nodes.get('pytorch') ?? ns[0]

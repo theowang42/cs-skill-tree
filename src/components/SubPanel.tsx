@@ -1,7 +1,7 @@
 // 一个职业：技能树最上面一排的终极节点。卡片和技能卡一个样子：徽章、名字、进度、要点亮哪些、真实项目。
 // 不用“设为目标”：要学的都点亮了，它自己就亮。
 import { useApp } from '../state'
-import { sealPath, SkillGlyph, Rays, orbitDelay } from './SkillTree'
+import { SkillGlyph, Rays, orbitDelay } from './SkillTree'
 import { Links, Meter } from './common'
 import { SkillSlot } from './SkillPanel'
 
@@ -32,8 +32,8 @@ export function SubPanel({ id }: { id: string }) {
           {reached && <Rays r={50} count={32} long={9} short={5} delay={orbitDelay(id)} className="tip-rays" />}
           <circle className="tip-track" r={46} />
           <circle className="tip-progress" r={46} pathLength={100} strokeDasharray={`${Math.round((100 * r.coreDone) / r.coreTotal)} 100`} transform="rotate(-90)" />
-          <path className="seal" d={sealPath(40, 34, 16)} />
-          <circle className="seal-inner" r={28} />
+          <circle className="seal" r={40} />
+          <circle className="seal-inner" r={33} />
           <foreignObject x={-16} y={-16} width="32" height="32">
             <div className="tip-glyph"><SkillGlyph icon={sub.icon} size={32} /></div>
           </foreignObject>
