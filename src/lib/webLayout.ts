@@ -68,6 +68,8 @@ export const RING = 136
 /** 第一圈至少多大；圆心“起点”的半径 */
 const FIRST_RING = 200
 export const START_R = 34
+/** 职业连线在一圈里占多宽的一半：别的节点离它至少这么远 */
+const LANE_HALF = 12
 
 /** 极坐标 → 屏幕坐标。角度 0 在正上方，顺时针 */
 const pt = (r: number, a: number) => ({ x: r * Math.sin(a), y: -r * Math.cos(a) })
@@ -84,6 +86,34 @@ function radialElbow(a1: number, r1: number, a2: number, r2: number, mid: number
   const p2 = pt(mid, a1)
   const p3 = pt(mid, a2)
   return `M${f(p1.x)},${f(p1.y)} L${f(p2.x)},${f(p2.y)} A${f(mid)},${f(mid)} 0 0 ${da > 0 ? 1 : 0} ${f(p3.x)},${f(p3.y)} L${f(p4.x)},${f(p4.y)}`
+}
+
+/**
+ * 从某一点沿方向 (ux, uy) 走，走多远才完全出了这个框（框的坐标相对那一点）。射线碰不到框就是 0。
+ * 用来让线从名字外面开始、在名字外面停下。
+ */
+export function exitBox(ux: number, uy: number, l: number, r: number, t: number, b: number): number {
+  let lo = -Infinity
+  let hi = Infinity
+  for (const [u, a, c] of [[ux, l, r], [uy, t, b]] as const) {
+    if (Math.abs(u) < 1e-9) {
+      if (a > 0 || c < 0) return 0
+      continue
+    }
+    const t1 = a / u
+    const t2 = c / u
+    lo = Math.max(lo, Math.min(t1, t2))
+    hi = Math.min(hi, Math.max(t1, t2))
+  }
+  return hi > Math.max(lo, 0) ? hi : 0
+}
+
+/** 圆心“我的进度”那几个字的框，相对圆心 */
+export const CENTER_LABEL = { l: -31, r: 31, t: START_R + 16, b: START_R + 35 }
+/** 职业徽章上面名字和星级的框，相对徽章中心 */
+export const tipLabelBox = (name: string) => {
+  const w = Math.max((labelWidth(name) * 15) / 14, 100) / 2 + 3
+  return { l: -w, r: w, t: -TIP_R - 63, b: -TIP_R - 27 }
 }
 
 /** 从节点中心朝圆心走多远，线才不压到节点下面的名字 */
@@ -136,6 +166,7 @@ export function layoutWeb(tree: Tree): WebLayout {
 
   const tipOf = new Map<string, string>()
   for (const sub of tree.roadmap.subs) tipOf.set(sub.anchor, subNodeId(sub.id))
+  const subName = new Map(tree.roadmap.subs.map((sub) => [subNodeId(sub.id), sub.name]))
 
   // ── 兄弟的顺序：按子树的领域重心 ──
   const rankSum = new Map<string, number>()
@@ -305,19 +336,25 @@ export function layoutWeb(tree: Tree): WebLayout {
     if (!byRing.has(d)) byRing.set(d, [])
     byRing.get(d)!.push(s.id)
   }
+  // 职业那一列也算一个“占位”：从挂的技能外面一圈到最外圈，别的链不能转进来压在线上
+  for (const [anchor, tip] of tipOf) for (let d = depth.get(anchor)! + 1; d < top; d++) byRing.get(d)!.push(tip)
+  const isLane = (id: string) => id.startsWith('sub:')
+  const angR = (id: string) => (isLane(id) ? lane.get(id)! : angle.get(id)!)
+  const halfR = (id: string) => (isLane(id) ? LANE_HALF : halfOf(id, angle.get(id)!))
+  const turnR = (id: string, by: number) => (isLane(id) ? lane.set(id, lane.get(id)! + by) : turnTree(id, by))
   for (let pass = 0; pass < 60; pass++) {
     let moved = false
     for (let d = 2; d < top; d++) {
-      const ring = byRing.get(d)!.slice().sort((a, b) => norm(angle.get(a)!) - norm(angle.get(b)!))
+      const ring = byRing.get(d)!.slice().sort((a, b) => norm(angR(a)) - norm(angR(b)))
       for (let i = 0; i + 1 < ring.length; i++) {
         const a = ring[i]
         const b = ring[i + 1]
-        const gap = norm(angle.get(b)!) - norm(angle.get(a)!)
-        const need = (halfOf(a, angle.get(a)!) + halfOf(b, angle.get(b)!)) / target(d)
+        const gap = norm(angR(b)) - norm(angR(a))
+        const need = (halfR(a) + halfR(b)) / target(d)
         if (gap < need - 1e-4) {
           const push = Math.min(need - gap, 0.05) / 2
-          turnTree(a, -push)
-          turnTree(b, push)
+          turnR(a, -push)
+          turnR(b, push)
           moved = true
         }
       }
@@ -331,13 +368,18 @@ export function layoutWeb(tree: Tree): WebLayout {
 
   // ── 每一圈的半径：同一圈相邻两个节点之间排得下（名字横着写：左右两边占名字宽，上下两边占节点加名字的高） ──
   const halfAt = (id: string) => {
+    if (id.startsWith('sub:')) return LANE_HALF
     const a = angle.get(id)!
     const w = Math.max(NODE_R, labelWidth(nameOf.get(id)!) / 2)
     return Math.abs(Math.cos(a)) * w + Math.abs(Math.sin(a)) * BOX_H + GAP / 2
   }
   const radii = [0]
   for (let d = 1; d < top; d++) {
-    const ring = skills.filter((s) => depth.get(s.id) === d).map((s) => s.id).sort((a, b) => norm(angle.get(a)!) - norm(angle.get(b)!))
+    // 这一圈的技能，加上从这一圈穿过去的职业连线
+    const ring = [
+      ...skills.filter((s) => depth.get(s.id) === d).map((s) => s.id),
+      ...[...tipOf].filter(([anchor]) => depth.get(anchor)! < d).map(([, tip]) => tip),
+    ].sort((a, b) => norm(angle.get(a)!) - norm(angle.get(b)!))
     let r = d === 1 ? FIRST_RING : radii[d - 1] + RING
     for (let i = 0; i < ring.length && ring.length > 1; i++) {
       const a = ring[i]
@@ -353,7 +395,7 @@ export function layoutWeb(tree: Tree): WebLayout {
       return { l: p.x - w, r: p.x + w, t: p.y - NODE_R - 4, b: p.y + LABEL_BOTTOM + 4 }
     }
     const inner = d > 1 ? skills.filter((s) => depth.get(s.id) === d - 1).map((s) => boxAt(s.id, radii[d - 1])) : []
-    const hits = (rr: number) => ring.some((id) => {
+    const hits = (rr: number) => ring.filter((id) => !id.startsWith('sub:')).some((id) => {
       const a = boxAt(id, rr)
       return inner.some((b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b)
     })
@@ -380,7 +422,9 @@ export function layoutWeb(tree: Tree): WebLayout {
     const a2 = angle.get(s.id)!
     const end = radius(d) - clearOfLabel(a2, s.name)
     if (!s.parent) {
-      const p1 = pt(START_R + 22, a2)
+      // 从“我的进度”那几个字外面开始
+      const c = CENTER_LABEL
+      const p1 = pt(Math.max(START_R + 22, exitBox(Math.sin(a2), -Math.cos(a2), c.l - 4, c.r + 4, c.t - 4, c.b + 4) + 4), a2)
       const p2 = pt(end, a2)
       edges.push({ from: 'root', to: s.id, d: `M${f(p1.x)},${f(p1.y)} L${f(p2.x)},${f(p2.y)}` })
       continue
@@ -395,7 +439,10 @@ export function layoutWeb(tree: Tree): WebLayout {
     const a2 = angle.get(tip)!
     const start = radius(d) + outClear(a1, nameOf.get(anchor)!)
     // 有孩子的技能，职业单独占一列：先转到那一列，再沿半径直直出去
-    edges.push({ from: anchor, to: tip, d: radialElbow(a1, start, a2, tipR - TIP_R - 10, (radius(d) + radius(d + 1)) / 2) })
+    // 停在徽章外面；下半圈的线从上面进来，要停在徽章名字的外面
+    const box = tipLabelBox(subName.get(tip)!)
+    const back = Math.max(TIP_R + 10, exitBox(-Math.sin(a2), Math.cos(a2), box.l - 4, box.r + 4, box.t - 4, box.b + 4) + 4)
+    edges.push({ from: anchor, to: tip, d: radialElbow(a1, start, a2, tipR - back, (radius(d) + radius(d + 1)) / 2) })
   }
 
   // ── 边界：最外圈的徽章，上面还有名字 ──

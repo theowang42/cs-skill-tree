@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { getRoadmap } from '../server/roadmap.ts'
 import { Tree } from '../src/lib/tree.ts'
-import { labelWidth, layoutWeb, NODE_R, RING, subNodeId } from '../src/lib/webLayout.ts'
+import { labelWidth, layoutWeb, NODE_R, RING, START_R, subNodeId, TIP_R } from '../src/lib/webLayout.ts'
 import { freshDb } from './helpers.ts'
 
 const tree = new Tree(getRoadmap(freshDb()))
@@ -87,4 +87,87 @@ test('职业都在最外圈，彼此不挤', () => {
 
 test('大模型算法工程师在正上方', () => {
   assert.ok(Math.abs(angle(subNodeId('llm-algo'))) < 1e-3)
+})
+
+// ── 线不穿模：任何一根线都不穿过任何名字，也不穿过别的节点 ──
+type Box = { l: number; r: number; t: number; b: number; who: string }
+/** 把一根线的路径（M / L / A，弧的圆心都在原点）采样成一串点，每 3 像素一个 */
+function samplePath(d: string): { x: number; y: number }[] {
+  const out: { x: number; y: number }[] = []
+  const re = /([MLA])([^MLA]*)/g
+  let cur = { x: 0, y: 0 }
+  for (const m of d.matchAll(re)) {
+    const n = m[2].trim().split(/[\s,]+/).map(Number)
+    if (m[1] === 'M') { cur = { x: n[0], y: n[1] }; out.push(cur); continue }
+    const to = { x: n[n.length - 2], y: n[n.length - 1] }
+    if (m[1] === 'L') {
+      const steps = Math.max(1, Math.ceil(Math.hypot(to.x - cur.x, to.y - cur.y) / 3))
+      for (let i = 1; i <= steps; i++) out.push({ x: cur.x + ((to.x - cur.x) * i) / steps, y: cur.y + ((to.y - cur.y) * i) / steps })
+    } else {
+      const r = n[0]
+      const a1 = Math.atan2(cur.y, cur.x)
+      let da = Math.atan2(to.y, to.x) - a1
+      while (da > Math.PI) da -= Math.PI * 2
+      while (da <= -Math.PI) da += Math.PI * 2
+      const steps = Math.max(1, Math.ceil((Math.abs(da) * r) / 3))
+      for (let i = 1; i <= steps; i++) out.push({ x: r * Math.cos(a1 + (da * i) / steps), y: r * Math.sin(a1 + (da * i) / steps) })
+    }
+    cur = to
+  }
+  return out
+}
+
+test('线不穿过任何名字、徽章和别的节点', () => {
+  const boxes: Box[] = []
+  const circles: { x: number; y: number; r: number; who: string }[] = []
+  for (const s of tree.roadmap.skills) {
+    const n = node(s.id)
+    const w = labelWidth(s.name) / 2 + 3
+    boxes.push({ l: n.x - w, r: n.x + w, t: n.y + NODE_R + 7, b: n.y + NODE_R + 25, who: `${s.name} 的名字` })
+    circles.push({ x: n.x, y: n.y, r: NODE_R + 2, who: s.name })
+  }
+  for (const sub of tree.roadmap.subs) {
+    const n = node(subNodeId(sub.id))
+    const w = Math.max((labelWidth(sub.name) * 15) / 14, 100) / 2 + 3
+    boxes.push({ l: n.x - w, r: n.x + w, t: n.y - TIP_R - 63, b: n.y - TIP_R - 27, who: `${sub.name} 的名字和星级` })
+    circles.push({ x: n.x, y: n.y, r: TIP_R + 8, who: sub.name })
+  }
+  boxes.push({ l: -31, r: 31, t: START_R + 16, b: START_R + 35, who: '“我的进度”' })
+  circles.push({ x: 0, y: 0, r: START_R + 6, who: '圆心' })
+  const hits: string[] = []
+  for (const e of layout.edges) {
+    const pts = samplePath(e.d)
+    const box = boxes.find((b) => pts.some((p) => p.x > b.l && p.x < b.r && p.y > b.t && p.y < b.b))
+    if (box) hits.push(`${e.from} → ${e.to} 穿过 ${box.who}`)
+    const c = circles.find((c) => pts.some((p) => Math.hypot(p.x - c.x, p.y - c.y) < c.r))
+    if (c) hits.push(`${e.from} → ${e.to} 穿过 ${c.who}`)
+  }
+  assert.deepEqual(hits, [])
+})
+
+test('名字、徽章、节点、圆心互相不叠', () => {
+  type R = { l: number; r: number; t: number; b: number; who: string; owner: string }
+  const rs: R[] = []
+  for (const s of tree.roadmap.skills) {
+    const n = node(s.id)
+    const w = labelWidth(s.name) / 2 + 3
+    rs.push({ l: n.x - w, r: n.x + w, t: n.y + NODE_R + 7, b: n.y + NODE_R + 25, who: `${s.name} 的名字`, owner: s.id })
+    rs.push({ l: n.x - NODE_R - 2, r: n.x + NODE_R + 2, t: n.y - NODE_R - 2, b: n.y + NODE_R + 2, who: s.name, owner: s.id })
+  }
+  for (const sub of tree.roadmap.subs) {
+    const n = node(subNodeId(sub.id))
+    const w = Math.max((labelWidth(sub.name) * 15) / 14, 100) / 2 + 3
+    rs.push({ l: n.x - w, r: n.x + w, t: n.y - TIP_R - 63, b: n.y - TIP_R - 27, who: `${sub.name} 的名字`, owner: sub.id })
+    rs.push({ l: n.x - TIP_R - 8, r: n.x + TIP_R + 8, t: n.y - TIP_R - 8, b: n.y + TIP_R + 8, who: sub.name, owner: sub.id })
+  }
+  rs.push({ l: -31, r: 31, t: START_R + 16, b: START_R + 35, who: '“我的进度”', owner: 'center' })
+  rs.push({ l: -START_R - 6, r: START_R + 6, t: -START_R - 6, b: START_R + 6, who: '圆心', owner: 'center' })
+  const hits: string[] = []
+  for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+    const a = rs[i]
+    const b = rs[j]
+    if (a.owner === b.owner) continue
+    if (a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b) hits.push(`${a.who} 和 ${b.who}`)
+  }
+  assert.deepEqual(hits, [])
 })
