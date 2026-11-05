@@ -454,8 +454,8 @@ export function SkillTree({ onCenter }: { onCenter?: () => void } = {}) {
             <circle className="start-track" r={START_R + 4} />
             <circle className="start-progress" r={START_R + 4} pathLength={100} strokeDasharray={`${(lit.done / lit.total) * 100} 100`} transform="rotate(-90)" />
             <circle className="start-ring" r={START_R - 2} />
-            <text className="start-num" y={1}>{lit.done}</text>
-            <text className="start-lbl" y={START_R + 30}>我的进度</text>
+            <text className="start-num" y={-7}>{lit.done}</text>
+            <text className="start-lbl" y={15}>我的进度</text>
           </g>
           <g className="tips">
             {tree.roadmap.subs.map((sub) => {

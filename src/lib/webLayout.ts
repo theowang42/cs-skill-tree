@@ -67,7 +67,7 @@ const f = (n: number) => Math.round(n * 10) / 10
 export const RING = 136
 /** 第一圈至少多大；圆心“起点”的半径 */
 const FIRST_RING = 200
-export const START_R = 34
+export const START_R = 44
 /** 职业连线在一圈里占多宽的一半：别的节点离它至少这么远 */
 const LANE_HALF = 12
 
@@ -108,8 +108,6 @@ export function exitBox(ux: number, uy: number, l: number, r: number, t: number,
   return hi > Math.max(lo, 0) ? hi : 0
 }
 
-/** 圆心“我的进度”那几个字的框，相对圆心 */
-export const CENTER_LABEL = { l: -31, r: 31, t: START_R + 16, b: START_R + 35 }
 /** 职业徽章上面名字和星级的框，相对徽章中心 */
 export const tipLabelBox = (name: string) => {
   const w = Math.max((labelWidth(name) * 15) / 14, 100) / 2 + 3
@@ -422,9 +420,8 @@ export function layoutWeb(tree: Tree): WebLayout {
     const a2 = angle.get(s.id)!
     const end = radius(d) - clearOfLabel(a2, s.name)
     if (!s.parent) {
-      // 从“我的进度”那几个字外面开始
-      const c = CENTER_LABEL
-      const p1 = pt(Math.max(START_R + 22, exitBox(Math.sin(a2), -Math.cos(a2), c.l - 4, c.r + 4, c.t - 4, c.b + 4) + 4), a2)
+      // 从圆心外圈的光芒外面开始，三根一样齐
+      const p1 = pt(START_R + 22, a2)
       const p2 = pt(end, a2)
       edges.push({ from: 'root', to: s.id, d: `M${f(p1.x)},${f(p1.y)} L${f(p2.x)},${f(p2.y)}` })
       continue

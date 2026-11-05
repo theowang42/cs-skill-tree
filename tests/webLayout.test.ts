@@ -132,7 +132,6 @@ test('线不穿过任何名字、徽章和别的节点', () => {
     boxes.push({ l: n.x - w, r: n.x + w, t: n.y - TIP_R - 63, b: n.y - TIP_R - 27, who: `${sub.name} 的名字和星级` })
     circles.push({ x: n.x, y: n.y, r: TIP_R + 8, who: sub.name })
   }
-  boxes.push({ l: -31, r: 31, t: START_R + 16, b: START_R + 35, who: '“我的进度”' })
   circles.push({ x: 0, y: 0, r: START_R + 6, who: '圆心' })
   const hits: string[] = []
   for (const e of layout.edges) {
@@ -160,7 +159,6 @@ test('名字、徽章、节点、圆心互相不叠', () => {
     rs.push({ l: n.x - w, r: n.x + w, t: n.y - TIP_R - 63, b: n.y - TIP_R - 27, who: `${sub.name} 的名字`, owner: sub.id })
     rs.push({ l: n.x - TIP_R - 8, r: n.x + TIP_R + 8, t: n.y - TIP_R - 8, b: n.y + TIP_R + 8, who: sub.name, owner: sub.id })
   }
-  rs.push({ l: -31, r: 31, t: START_R + 16, b: START_R + 35, who: '“我的进度”', owner: 'center' })
   rs.push({ l: -START_R - 6, r: START_R + 6, t: -START_R - 6, b: START_R + 6, who: '圆心', owner: 'center' })
   const hits: string[] = []
   for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {

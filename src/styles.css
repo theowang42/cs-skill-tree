@@ -1332,8 +1332,9 @@ button.danger {
 .start-progress { fill: none; stroke: var(--ink); stroke-width: 4; transition: stroke-dasharray 0.6s var(--ease); }
 .start-ring { fill: var(--paper); stroke: var(--ink); stroke-width: 2.5; transition: fill 0.2s var(--ease); }
 .start.lit .start-ring { fill: var(--ink); }
-.start-num { font-size: 20px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; fill: var(--ink); pointer-events: none; }
+.start-num { font-size: 22px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; fill: var(--ink); pointer-events: none; }
 .start.lit .start-num { fill: var(--paper); }
-.start-lbl { font-size: 14px; font-weight: 700; text-anchor: middle; fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 5px; stroke-linejoin: round; pointer-events: none; }
+.start-lbl { font-size: 11px; font-weight: 500; text-anchor: middle; dominant-baseline: middle; fill: var(--ink-2); pointer-events: none; }
+.start.lit .start-lbl { fill: var(--paper); opacity: 0.8; }
 .start:hover .start-ring, .start:focus-visible .start-ring { stroke-width: 4; }
 .start .rays-spin { animation-duration: 16s; }
