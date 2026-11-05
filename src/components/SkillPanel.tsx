@@ -1,17 +1,16 @@
 // 一个技能：像游戏里的技能卡。图标槽、名字、状态、一句话、点亮按钮、需要什么、解锁什么、去哪学。
-import { Check, Lock } from 'lucide-react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
-import { ORBIT, SkillGlyph, hexPath } from './SkillTree'
+import { OrbitLight, SkillGlyph, hexPath, orbitDelay } from './SkillTree'
 import { Links, StatusControl } from './common'
 
 const BADGE: Record<SkillState, string> = { locked: '未解锁', available: '可点亮', done: '已点亮' }
 
-/** 卡片左上角的图标槽：和树上的节点同一个形状，放大 */
-function Slot({ icon, language, state }: { icon: string; language: boolean; state: SkillState }) {
+/** 图标槽：和树上的节点同一个形状、同一套状态画法。卡头用大的，前置和解锁用小的 */
+function Slot({ uid, icon, language, state, size = 96 }: { uid: string; icon: string; language: boolean; state: SkillState; size?: number }) {
   const R = 34
   return (
-    <svg className={`slot s-${state}`} width={96} height={96} viewBox="-48 -48 96 96" aria-hidden>
+    <svg className={`slot s-${state}`} width={size} height={size} viewBox="-48 -48 96 96" aria-hidden>
       {language ? (
         <>
           <path className="slot-ring" d={hexPath(R + 10)} />
@@ -23,14 +22,7 @@ function Slot({ icon, language, state }: { icon: string; language: boolean; stat
           <circle className="slot-box" r={R} />
         </>
       )}
-      {state === 'done' &&
-        ORBIT.map((len) =>
-          language ? (
-            <path key={len} className={`o o${len}`} d={hexPath(R + 10)} pathLength={100} strokeDasharray={`${len} ${100 - len}`} />
-          ) : (
-            <circle key={len} className={`o o${len}`} r={R + 8} pathLength={100} strokeDasharray={`${len} ${100 - len}`} />
-          ),
-        )}
+      {state === 'done' && <OrbitLight uid={`s-${uid}`} r={language ? R + 10 : R + 8} language={language} delay={orbitDelay(uid)} />}
       <foreignObject x={-16} y={-16} width="32" height="32">
         <div className="slot-glyph"><SkillGlyph icon={icon} size={32} /></div>
       </foreignObject>
@@ -49,7 +41,7 @@ export function SkillPanel({ id }: { id: string }) {
   return (
     <div className={`detail skill-card s-${state}`} key={id}>
       <div className="card-head">
-        <Slot icon={s.icon} language={s.language} state={state} />
+        <Slot uid={`card-${id}`} icon={s.icon} language={s.language} state={state} />
         <div className="card-title">
           <p className="card-kind">
             {s.language ? '语言天赋' : '技能'} · {area.name} · 第 {row} 层
@@ -64,33 +56,19 @@ export function SkillPanel({ id }: { id: string }) {
 
       {s.prerequisites.length > 0 && (
         <section className="card-sec">
-          <h4>需要</h4>
-          <ul className="req-list">
+          <h4>先点亮下一级</h4>
+          <div className="mini-row">
             {s.prerequisites.map((p) => {
-              const ok = states.get(p) === 'done'
+              const q = tree.skill(p)
+              const st = states.get(p)!
               return (
-                <li key={p} className={ok ? 'ok' : 'miss'}>
-                  <button onClick={() => setFocus({ kind: 'skill', id: p }, { scroll: true })}>
-                    <span className="req-mark">{ok ? <Check size={14} strokeWidth={3} /> : <Lock size={13} strokeWidth={2.4} />}</span>
-                    <span>{tree.skill(p).name}</span>
-                  </button>
-                </li>
+                <button key={p} className={`mini s-${st}`} onClick={() => setFocus({ kind: 'skill', id: p }, { scroll: true })}>
+                  <Slot uid={`req-${p}`} icon={q.icon} language={q.language} state={st} size={52} />
+                  <span className="mini-name">{q.name}</span>
+                  <span className="mini-state">{st === 'done' ? '已点亮' : '未点亮'}</span>
+                </button>
               )
             })}
-          </ul>
-        </section>
-      )}
-
-      {s.dependents.length > 0 && (
-        <section className="card-sec">
-          <h4>解锁</h4>
-          <div className="unlock-list">
-            {s.dependents.map((d) => (
-              <button key={d} className={`unlock s-${states.get(d)}`} onClick={() => setFocus({ kind: 'skill', id: d }, { scroll: true })}>
-                <SkillGlyph icon={tree.skill(d).icon} size={14} />
-                {tree.skill(d).name}
-              </button>
-            ))}
           </div>
         </section>
       )}

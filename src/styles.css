@@ -166,11 +166,6 @@ a {
   stroke-width: 4.5;
 }
 
-.edge.e-unlock {
-  stroke: var(--ink);
-  stroke-width: 2.5;
-}
-
 .edge.e-dim {
   opacity: 0.45;
 }
@@ -345,6 +340,31 @@ a {
   opacity: 0.45;
 }
 
+/* 选中一个节点时，它往下的全部依赖：都是黑边、黑图标、黑名字 */
+.node.r-path .box {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 2.5;
+}
+
+.node.r-path .glyph,
+.node.r-path.s-locked .glyph {
+  color: var(--ink);
+  opacity: 1;
+}
+
+.node.r-path .lbl {
+  fill: var(--ink);
+}
+
+.node.r-path.s-done .box {
+  fill: var(--ink);
+}
+
+.node.r-path.s-done .glyph {
+  color: var(--paper);
+}
+
 .next-mark {
   fill: var(--goal);
 }
@@ -393,57 +413,25 @@ a {
   }
 }
 
-/* 绕圈的白光：三段叠在一起，短的最亮在最前面，长的淡淡拖在后面，像一颗彗星。
-   轨道用 pathLength = 100，圆和六边形一样走 */
-.o {
-  fill: none;
-  stroke: #fff;
-  stroke-width: 4;
-  stroke-linecap: round;
+/* 绕圈的白光：一段带渐变的弧，匀速转。旋转中心是节点中心（弧所在的圆的中心） */
+.orbit {
   pointer-events: none;
-  animation-duration: 2.8s;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
 }
 
-.o26 {
-  opacity: 0.3;
-  animation-name: orbit26;
+.orbit-arc {
+  fill: none;
+  stroke-linecap: round;
 }
 
-.o14 {
-  opacity: 0.6;
-  animation-name: orbit14;
+.orbit-spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: orbit-spin 2.6s linear infinite;
 }
 
-.o6 {
-  animation-name: orbit6;
-}
-
-@keyframes orbit26 {
-  from {
-    stroke-dashoffset: 26;
-  }
+@keyframes orbit-spin {
   to {
-    stroke-dashoffset: -74;
-  }
-}
-
-@keyframes orbit14 {
-  from {
-    stroke-dashoffset: 14;
-  }
-  to {
-    stroke-dashoffset: -86;
-  }
-}
-
-@keyframes orbit6 {
-  from {
-    stroke-dashoffset: 6;
-  }
-  to {
-    stroke-dashoffset: -94;
+    transform: rotate(360deg);
   }
 }
 
@@ -459,7 +447,7 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .o {
+  .orbit-spin {
     animation: none;
   }
 }
@@ -1129,8 +1117,8 @@ button.danger {
 }
 
 .slot .slot-box {
-  fill: var(--paper);
-  stroke: var(--line);
+  fill: #fafafa;
+  stroke: var(--off-line);
   stroke-width: 2;
 }
 
@@ -1141,6 +1129,7 @@ button.danger {
 }
 
 .slot.s-available .slot-box {
+  fill: var(--paper);
   stroke: var(--ink);
   stroke-width: 2.5;
 }
@@ -1159,7 +1148,7 @@ button.danger {
   display: flex;
   width: 32px;
   height: 32px;
-  color: var(--ink-3);
+  color: var(--off-ink);
 }
 
 .slot.s-available .slot-glyph {
@@ -1283,78 +1272,54 @@ button.danger {
   margin-top: 24px;
 }
 
-.req-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.req-list button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 7px 0;
-  border: 0;
-  border-bottom: 1px solid var(--line-2);
-  background: none;
-  color: var(--ink);
-  font-size: 14.5px;
-  text-align: left;
-}
-
-.req-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  flex: none;
-}
-
-.req-list .ok .req-mark {
-  background: var(--ink);
-  color: var(--paper);
-}
-
-.req-list .miss button {
-  color: var(--ink-2);
-}
-
-.req-list .miss .req-mark {
-  border: 1.5px solid var(--goal);
-  color: var(--goal);
-}
-
-.unlock-list {
+/* 卡片里的小节点：先点亮的下一级、点亮后解锁的。和树上的节点长得一样 */
+.mini-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px 6px;
 }
 
-.unlock {
-  display: inline-flex;
+.mini {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border: 1.5px solid var(--line);
-  background: var(--paper);
-  color: var(--ink-3);
-  font-size: 13px;
-}
-
-.unlock.s-available {
-  border-color: var(--ink);
+  width: 92px;
+  padding: 6px 2px;
+  border: 0;
+  background: none;
   color: var(--ink);
+  text-align: center;
 }
 
-.unlock.s-done {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--paper);
+.mini:hover {
+  background: var(--wash);
 }
 
-.unlock:hover {
-  border-color: var(--ink);
+.mini .slot-glyph {
+  transform: scale(1);
+}
+
+.mini-name {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.mini.s-locked .mini-name {
+  color: var(--off-ink);
+}
+
+.mini.s-done .mini-name {
+  font-weight: 700;
+}
+
+.mini-state {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--off-ink);
+}
+
+.mini.s-locked .mini-state,
+.mini.s-available .mini-state {
+  color: var(--goal);
 }

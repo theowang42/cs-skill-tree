@@ -33,10 +33,40 @@ export function SkillGlyph({ icon, size }: { icon: string; size: number }) {
   )
 }
 
-type Relation = 'none' | 'path' | 'unlock' | 'dim'
+type Relation = 'none' | 'path' | 'dim'
 
-/** 绕圈的白光：三段，长的淡、短的亮，头对齐 */
-export const ORBIT = [26, 14, 6] as const
+/**
+ * 点亮了：外圈轨道上一道白光一直绕着转，像彗星：头最亮，尾巴渐渐淡掉。
+ * 光是一段四分之一圈的弧，用一个线性渐变从尾到头由透明变白，整段弧匀速旋转。
+ * 六边形的轨道不是圆，用遮罩只让光出现在六边形的边上。
+ * r 是轨道半径（圆的半径，或六边形的外接圆半径）。
+ */
+export function OrbitLight({ uid, r, language, delay }: { uid: string; r: number; language: boolean; delay?: string }) {
+  const arcR = language ? r * 0.93 : r
+  const arc = (
+    <g className="orbit-spin" style={{ animationDelay: delay }}>
+      <circle r={arcR} pathLength={100} strokeDasharray="25 75" className="orbit-arc" stroke={`url(#comet-${uid})`} strokeWidth={language ? 12 : 4} />
+    </g>
+  )
+  return (
+    <g className="orbit">
+      <defs>
+        {/* 弧从右边（尾）顺时针到下边（头）：沿 y 从透明到白 */}
+        <linearGradient id={`comet-${uid}`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={arcR}>
+          <stop offset="0" stopColor="#fff" stopOpacity="0" />
+          <stop offset="0.75" stopColor="#fff" stopOpacity="0.75" />
+          <stop offset="1" stopColor="#fff" stopOpacity="1" />
+        </linearGradient>
+        {language && (
+          <mask id={`orbit-mask-${uid}`} maskUnits="userSpaceOnUse" x={-r - 10} y={-r - 10} width={2 * r + 20} height={2 * r + 20}>
+            <path d={hexPath(r)} fill="none" stroke="#fff" strokeWidth={4} strokeLinejoin="round" />
+          </mask>
+        )}
+      </defs>
+      {language ? <g mask={`url(#orbit-mask-${uid})`}>{arc}</g> : arc}
+    </g>
+  )
+}
 
 /** 每个节点的光转到不同的位置，整张图不会齐刷刷一起转 */
 export function orbitDelay(id: string): string {
@@ -98,18 +128,8 @@ const Node = memo(function Node({ id, language, x, y, name, icon, state, focused
           <SkillGlyph icon={icon} size={28} />
         </div>
       </foreignObject>
-      {/* 点亮了：外圈轨道上一道白光一直绕着转（三段叠起来，头亮尾淡） */}
-      {state === 'done' && (
-        <g className="orbit" style={{ animationDelay: orbitDelay(id) }}>
-          {ORBIT.map((len) =>
-            language ? (
-              <path key={len} className={`o o${len}`} d={hexPath(NODE_R + 8)} pathLength={100} strokeDasharray={`${len} ${100 - len}`} style={{ animationDelay: orbitDelay(id) }} />
-            ) : (
-              <circle key={len} className={`o o${len}`} r={NODE_R + 6} pathLength={100} strokeDasharray={`${len} ${100 - len}`} style={{ animationDelay: orbitDelay(id) }} />
-            ),
-          )}
-        </g>
-      )}
+      {/* 点亮了：外圈轨道上一道白光一直绕着转 */}
+      {state === 'done' && <OrbitLight uid={`n-${id}`} r={language ? NODE_R + 8 : NODE_R + 6} language={language} delay={orbitDelay(id)} />}
       {/* 点亮那一刻：八道光芒往外散开 */}
       {pulse && state === 'done' && (
         <g className="sparks">
@@ -312,18 +332,16 @@ export function SkillTree() {
   }
 
   // ── 关系 ──
-  // 看一个技能：它的全部前置和它直接解锁的。看一个方向：它要学的全部技能。
+  // 看一个技能：只亮它往下的全部依赖（要先点亮的），都画成黑边。看一个方向：它要学的全部技能。
   const subLens = tipHover ?? (hover ? null : focusedSub)
   const lens = subLens ? null : hover ?? focusedSkill
   const anc = useMemo(() => (lens ? tree.ancestors(lens) : new Set<string>()), [tree, lens])
-  const unlocks = useMemo(() => new Set(lens ? tree.skill(lens).dependents : []), [tree, lens])
   const plan = useMemo(() => (subLens ? tree.closures.get(subLens)! : null), [tree, subLens])
   const relation = (id: string): Relation => {
     if (plan) return plan.has(id) ? 'path' : 'dim'
     if (lens) {
       if (lens === id) return 'none'
       if (anc.has(id)) return 'path'
-      if (unlocks.has(id)) return 'unlock'
       return 'dim'
     }
     if (focusedArea) return tree.skill(id).areaId === focusedArea ? 'none' : 'dim'
@@ -337,7 +355,6 @@ export function SkillTree() {
     }
     if (lens) {
       if ((to === lens || anc.has(to)) && (from === 'root' || anc.has(from))) return ' e-path'
-      if (from === lens && !to.startsWith('sub:')) return ' e-unlock'
       return ' e-dim'
     }
     if (focusedArea) return !to.startsWith('sub:') && tree.skill(to).areaId === focusedArea ? '' : ' e-dim'
