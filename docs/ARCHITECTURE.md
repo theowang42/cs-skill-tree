@@ -70,6 +70,7 @@ erDiagram
 | `0001_content.sql` | 内容表。`STRICT` 表，CHECK 约束保证 id 格式、链接是 http(s)、知识点和工具的字段互斥 |
 | `0002_graph_views.sql` | `skill_ancestors`（全部前置）、`skill_tiers`（领域内第几行）、`sub_skill_closure`（方向必学的全部技能）、`sub_learning_plan`（第几步学）、`sub_choices`、`skill_unlocks`、`skill_weight`（被多少技能依赖） |
 | `0003_learners.sql` | `learners`、`learner_skills`、`learner_events`（三个触发器自动记录每次状态变化）；视图 `learner_skill_state`（四种状态）、`learner_frontier`（能力边界）、`learner_sub_readiness`（就绪度） |
+| `0011_career_icon.sql` | 职业是最上面一排的终极节点，每个有自己的图标 |
 | `0010_language_talent.sql` | 编程语言标成语言天赋（`is_language`），树上画成六边形 |
 | `0009_prerequisites_first.sql` | 前置都点亮了才能点亮：清掉旧数据里不合规的，触发器挡住不合规的写入，取消时一层层熄灭后继 |
 | `0008_lit_only.sql` | 只有点亮一种状态：去掉“在学”，旧数据里的“在学”当作没点亮，触发器挡住新的 |
@@ -144,7 +145,7 @@ src/
 
 - 点节点：右侧面板打开（一句话、点亮按钮、去哪学）；顶栏“快速点亮”打开后点节点直接点亮或取消。
 - 悬停或选中节点：只亮它往下的全部依赖（都画成黑边），其余变淡。前置没点亮时，点亮按钮是灰的；快速点亮模式下点它会提示缺哪个前置，可以一键跳过去。
-- 点最上面一排的方向（或顶栏“选一个目标”里的一行）：亮出它要学的全部技能，视图缩到装下整条路线，面板里可以设为目标。
+- 职业是最上面一排的终极节点，不用选：要学的技能（不算加分项）都点亮了就自动达成（`isReached`），放一次庆祝动画。点它亮出它要学的全部技能，视图缩到装下整条路线。顶栏显示达成了几个职业。学习者表里的 goal 字段还在，页面不再用。
 - 设了目标后，最该学的节点上方有一个朱砂小三角；顶栏“下一个”飞过去。
 - 美术规则见 [ART.md](ART.md)。
 

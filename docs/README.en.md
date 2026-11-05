@@ -5,7 +5,7 @@
 **A computer science skill tree that grows from the bottom up: light up what you know and see your frontier and next step.**
 
 - 126 skills you could put on a résumé, from intro programming, data structures, computer systems and operating systems to PyTorch, CUDA, vLLM inference and agents, each with its own icon
-- Like a game skill tree: columns growing upward, long chains that fork only at key nodes, and 13 career directions along the top row
+- Like a game skill tree: columns growing upward, long chains that fork only at key nodes, and 13 careers along the top row as final nodes that light up on their own once everything they need is lit
 - Two states only: lit or not lit
 
 👉 https://theowang42.github.io/cs-skill-tree/
