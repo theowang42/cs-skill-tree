@@ -44,12 +44,11 @@ export function Dashboard() {
     <div className="detail">
       <p className="eyebrow">我的进度</p>
       <div className="stats">
-        <div><b>{t.done}</b><span>已掌握</span></div>
-        <div><b>{t.learning}</b><span>在学</span></div>
-        <div><b>{t.available}</b><span>能学</span></div>
+        <div><b>{t.done}</b><span>已点亮</span></div>
+        <div><b>{t.available}</b><span>能点亮</span></div>
         <div><b>{t.locked}</b><span>还够不着</span></div>
       </div>
-      <Meter value={t.done} partial={t.learning} max={t.total} />
+      <Meter value={t.done} max={t.total} />
 
       <h4>目标</h4>
       {goal && r ? (
@@ -58,7 +57,7 @@ export function Dashboard() {
             <span>{goal.name}</span>
             <small>{Math.round(r.percent)}%</small>
           </button>
-          <Meter value={r.coreDone + r.choiceDone} partial={r.coreLearning} max={r.coreTotal + r.choiceTotal} />
+          <Meter value={r.coreDone + r.choiceDone} max={r.coreTotal + r.choiceTotal} />
         </>
       ) : (
         <ul className="plain-list">
@@ -71,7 +70,7 @@ export function Dashboard() {
           ))}
           <li>
             <button className="row-link" onClick={() => setFocus({ kind: 'category', id: tree.roadmap.categories[0].id })}>
-              <span>全部方向（也画在树的枝头 ◇）→</span>
+              <span>全部方向（也画在树的最上面一排 ◇）→</span>
             </button>
           </li>
         </ul>

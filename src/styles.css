@@ -255,25 +255,6 @@ a {
   transition: color 0.3s var(--ease);
 }
 
-/* 课程：方块里写课号 */
-.node .code {
-  fill: var(--ink-3);
-  font-size: 13px;
-  font-weight: 700;
-  text-anchor: middle;
-  letter-spacing: -0.02em;
-  transition: fill 0.3s var(--ease);
-}
-
-.node.s-available .code,
-.node.s-learning .code {
-  fill: var(--ink);
-}
-
-.node.s-done .code {
-  fill: var(--paper);
-}
-
 /* 名字带一圈白边，枝条从下面穿过时不会和字搅在一起 */
 .node .lbl {
   fill: var(--ink-3);
@@ -285,23 +266,16 @@ a {
   stroke-linejoin: round;
 }
 
-.node.s-available .box,
-.node.s-learning .box {
+.node.s-available .box {
   stroke: var(--ink);
   stroke-width: 2;
 }
 
-.node.s-learning .box {
-  stroke-dasharray: 5 4;
-}
-
-.node.s-available .glyph,
-.node.s-learning .glyph {
+.node.s-available .glyph {
   color: var(--ink);
 }
 
-.node.s-available .lbl,
-.node.s-learning .lbl {
+.node.s-available .lbl {
   fill: var(--ink);
 }
 
@@ -398,8 +372,7 @@ a {
   flex: none;
 }
 
-.panel-glyph.s-available,
-.panel-glyph.s-learning {
+.panel-glyph.s-available {
   border-color: var(--ink);
   color: var(--ink);
 }
@@ -741,48 +714,30 @@ a {
   text-decoration: none;
 }
 
-.segmented {
-  display: inline-flex;
-  border: 1px solid var(--ink);
-  overflow: hidden;
-}
-
-.segmented button {
-  padding: 5px 12px;
-  border: 0;
-  border-left: 1px solid var(--ink);
+/* 点亮按钮：没点亮是黑框，点亮了是实心黑 */
+.light-toggle {
+  display: block;
+  width: 100%;
+  padding: 9px 0;
+  border: 1.5px solid var(--ink);
   background: var(--paper);
-  font-size: 13px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.2s, color 0.2s;
 }
 
-.segmented button:first-child {
-  border-left: 0;
+.light-toggle:hover {
+  background: var(--wash);
 }
 
-.segmented button.on {
+.light-toggle.on {
   background: var(--ink);
   color: var(--paper);
 }
 
-.status-control {
-  width: 100%;
-  margin: 0;
-}
-
-.status-control button {
-  flex: 1;
-  padding: 7px 0;
-}
-
-.status-control button.on.v-learning {
-  background: var(--paper);
-  color: var(--ink);
-  box-shadow: inset 0 0 0 2px var(--ink);
-}
-
-.status-control button.on.v-none {
-  background: var(--wash);
-  color: var(--ink);
+.light-toggle.on:hover {
+  background: #333;
 }
 
 .link-button {
@@ -815,8 +770,7 @@ a {
   overflow: hidden;
 }
 
-.meter-done,
-.meter-partial {
+.meter-done {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -826,10 +780,6 @@ a {
 
 .meter-done {
   background: var(--ink);
-}
-
-.meter-partial {
-  background: var(--ink-3);
 }
 
 .goal-meter {

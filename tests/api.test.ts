@@ -64,9 +64,11 @@ test('学习者的完整流程', async () => {
   const one = await call('PUT', `/learners/${id}/skills/linux`, { status: 'done' })
   assert.equal(one.body.skills.linux.status, 'done')
   assert.equal((await call('PUT', `/learners/${id}/skills/linux`, { status: 'meh' })).status, 400)
+  // 只有点亮和没点亮
+  assert.equal((await call('PUT', `/learners/${id}/skills/linux`, { status: 'learning' })).status, 400)
   assert.equal((await call('PUT', `/learners/${id}/skills/nope`, { status: 'done' })).status, 404)
 
-  const batch = await call('PATCH', `/learners/${id}/skills`, { changes: { python: 'done', git: 'learning', linux: null } })
+  const batch = await call('PATCH', `/learners/${id}/skills`, { changes: { python: 'done', git: 'done', linux: null } })
   assert.deepEqual(Object.keys(batch.body.skills).sort(), ['git', 'python'])
   // 有一个不认识的技能，整批都不写
   const bad = await call('PATCH', `/learners/${id}/skills`, { changes: { dsa: 'done', nope: 'done' } })
@@ -74,19 +76,17 @@ test('学习者的完整流程', async () => {
   assert.equal((await call('GET', `/learners/${id}`)).body.skills.dsa, undefined)
 
   const sum = (await call('GET', `/learners/${id}/summary`)).body
-  assert.equal(sum.counts.done, 1)
-  assert.equal(sum.counts.learning, 1)
+  assert.equal(sum.counts.done, 2)
   assert.equal(sum.goal.subId, 'inference')
-  assert.ok(sum.frontier.some((f: { skillId: string }) => f.skillId === 'math'))
+  assert.ok(sum.frontier.some((f: { skillId: string }) => f.skillId === 'calculus'))
   assert.ok(!sum.frontier.some((f: { skillId: string }) => f.skillId === 'python'))
 
   const ev = (await call('GET', `/learners/${id}/events`)).body
-  assert.deepEqual(ev.map((e: { skillId: string; to: string | null }) => `${e.skillId}:${e.to}`), ['linux:null', 'git:learning', 'python:done', 'linux:done'])
+  assert.deepEqual(ev.map((e: { skillId: string; to: string | null }) => `${e.skillId}:${e.to}`), ['linux:null', 'git:done', 'python:done', 'linux:done'])
 
   const tl = (await call('GET', `/learners/${id}/timeline`)).body
   assert.equal(tl.length, 1)
-  assert.deepEqual(tl[0].lit, ['python'])
-  assert.deepEqual(tl[0].learning, ['git'])
+  assert.deepEqual(tl[0].lit, ['python', 'git'])
   assert.deepEqual(tl[0].unlit, ['linux'])
 
   const exported = (await call('GET', `/learners/${id}/export`)).body

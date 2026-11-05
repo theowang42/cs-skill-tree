@@ -60,8 +60,9 @@ export function parseFile(text: string): Progress {
   if (!f.skills || typeof f.skills !== 'object') throw new Error('文件里没有技能数据')
   const skills: Record<string, ProgressEntry> = {}
   for (const [id, e] of Object.entries(f.skills)) {
-    if (e && (e.status === 'done' || e.status === 'learning')) {
-      skills[id] = { status: e.status, updatedAt: typeof e.updatedAt === 'string' ? e.updatedAt : new Date().toISOString() }
+    // 旧版本还有“在学”，现在只认点亮
+    if (e && e.status === 'done') {
+      skills[id] = { status: 'done', updatedAt: typeof e.updatedAt === 'string' ? e.updatedAt : new Date().toISOString() }
     }
   }
   return { goalSubId: typeof f.goalSubId === 'string' ? f.goalSubId : null, skills }

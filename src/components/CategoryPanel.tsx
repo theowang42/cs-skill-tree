@@ -7,7 +7,7 @@ export function CategoryPanel({ id }: { id: string }) {
     <div className="detail" key={id}>
       <p className="eyebrow">方向</p>
       <h2>你想去哪</h2>
-      <p className="summary">每个方向都画在技能树的枝头（◇）。点一个，树上会亮出它要学的全部技能。</p>
+      <p className="summary">每个方向都画在技能树的最上面一排（◇）。点一个，树上会亮出它要学的全部技能。</p>
       {tree.roadmap.categories.map((c) => (
         <section key={c.id} className="dir-group">
           <h4>{c.name}</h4>

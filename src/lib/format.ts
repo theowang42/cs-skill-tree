@@ -2,9 +2,8 @@ import type { SkillState } from '../types.ts'
 
 export const STATE_LABEL: Record<SkillState, string> = {
   locked: '前置未满足',
-  available: '可以学了',
-  learning: '正在学',
-  done: '已掌握',
+  available: '可以点亮了',
+  done: '已点亮',
 }
 
 /** “3 分钟前”这类相对时间 */

@@ -5,7 +5,7 @@ import type { Learner, LearnerEvent, ProgressEntry, Readiness, SkillState, Statu
 
 type Row = Record<string, unknown>
 
-export const STATUSES: readonly Status[] = ['learning', 'done']
+export const STATUSES: readonly Status[] = ['done']
 export const isStatus = (v: unknown): v is Status => STATUSES.includes(v as Status)
 
 /** 在一个事务里跑，出错就回滚 */
@@ -60,7 +60,7 @@ export function unknownSkills(db: DatabaseSync, ids: string[]): string[] {
 }
 
 /**
- * 批量改状态。status 为 null 表示清掉（回到没学）。
+ * 批量点亮或取消。status 为 null 表示取消点亮。
  * 调用前先用 unknownSkills 校验；这里在一个事务里写，要么全成功要么全不变。
  */
 export function setStatuses(db: DatabaseSync, learnerId: string, changes: Record<string, Status | null>, at?: string) {
@@ -107,7 +107,7 @@ export function skillStates(db: DatabaseSync, learnerId: string): Record<string,
 
 export function readinessAll(db: DatabaseSync, learnerId: string): Readiness[] {
   return (db.prepare(`
-    SELECT r.sub_id, core_total, core_done, core_learning, choice_total, choice_done, percent
+    SELECT r.sub_id, core_total, core_done, choice_total, choice_done, percent
       FROM learner_sub_readiness r JOIN subs s ON s.id = r.sub_id JOIN categories c ON c.id = s.category_id
      WHERE learner_id = ?
      ORDER BY percent DESC, c.position, s.position
@@ -115,7 +115,6 @@ export function readinessAll(db: DatabaseSync, learnerId: string): Readiness[] {
     subId: r.sub_id as string,
     coreTotal: r.core_total as number,
     coreDone: r.core_done as number,
-    coreLearning: r.core_learning as number,
     choiceTotal: r.choice_total as number,
     choiceDone: r.choice_done as number,
     percent: r.percent as number,
@@ -133,7 +132,7 @@ export interface Summary {
 }
 
 export function summary(db: DatabaseSync, learnerId: string): Summary {
-  const counts = { locked: 0, available: 0, learning: 0, done: 0 } as Record<SkillState, number>
+  const counts = { locked: 0, available: 0, done: 0 } as Record<SkillState, number>
   for (const r of db.prepare('SELECT state, COUNT(*) AS n FROM learner_skill_state WHERE learner_id = ? GROUP BY state').all(learnerId) as Row[]) {
     counts[r.state as SkillState] = r.n as number
   }
@@ -197,15 +196,14 @@ export function timeline(db: DatabaseSync, learnerId: string): TimelineDay[] {
   for (const r of rows) {
     const date = r.date as string
     let day = days.get(date)
-    if (!day) days.set(date, (day = { date, lit: [], learning: [], unlit: [] }))
+    if (!day) days.set(date, (day = { date, lit: [], unlit: [] }))
     const id = r.skill_id as string
     // 同一天反复改，只记最后一次
-    for (const list of [day.lit, day.learning, day.unlit]) {
+    for (const list of [day.lit, day.unlit]) {
       const i = list.indexOf(id)
       if (i >= 0) list.splice(i, 1)
     }
     if (r.to_status === 'done') day.lit.push(id)
-    else if (r.to_status === 'learning') day.learning.push(id)
     else day.unlit.push(id)
   }
   return [...days.values()]

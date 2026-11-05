@@ -105,19 +105,13 @@ export function readiness(tree: Tree, subId: string, progress: Progress): Readin
   const sub = tree.subs.get(subId)!
   const closure = tree.closures.get(subId)!
   let coreDone = 0
-  let coreLearning = 0
-  for (const id of closure) {
-    const st = progress.skills[id]?.status
-    if (st === 'done') coreDone++
-    else if (st === 'learning') coreLearning++
-  }
+  for (const id of closure) if (progress.skills[id]?.status === 'done') coreDone++
   const choiceDone = sub.choices.filter((c) => c.options.some((o) => progress.skills[o]?.status === 'done')).length
   const total = closure.size + sub.choices.length
   return {
     subId,
     coreTotal: closure.size,
     coreDone,
-    coreLearning,
     choiceTotal: sub.choices.length,
     choiceDone,
     percent: total ? Math.round((1000 * (coreDone + choiceDone)) / total) / 10 : 0,
@@ -164,13 +158,12 @@ export function litDescendants(tree: Tree, id: string, progress: Progress): stri
 export interface Totals {
   total: number
   done: number
-  learning: number
   available: number
   locked: number
 }
 
 export function totals(states: Map<string, SkillState>, filter?: (id: string) => boolean): Totals {
-  const t: Totals = { total: 0, done: 0, learning: 0, available: 0, locked: 0 }
+  const t: Totals = { total: 0, done: 0, available: 0, locked: 0 }
   for (const [id, st] of states) {
     if (filter && !filter(id)) continue
     t.total++

@@ -37,7 +37,7 @@ async function load(): Promise<Loaded> {
   return { tree, store, progress, shared, focus: known ? { kind: m![1] as FocusKind, id: m![2] } : null }
 }
 
-/** 全局快捷键：Esc 返回；选中星时 D / L / X 改状态；Q 切换快速点亮 */
+/** 全局快捷键：Esc 返回；选中技能时 D 点亮、X 取消；Q 切换快速点亮 */
 function Shortcuts() {
   const { focus, setFocus, setStatus, readOnly, quick, setQuick } = useApp()
   useEffect(() => {
@@ -50,7 +50,6 @@ function Shortcuts() {
       else if (focus?.kind === 'skill' && !readOnly) {
         const k = e.key.toLowerCase()
         if (k === 'd') setStatus(focus.id, 'done')
-        else if (k === 'l') setStatus(focus.id, 'learning')
         else if (k === 'x') setStatus(focus.id, null)
       }
     }

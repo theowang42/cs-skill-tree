@@ -25,7 +25,7 @@ test('技能数量在预期范围内，每个都有等级和图标', () => {
   const n = (sql: string) => (db.prepare(sql).get() as Row).n as number
   // 技能是能写进简历的能力，不是知识点：几十个，而不是几百个
   const skills = n('SELECT COUNT(*) AS n FROM skills')
-  assert.ok(skills >= 40 && skills <= 90, `技能有 ${skills} 个`)
+  assert.ok(skills >= 80 && skills <= 160, `技能有 ${skills} 个`)
   assert.ok(n('SELECT COUNT(*) AS n FROM skill_prerequisites') >= 50)
   assert.equal(n('SELECT COUNT(*) AS n FROM skills WHERE icon IS NULL'), 0)
   assert.equal(n('SELECT COUNT(*) AS n FROM skill_level WHERE level NOT BETWEEN 1 AND 5'), 0)
@@ -77,7 +77,7 @@ test('重新播种保留学习者的进度，只清掉指向已删除技能的�
   const db = freshDb()
   const id = 'a'.repeat(32)
   db.prepare("INSERT INTO learners (id, goal_sub_id) VALUES (?, 'inference')").run(id)
-  db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'linux', 'done'), (?, 'docker', 'learning')").run(id, id)
+  db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'linux', 'done'), (?, 'docker', 'done')").run(id, id)
   // 模拟一个已经从内容里删掉的技能
   db.exec('PRAGMA foreign_keys = OFF')
   db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'removed-skill', 'done')").run(id)
@@ -87,7 +87,7 @@ test('重新播种保留学习者的进度，只清掉指向已删除技能的�
   assert.equal(r.orphaned, 1)
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM learner_events').get() as Row).n, eventsBefore, '清理不该留下用户没做过的操作记录')
   const rows = db.prepare('SELECT skill_id, status FROM learner_skills ORDER BY skill_id').all() as Row[]
-  assert.deepEqual(rows.map((x) => `${x.skill_id}:${x.status}`), ['docker:learning', 'linux:done'])
+  assert.deepEqual(rows.map((x) => `${x.skill_id}:${x.status}`), ['docker:done', 'linux:done'])
   assert.equal((db.prepare('SELECT goal_sub_id FROM learners').get() as Row).goal_sub_id, 'inference')
 })
 
@@ -99,16 +99,16 @@ test('种子文件出错时整体回滚，原来的内容不受影响', () => {
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM skills').get() as Row).n, before)
 })
 
-test('操作记录由触发器自动写入', () => {
+test('操作记录由触发器自动写入；只有点亮一种状态', () => {
   const db = freshDb()
   const id = 'b'.repeat(32)
   db.prepare('INSERT INTO learners (id) VALUES (?)').run(id)
-  db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'linux', 'learning')").run(id)
-  db.prepare("UPDATE learner_skills SET status = 'done' WHERE learner_id = ?").run(id)
+  db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'linux', 'done')").run(id)
   db.prepare("UPDATE learner_skills SET status = 'done' WHERE learner_id = ?").run(id) // 没变化，不记
   db.prepare('DELETE FROM learner_skills WHERE learner_id = ?').run(id)
   const ev = db.prepare('SELECT from_status, to_status FROM learner_events WHERE learner_id = ? ORDER BY id').all(id) as Row[]
-  assert.deepEqual(ev.map((e) => `${e.from_status}->${e.to_status}`), ['null->learning', 'learning->done', 'done->null'])
+  assert.deepEqual(ev.map((e) => `${e.from_status}->${e.to_status}`), ['null->done', 'done->null'])
+  assert.throws(() => db.prepare("INSERT INTO learner_skills (learner_id, skill_id, status) VALUES (?, 'git', 'learning')").run(id), /只能是 done/)
 })
 
 test('API 的整棵树缓存：别的连接改了内容就失效，自己写学习者数据不失效', async () => {

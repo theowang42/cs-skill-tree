@@ -1,11 +1,11 @@
-// 技能树：CS 核心课在中心，一条条链往四周长，枝头是方向。白底黑线。
-// 课程是方块（里面是课号），技能是圆（里面是图标）。已掌握是实心黑，能学是黑框，还够不着是浅灰。
+// 技能树：从下往上长，一列一列，最上面一排是方向。白底黑线。
+// 每个节点一个图标和名字。点亮了是实心黑，能点是黑框，还够不着是浅灰。只有点亮和没点亮两种状态。
 // 每个节点只画一根枝（连到主前置）；悬停或选中时，其余前置用虚线补出来，整条路线保持清楚，其余变淡。
 // 平移缩放不走 React：直接改 <g> 的 transform。
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
-import { layoutWeb, NODE_R, subNodeId } from '../lib/webLayout'
+import { LABEL_Y, layoutWeb, NODE_R, subNodeId } from '../lib/webLayout'
 import { ICONS } from '../generated/icons'
 import { frontier, missingPrerequisites } from '../lib/tree'
 
@@ -19,10 +19,7 @@ const MIN_K = 0.3
 const MAX_K = 2.5
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 
-export const isCourse = (icon: string) => icon.startsWith('text:')
-
 export function SkillGlyph({ icon, size }: { icon: string; size: number }) {
-  if (isCourse(icon)) return <span className="code" style={{ fontSize: size * 0.5 }}>{icon.slice(5)}</span>
   const spec = ICONS[icon]
   if (!spec) return null
   if (spec.kind === 'lucide') {
@@ -54,7 +51,7 @@ interface NodeProps {
 }
 
 const Node = memo(function Node({ id, x, y, name, icon, state, focused, relation, next, pulse, onClick, onHover }: NodeProps) {
-  const cls = ['node', isCourse(icon) && 'course', `s-${state}`, focused && 'focused', relation !== 'none' && `r-${relation}`, pulse && 'pulse'].filter(Boolean).join(' ')
+  const cls = ['node', `s-${state}`, focused && 'focused', relation !== 'none' && `r-${relation}`, pulse && 'pulse'].filter(Boolean).join(' ')
   return (
     <g
       className={cls}
@@ -64,23 +61,14 @@ const Node = memo(function Node({ id, x, y, name, icon, state, focused, relation
       onPointerEnter={() => onHover(id)}
       onPointerLeave={() => onHover(null)}
     >
-      {isCourse(icon) ? (
-        <>
-          <rect className="box" x={-NODE_R} y={-NODE_R} width={NODE_R * 2} height={NODE_R * 2} rx={6} />
-          <text className="code" dy="0.35em">{icon.slice(5)}</text>
-        </>
-      ) : (
-        <>
-          <circle className="box" r={NODE_R} />
-          <foreignObject x={-12} y={-12} width="24" height="24">
-            <div className="glyph">
-              <SkillGlyph icon={icon} size={24} />
-            </div>
-          </foreignObject>
-        </>
-      )}
+      <circle className="box" r={NODE_R} />
+      <foreignObject x={-12} y={-12} width="24" height="24">
+        <div className="glyph">
+          <SkillGlyph icon={icon} size={24} />
+        </div>
+      </foreignObject>
       {next && <path className="next-mark" d={`M-6,${-NODE_R - 13} L6,${-NODE_R - 13} L0,${-NODE_R - 6}Z`} />}
-      <text className="lbl" y={NODE_R + 18}>{name}</text>
+      <text className="lbl" y={LABEL_Y}>{name}</text>
     </g>
   )
 })
@@ -89,8 +77,6 @@ interface TipProps {
   id: string
   x: number
   y: number
-  /** 朝外的方向：名字写在菱形外侧，不压到枝上的节点 */
-  angle: number
   name: string
   percent: number
   goal: boolean
@@ -100,15 +86,8 @@ interface TipProps {
   onHover: (id: string | null) => void
 }
 
-/** 枝头的方向：一个小菱形和名字。点它看要学什么、设为目标 */
-const Tip = memo(function Tip({ id, x, y, angle, name, percent, goal, focused, dim, onClick, onHover }: TipProps) {
-  const c = Math.cos(angle)
-  const sn = Math.sin(angle)
-  // 左右两边：名字横着写在外侧；上下：写在菱形的上方或下方
-  const side = c > 0.4 ? 'start' : c < -0.4 ? 'end' : 'middle'
-  const tx = side === 'start' ? 14 : side === 'end' ? -14 : 0
-  const ty = side === 'middle' ? (sn > 0 ? 24 : -26) : 0
-  const hitW = 130
+/** 最上面一排的方向：一个菱形，名字和进度写在上面。点它看要学什么、设为目标 */
+const Tip = memo(function Tip({ id, x, y, name, percent, goal, focused, dim, onClick, onHover }: TipProps) {
   const cls = ['tip', goal && 'goal', focused && 'focused', dim && 'dim', percent >= 100 && 'reached'].filter(Boolean).join(' ')
   return (
     <g
@@ -119,10 +98,10 @@ const Tip = memo(function Tip({ id, x, y, angle, name, percent, goal, focused, d
       onPointerEnter={() => onHover(id)}
       onPointerLeave={() => onHover(null)}
     >
-      <rect className="hit" x={side === 'start' ? -12 : side === 'end' ? -hitW : -hitW / 2} y={side === 'middle' ? (sn > 0 ? -12 : -50) : -20} width={side === 'middle' ? hitW : hitW + 12} height={side === 'middle' ? 62 : 44} />
-      <path className="diamond" d="M0,-8 L8,0 L0,8 L-8,0Z" />
-      <text className="tip-name" x={tx} y={ty} dy="0.1em" style={{ textAnchor: side }}>{name}</text>
-      <text className="tip-pct" x={tx} y={ty + 16} dy="0.1em" style={{ textAnchor: side }}>{Math.round(percent)}%</text>
+      <rect className="hit" x={-62} y={-52} width={124} height={64} />
+      <path className="diamond" d="M0,-9 L9,0 L0,9 L-9,0Z" />
+      <text className="tip-name" y={-17}>{name}</text>
+      <text className="tip-pct" y={-35}>{Math.round(percent)}%</text>
     </g>
   )
 })
@@ -169,13 +148,11 @@ export function SkillTree() {
     flyTo({ x: size.w / 2 - ((b.minX + b.maxX) / 2) * k, y: size.h / 2 - ((b.minY + b.maxY) / 2) * k, k }, ms)
   }, [layout, size, flyTo])
 
-  /** 打开时：从中心的核心课看起，字看得清；往外拖或缩小再看枝头 */
+  /** 打开时：从最下面的起点看起，主线在屏幕中间，字看得清；往上拖或点“看全图”再看方向 */
   const home = useCallback((ms?: number) => {
-    const b = layout.bounds
     if (!size.w) return
-    const all = Math.min(size.w / (b.maxX - b.minX), size.h / (b.maxY - b.minY))
-    const k = Math.min(1, Math.max(all, size.w < 700 ? 0.6 : 0.78))
-    flyTo({ x: size.w / 2, y: size.h / 2 + 40 * k, k }, ms)
+    const k = size.w < 700 ? 0.62 : 0.82
+    flyTo({ x: size.w / 2 - layout.home.x * k, y: size.h - (size.w < 700 ? 120 : 80) - layout.home.y * k, k }, ms)
   }, [layout, size, flyTo])
 
   const centerOn = useCallback((x: number, y: number) => {
@@ -337,7 +314,7 @@ export function SkillTree() {
     if (drag.current?.moved) return
     if (quick && !readOnly) {
       const cur = states.get(id)!
-      const next = cur === 'done' ? 'learning' : cur === 'learning' ? null : 'done'
+      const next = cur === 'done' ? null : 'done'
       change({ [id]: next })
       if (next === 'done') {
         const missing = missingPrerequisites(tree, id, progress)
@@ -371,7 +348,6 @@ export function SkillTree() {
             {(lens || plan) && layout.extra.filter((e) => extraOn(e.from, e.to)).map((e) => (
               <path key={`x:${e.from}>${e.to}`} d={e.d} className={`edge e-extra ${edgeState(e.from, e.to)}`} />
             ))}
-            <circle r="6" className="root-dot" />
           </g>
           <g className="tips">
             {tree.roadmap.subs.map((sub) => {
@@ -382,7 +358,6 @@ export function SkillTree() {
                   id={sub.id}
                   x={n.x}
                   y={n.y}
-                  angle={n.angle}
                   name={sub.name}
                   percent={readinessBySub.get(sub.id)!.percent}
                   goal={progress.goalSubId === sub.id}

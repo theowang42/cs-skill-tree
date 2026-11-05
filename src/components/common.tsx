@@ -1,17 +1,15 @@
 // 面板里反复用到的小部件
 import type { ReactNode } from 'react'
-import type { SkillState, Status } from '../types'
+import type { SkillState } from '../types'
 import { useApp } from '../state'
 import { STATE_LABEL } from '../lib/format'
 
-/** 进度条。value / max，可选第二段（在学） */
-export function Meter({ value, max, partial = 0, label }: { value: number; max: number; partial?: number; label?: string }) {
+/** 进度条。value / max */
+export function Meter({ value, max, label }: { value: number; max: number; label?: string }) {
   const w = max ? (100 * value) / max : 0
-  const p = max ? (100 * partial) / max : 0
   return (
     <span className="meter" role="meter" aria-valuemin={0} aria-valuemax={max} aria-valuenow={value} aria-label={label}>
       <span className="meter-done" style={{ width: `${w}%` }} />
-      <span className="meter-partial" style={{ left: `${w}%`, width: `${p}%` }} />
     </span>
   )
 }
@@ -47,26 +45,19 @@ export function SubChip({ id }: { id: string }) {
   )
 }
 
-/** 没学 / 在学 / 学会了 三段开关 */
-export function StatusControl({ id, compact = false }: { id: string; compact?: boolean }) {
+/** 点亮 / 取消点亮：只有这两种状态 */
+export function StatusControl({ id }: { id: string }) {
   const { progress, setStatus, readOnly } = useApp()
-  const cur: Status | null = progress.skills[id]?.status ?? null
-  const opts: [Status | null, string][] = [[null, '没学'], ['learning', '在学'], ['done', compact ? '会了' : '已掌握']]
+  const lit = progress.skills[id]?.status === 'done'
   return (
-    <div className={`segmented status-control${compact ? ' compact' : ''}`} role="radiogroup" aria-label="学习状态">
-      {opts.map(([v, label]) => (
-        <button
-          key={label}
-          role="radio"
-          aria-checked={cur === v}
-          className={cur === v ? `on v-${v ?? 'none'}` : ''}
-          disabled={readOnly}
-          onClick={() => setStatus(id, v)}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
+    <button
+      className={`light-toggle${lit ? ' on' : ''}`}
+      aria-pressed={lit}
+      disabled={readOnly}
+      onClick={() => setStatus(id, lit ? null : 'done')}
+    >
+      {lit ? '已点亮 · 点一下取消' : '点亮'}
+    </button>
   )
 }
 

@@ -122,7 +122,7 @@ export interface Roadmap {
 // ───────────── 学习进度 ─────────────
 
 /** 学习者亲手标的状态 */
-export type Status = 'learning' | 'done'
+export type Status = 'done'
 /** 页面上显示的状态：标过的直接用；没标的看前置是不是都 done */
 export type SkillState = 'locked' | 'available' | Status
 
@@ -153,7 +153,6 @@ export interface Readiness {
   subId: string
   coreTotal: number
   coreDone: number
-  coreLearning: number
   choiceTotal: number
   choiceDone: number
   /** 0~100，保留一位小数 */
@@ -164,7 +163,6 @@ export interface Readiness {
 export interface TimelineDay {
   date: string
   lit: string[]
-  learning: string[]
   unlit: string[]
 }
 

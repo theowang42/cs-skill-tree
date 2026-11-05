@@ -2,17 +2,15 @@
 
 [简体中文](../README.md) | English
 
-**A computer science skill tree that grows outward from the center: light up what you know and see your frontier and next step.**
+**A computer science skill tree that grows from the bottom up: light up what you know and see your frontier and next step.**
 
-- Core CS courses sit at the center (CS61A/B/C, CSAPP, 6.006, 18.06, Stat 110), with 6.S081, CS168, CS149, CS229, 15-445 and 6.824 further out: 17 courses in all
-- Around them, 43 skills you could put on a résumé (Python, Linux, CUDA, PyTorch, vLLM inference, Linux kernel development…), each with its own icon
-- Like a game skill tree: long chains with forks only at key nodes, and 13 career directions at the branch tips
-- Mastered skills are filled black, available ones have a black outline, the rest are light grey
-- Opening a skill shows one sentence and a few links
+- 101 skills you could put on a résumé, from intro programming, data structures, computer systems and operating systems to PyTorch, CUDA, vLLM inference and agents, each with its own icon
+- Like a game skill tree: columns growing upward, long chains that fork only at key nodes, and 13 career directions along the top row
+- Two states only: lit or not lit
 
 👉 https://theowang42.github.io/cs-skill-tree/
 
-![The skill tree with core courses at the center and the AI infrastructure chain growing upward](screenshot.jpg)
+![The skill tree growing up from intro programming, with the Python → NumPy → machine learning → PyTorch chain in the middle](screenshot.jpg)
 
 ## Run locally
 

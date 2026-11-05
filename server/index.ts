@@ -12,8 +12,8 @@
 //   GET    /api/learners/:id
 //   DELETE /api/learners/:id                   删除这个学习者和全部记录
 //   PUT    /api/learners/:id/goal              { "subId": "backend" | null }
-//   PUT    /api/learners/:id/skills/:skill     { "status": "learning" | "done" | null }
-//   PATCH  /api/learners/:id/skills            { "changes": { "<技能>": "done" | "learning" | null, … } }
+//   PUT    /api/learners/:id/skills/:skill     { "status": "done" | null }       点亮 / 取消点亮
+//   PATCH  /api/learners/:id/skills            { "changes": { "<技能>": "done" | null, … } }
 //   GET    /api/learners/:id/summary           状态计数、能力边界、目标就绪度、离得最近的方向
 //   GET    /api/learners/:id/readiness         所有方向的就绪度
 //   GET    /api/learners/:id/events?limit=50   最近的操作记录
@@ -96,6 +96,8 @@ export function parseProgressFile(db: DatabaseSync, body: Record<string, unknown
   for (const [id, e] of entries) {
     if (unknown.has(id)) continue
     const entry = e as Partial<ProgressEntry> | null
+    // 旧版本的“在学”当作没点亮，跳过
+    if (entry && (entry.status as string) === 'learning') continue
     if (!entry || !isStatus(entry.status)) throw badRequest(`技能 ${id} 的状态不对`)
     const at = typeof entry.updatedAt === 'string' && !Number.isNaN(Date.parse(entry.updatedAt)) ? new Date(entry.updatedAt).toISOString() : new Date().toISOString()
     skills[id] = { status: entry.status, updatedAt: at }
@@ -185,7 +187,7 @@ export async function handleApi(db: DatabaseSync, req: IncomingMessage, url: URL
     case 'PUT /learners/:b/skills/:d': {
       const id = requireLearner(db, b)
       const { status } = await readJson(req)
-      if (status !== null && !isStatus(status)) throw badRequest('status 只能是 learning、done 或 null')
+      if (status !== null && !isStatus(status)) throw badRequest('status 只能是 done（点亮）或 null（取消点亮）')
       if (unknownSkills(db, [d]).length) throw notFound(`技能 ${d}`)
       setStatuses(db, id, { [d]: status as Status | null })
       send(res, 200, getLearner(db, id))
@@ -197,7 +199,7 @@ export async function handleApi(db: DatabaseSync, req: IncomingMessage, url: URL
       if (!changes || typeof changes !== 'object' || Array.isArray(changes)) throw badRequest('changes 必须是 { 技能: 状态 } 对象')
       const entries = Object.entries(changes as Record<string, unknown>)
       if (entries.length > 1000) throw badRequest('一次最多改 1000 个技能')
-      for (const [k, v] of entries) if (v !== null && !isStatus(v)) throw badRequest(`技能 ${k} 的状态只能是 learning、done 或 null`)
+      for (const [k, v] of entries) if (v !== null && !isStatus(v)) throw badRequest(`技能 ${k} 的状态只能是 done（点亮）或 null（取消点亮）`)
       const unknown = unknownSkills(db, entries.map(([k]) => k))
       if (unknown.length) throw badRequest(`没有这些技能：${unknown.join('、')}`)
       setStatuses(db, id, changes as Record<string, Status | null>)

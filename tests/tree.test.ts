@@ -63,7 +63,7 @@ test('领域里的行号：同领域的前置一定在更靠上的行', () => {
 })
 
 // 随机生成很多份进度，分别用 SQL 视图和 JS 算，结果必须一模一样
-test('随机进度下，四种状态、能力边界、方向就绪度在 SQL 和 JS 里一致', () => {
+test('随机进度下，三种状态、能力边界、方向就绪度在 SQL 和 JS 里一致', () => {
   const random = rng(42)
   const ids = roadmap.skills.map((s) => s.id)
   for (let round = 0; round < 25; round++) {
@@ -74,8 +74,7 @@ test('随机进度下，四种状态、能力边界、方向就绪度在 SQL 和
     const ordered = round % 2 === 0 ? tree.topoSort(ids) : ids
     for (const id of ordered) {
       const r = random()
-      if (r < density * 0.8) changes[id] = 'done'
-      else if (r < density) changes[id] = 'learning'
+      if (r < density) changes[id] = 'done'
     }
     setStatuses(db, learner.id, changes)
     const goal = roadmap.subs[Math.floor(random() * roadmap.subs.length)].id
@@ -90,7 +89,6 @@ test('随机进度下，四种状态、能力边界、方向就绪度在 SQL 和
       const mine = readiness(tree, r.subId, progress)
       assert.equal(mine.coreTotal, r.coreTotal)
       assert.equal(mine.coreDone, r.coreDone)
-      assert.equal(mine.coreLearning, r.coreLearning)
       assert.equal(mine.choiceTotal, r.choiceTotal)
       assert.equal(mine.choiceDone, r.choiceDone)
       assert.ok(Math.abs(mine.percent - r.percent) < 0.051, `${r.subId} ${mine.percent} vs ${r.percent}`)
