@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Progress, Roadmap } from './types'
 import { Tree, enforcePrerequisites } from './lib/tree'
 import { createStore, roadmapUrl, sanitize, USE_API, type ProgressStore } from './lib/store'
@@ -70,17 +70,26 @@ function InitialFocus({ focus }: { focus: Focus }) {
 }
 
 function Shell() {
-  const { focus } = useApp()
+  const { focus, setFocus } = useApp()
   // 面板默认收起：第一次来只看到星图和圆心旁的提示
   const [panelOpen, setPanelOpen] = useState(false)
   // 选中东西就打开面板，取消选中就收起；顶上的名字可以单独打开“我的进度”
+  // 点圆心的“你”：回到“我的进度”并打开面板
+  const wantOverview = useRef(false)
   useEffect(() => {
-    setPanelOpen(focus !== null)
+    setPanelOpen(focus !== null || wantOverview.current)
+    wantOverview.current = false
   }, [focus])
+  const openOverview = () => {
+    if (focus) {
+      wantOverview.current = true
+      setFocus(null)
+    } else setPanelOpen(true)
+  }
   return (
     <div className={`page${panelOpen ? ' panel-open' : ''}`}>
       <Hud onTogglePanel={() => setPanelOpen((o) => !o)} panelOpen={panelOpen} />
-      <SkillTree />
+      <SkillTree onCenter={openOverview} />
       <aside className="panel" aria-label="详情" aria-hidden={!panelOpen}>
         <div className="panel-body">
           <Panel />

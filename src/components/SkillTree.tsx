@@ -6,7 +6,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEv
 import type { SkillState } from '../types'
 import { useApp } from '../state'
 import { LABEL_Y, layoutWeb, NODE_R, START_R, subNodeId, TIP_R } from '../lib/webLayout'
-import { stars, tierOf } from '../lib/tree'
+import { frontier, stars, tierOf, totals } from '../lib/tree'
 import { ICONS } from '../generated/icons'
 
 interface View {
@@ -193,7 +193,7 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
   )
 })
 
-export function SkillTree() {
+export function SkillTree({ onCenter }: { onCenter?: () => void } = {}) {
   const { tree, states, focus, setFocus, hover, setHover, pulse, flyRequest, readinessBySub } = useApp()
   const layout = useMemo(() => layoutWeb(tree), [tree])
   const wrap = useRef<HTMLDivElement>(null)
@@ -203,6 +203,10 @@ export function SkillTree() {
   const anim = useRef(0)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [tipHover, setTipHover] = useState<string | null>(null)
+  const [centerHover, setCenterHover] = useState(false)
+  const lit = useMemo(() => totals(states), [states])
+  /** 下一步能点亮的：前置都亮了、自己还没亮 */
+  const next = useMemo(() => new Set(frontier(tree, states, null).map((f) => f.id)), [tree, states])
   const focusedSkill = focus?.kind === 'skill' ? focus.id : null
   const focusedSub = focus?.kind === 'sub' ? focus.id : null
   const focusedArea = focus?.kind === 'area' ? focus.id : null
@@ -366,6 +370,7 @@ export function SkillTree() {
   const anc = useMemo(() => (lens ? tree.ancestors(lens) : new Set<string>()), [tree, lens])
   const plan = useMemo(() => (subLens ? tree.closures.get(subLens)! : null), [tree, subLens])
   const relation = (id: string): Relation => {
+    if (centerHover) return next.has(id) ? 'path' : 'dim'
     if (plan) return plan.has(id) ? 'path' : 'dim'
     if (lens) {
       if (lens === id) return 'none'
@@ -377,6 +382,7 @@ export function SkillTree() {
   }
   /** 一根枝在当前视角下怎么画 */
   const edgeLens = (from: string, to: string): string => {
+    if (centerHover) return next.has(to) ? ' e-path' : ' e-dim'
     if (plan) {
       if (to.startsWith('sub:')) return to === subNodeId(subLens!) ? ' e-path' : ' e-dim'
       return (from === 'root' || plan.has(from)) && plan.has(to) ? ' e-path' : ' e-dim'
@@ -429,10 +435,27 @@ export function SkillTree() {
               <path key={`${e.from}>${e.to}`} d={e.d} className={`edge ${edgeState(e.from, e.to)}${edgeLens(e.from, e.to)}${e.to.startsWith('sub:') ? ' e-tip' : ''}`} />
             ))}
           </g>
-          {/* 圆心：起点。三个基础技能从这里往外长 */}
-          <g className="start" aria-hidden>
-            <circle className="start-ring" r={START_R} />
-            <circle className="start-dot" r={9} />
+          {/* 圆心：你。中间是点亮了几个，外圈是总进度；悬停看下一步能点哪些，点开看我的进度 */}
+          <g
+            className={`start${lit.done ? ' lit' : ''}${centerHover ? ' hover' : ''}`}
+            role="button"
+            tabIndex={0}
+            aria-label={`你：已点亮 ${lit.done} / ${lit.total}。点开看我的进度`}
+            onPointerEnter={() => setCenterHover(true)}
+            onPointerLeave={() => setCenterHover(false)}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (!drag.current?.moved) onCenter?.()
+            }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onCenter?.() }}
+          >
+            <title>{`你：已点亮 ${lit.done} / ${lit.total}\n悬停看下一步能点哪些，点开看我的进度`}</title>
+            {lit.done > 0 && <Rays r={START_R + 9} count={32} long={10} short={5} />}
+            <circle className="start-track" r={START_R + 4} />
+            <circle className="start-progress" r={START_R + 4} pathLength={100} strokeDasharray={`${(lit.done / lit.total) * 100} 100`} transform="rotate(-90)" />
+            <circle className="start-ring" r={START_R - 2} />
+            <text className="start-num" y={1}>{lit.done}</text>
+            <text className="start-lbl" y={START_R + 30}>我的进度</text>
           </g>
           <g className="tips">
             {tree.roadmap.subs.map((sub) => {

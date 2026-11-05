@@ -67,7 +67,7 @@ const f = (n: number) => Math.round(n * 10) / 10
 export const RING = 136
 /** 第一圈至少多大；圆心“起点”的半径 */
 const FIRST_RING = 200
-export const START_R = 26
+export const START_R = 34
 
 /** 极坐标 → 屏幕坐标。角度 0 在正上方，顺时针 */
 const pt = (r: number, a: number) => ({ x: r * Math.sin(a), y: -r * Math.cos(a) })
@@ -380,7 +380,7 @@ export function layoutWeb(tree: Tree): WebLayout {
     const a2 = angle.get(s.id)!
     const end = radius(d) - clearOfLabel(a2, s.name)
     if (!s.parent) {
-      const p1 = pt(START_R + 6, a2)
+      const p1 = pt(START_R + 22, a2)
       const p2 = pt(end, a2)
       edges.push({ from: 'root', to: s.id, d: `M${f(p1.x)},${f(p1.y)} L${f(p2.x)},${f(p2.y)}` })
       continue
