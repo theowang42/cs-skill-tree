@@ -212,18 +212,20 @@ export function SkillTree({ onCenter }: { onCenter?: () => void } = {}) {
   const focusedArea = focus?.kind === 'area' ? focus.id : null
 
   // ── 视图 ──
-  // 边界：最小缩到刚好装下整个圆；拖动时圆的边最多拖到屏幕边上
+  // 边界：最小缩到刚好装下整个圆；放大后屏幕中心能到图上任何一点
   const minK = size.w ? Math.max(MIN_K, Math.min(size.w, size.h) / (layout.bounds.maxX - layout.bounds.minX)) : MIN_K
   const limits = useRef({ minK, w: size.w, h: size.h, b: layout.bounds })
   limits.current = { minK, w: size.w, h: size.h, b: layout.bounds }
   const apply = useCallback((raw: View) => {
     const { minK: lo, w, h, b } = limits.current
     const k = Math.min(MAX_K, Math.max(lo, raw.k))
-    // 屏幕中心对着的世界坐标：圆的边最多拖到屏幕边上；屏幕比圆还大时，圆就在正中
-    const clamp = (c: number, lo: number, hi: number, half: number) =>
-      lo + half > hi - half ? (lo + hi) / 2 : Math.min(hi - half, Math.max(lo + half, c))
-    const cx = clamp((w / 2 - raw.x) / raw.k, b.minX, b.maxX, w / 2 / k)
-    const cy = clamp((h / 2 - raw.y) / raw.k, b.minY, b.maxY, h / 2 / k)
+    // 屏幕中心对着的世界坐标：放大后可以拖到图上任何一点（最外圈的徽章也能放到屏幕正中）；
+    // 缩到最小时整张图固定在正中，越放大能拖的范围越大
+    const free = Math.min(1, Math.max(0, (k / lo - 1) / 0.5))
+    const mx = (b.minX + b.maxX) / 2
+    const my = (b.minY + b.maxY) / 2
+    const cx = mx + Math.min((b.maxX - mx) * free, Math.max((b.minX - mx) * free, (w / 2 - raw.x) / raw.k - mx))
+    const cy = my + Math.min((b.maxY - my) * free, Math.max((b.minY - my) * free, (h / 2 - raw.y) / raw.k - my))
     const v = { x: w / 2 - cx * k, y: h / 2 - cy * k, k }
     viewRef.current = v
     world.current?.setAttribute('transform', `translate(${v.x},${v.y}) scale(${v.k})`)
