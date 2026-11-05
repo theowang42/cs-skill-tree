@@ -1,4 +1,4 @@
-// 技能树：从下往上长，一列一列，最上面一排是方向。白底黑线。
+// 技能树：一个圆，编程入门在正中心，一圈一圈往外长，最外圈是职业。白底黑线。
 // 每个节点一个图标和名字。点亮了是实心黑，能点是黑框，还够不着是浅灰。只有点亮和没点亮两种状态。
 // 每个节点只画一根枝（连到主前置）；悬停或选中时，它的全部前置和它解锁的保持清楚，其余变淡。
 // 平移缩放不走 React：直接改 <g> 的 transform。
@@ -146,7 +146,7 @@ interface TipProps {
 }
 
 /**
- * 职业：技能树最上面一排的终极节点。一枚双圈的奖章（外粗内细），中间是职业图标，
+ * 职业：技能树最外圈的终极节点。一枚双圈的奖章（外粗内细），中间是职业图标，
  * 外面一圈进度环随着点亮要学的技能慢慢填满。全部点亮就自动达成：徽章变黑，外面一大圈光芒转起来。
  */
 const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim, pulse, onClick, onHover }: TipProps) {
@@ -235,11 +235,11 @@ export function SkillTree() {
     flyTo({ x: size.w / 2 - ((b.minX + b.maxX) / 2) * k, y: size.h / 2 - ((b.minY + b.maxY) / 2) * k, k }, ms)
   }, [layout, size, flyTo])
 
-  /** 打开时：从最下面的起点看起，主线在屏幕中间，字看得清；往上拖或点“看全图”再看方向 */
+  /** 打开时：编程入门在屏幕正中，看得见里面几圈；缩小看整个圆，放大看清细节 */
   const home = useCallback((ms?: number) => {
     if (!size.w) return
-    const k = size.w < 700 ? 0.85 : 1.15
-    flyTo({ x: size.w / 2 - layout.home.x * k, y: size.h - (size.w < 700 ? 120 : 80) - layout.home.y * k, k }, ms)
+    const k = Math.min(1, Math.max(0.4, Math.min(size.w, size.h) / 2 / 760))
+    flyTo({ x: size.w / 2 - layout.home.x * k, y: size.h / 2 - layout.home.y * k, k }, ms)
   }, [layout, size, flyTo])
 
   const centerOn = useCallback((x: number, y: number) => {
@@ -409,6 +409,9 @@ export function SkillTree() {
         aria-label="技能树"
       >
         <g ref={world}>
+          <g className="rings" aria-hidden>
+            {layout.rings.map((r) => <circle key={r} r={r} />)}
+          </g>
           <g className="edges">
             {layout.edges.map((e) => (
               <path key={`${e.from}>${e.to}`} d={e.d} className={`edge ${edgeState(e.from, e.to)}${edgeLens(e.from, e.to)}${e.to.startsWith('sub:') ? ' e-tip' : ''}`} />
