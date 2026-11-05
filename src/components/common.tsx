@@ -67,7 +67,7 @@ export function StatusControl({ id }: { id: string }) {
       ) : locked ? (
         <>
           <Lock size={16} strokeWidth={2.4} />
-          <span className="lt-main">先点亮需要的技能</span>
+          <span className="lt-main">先点亮上一级</span>
         </>
       ) : (
         <>

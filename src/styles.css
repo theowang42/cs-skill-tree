@@ -309,8 +309,7 @@ a {
 }
 
 .node.s-done .ring {
-  stroke: var(--ink);
-  stroke-width: 4;
+  stroke: transparent;
 }
 
 .node.s-done .glyph {
@@ -413,23 +412,24 @@ a {
   }
 }
 
-/* 绕圈的白光：一段带渐变的弧，匀速转。旋转中心是节点中心（弧所在的圆的中心） */
-.orbit {
+/* 点亮的光芒：一圈放射的黑色短线，慢慢旋转。旋转中心是节点中心（光芒整圈对称，边框中心就是节点中心） */
+.rays {
   pointer-events: none;
 }
 
-.orbit-arc {
-  fill: none;
+.rays line {
+  stroke: var(--ink);
+  stroke-width: 2;
   stroke-linecap: round;
 }
 
-.orbit-spin {
+.rays-spin {
   transform-box: fill-box;
   transform-origin: center;
-  animation: orbit-spin 2.6s linear infinite;
+  animation: rays-spin 9s linear infinite;
 }
 
-@keyframes orbit-spin {
+@keyframes rays-spin {
   to {
     transform: rotate(360deg);
   }
@@ -447,7 +447,7 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .orbit-spin {
+  .rays-spin {
     animation: none;
   }
 }
@@ -1140,8 +1140,7 @@ button.danger {
 }
 
 .slot.s-done .slot-ring {
-  stroke: var(--ink);
-  stroke-width: 4;
+  stroke: transparent;
 }
 
 .slot-glyph {

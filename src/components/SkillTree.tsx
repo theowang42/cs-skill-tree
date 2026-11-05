@@ -36,39 +36,27 @@ export function SkillGlyph({ icon, size }: { icon: string; size: number }) {
 type Relation = 'none' | 'path' | 'dim'
 
 /**
- * 点亮了：外圈轨道上一道白光一直绕着转，像彗星：头最亮，尾巴渐渐淡掉。
- * 光是一段四分之一圈的弧，用一个线性渐变从尾到头由透明变白，整段弧匀速旋转。
- * 六边形的轨道不是圆，用遮罩只让光出现在六边形的边上。
- * r 是轨道半径（圆的半径，或六边形的外接圆半径）。
+ * 点亮了：节点外面一圈向外放射的光芒（长短相间的短线，像太阳），整圈慢慢旋转。
+ * r 是光芒从哪里开始（离中心多远）；圆和六边形都用同一圈。
  */
-export function OrbitLight({ uid, r, language, delay }: { uid: string; r: number; language: boolean; delay?: string }) {
-  const arcR = language ? r * 0.93 : r
-  const arc = (
-    <g className="orbit-spin" style={{ animationDelay: delay }}>
-      <circle r={arcR} pathLength={100} strokeDasharray="25 75" className="orbit-arc" stroke={`url(#comet-${uid})`} strokeWidth={language ? 12 : 4} />
-    </g>
-  )
+const RAYS = 24
+export function Rays({ r, delay }: { r: number; delay?: string }) {
   return (
-    <g className="orbit">
-      <defs>
-        {/* 弧从右边（尾）顺时针到下边（头）：沿 y 从透明到白 */}
-        <linearGradient id={`comet-${uid}`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={arcR}>
-          <stop offset="0" stopColor="#fff" stopOpacity="0" />
-          <stop offset="0.75" stopColor="#fff" stopOpacity="0.75" />
-          <stop offset="1" stopColor="#fff" stopOpacity="1" />
-        </linearGradient>
-        {language && (
-          <mask id={`orbit-mask-${uid}`} maskUnits="userSpaceOnUse" x={-r - 10} y={-r - 10} width={2 * r + 20} height={2 * r + 20}>
-            <path d={hexPath(r)} fill="none" stroke="#fff" strokeWidth={4} strokeLinejoin="round" />
-          </mask>
-        )}
-      </defs>
-      {language ? <g mask={`url(#orbit-mask-${uid})`}>{arc}</g> : arc}
+    <g className="rays" aria-hidden>
+      <g className="rays-spin" style={{ animationDelay: delay }}>
+        {Array.from({ length: RAYS }, (_, i) => {
+          const a = (Math.PI * 2 * i) / RAYS
+          const len = i % 2 === 0 ? 9 : 5
+          const c = Math.cos(a)
+          const sn = Math.sin(a)
+          return <line key={i} x1={(c * r).toFixed(1)} y1={(sn * r).toFixed(1)} x2={(c * (r + len)).toFixed(1)} y2={(sn * (r + len)).toFixed(1)} />
+        })}
+      </g>
     </g>
   )
 }
 
-/** 每个节点的光转到不同的位置，整张图不会齐刷刷一起转 */
+/** 每个节点的光芒转到不同的角度，整张图不会齐刷刷一起转 */
 export function orbitDelay(id: string): string {
   let h = 0
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0
@@ -128,8 +116,8 @@ const Node = memo(function Node({ id, language, x, y, name, icon, state, focused
           <SkillGlyph icon={icon} size={28} />
         </div>
       </foreignObject>
-      {/* 点亮了：外圈轨道上一道白光一直绕着转 */}
-      {state === 'done' && <OrbitLight uid={`n-${id}`} r={language ? NODE_R + 8 : NODE_R + 6} language={language} delay={orbitDelay(id)} />}
+      {/* 点亮了：外面一圈光芒慢慢转 */}
+      {state === 'done' && <Rays r={NODE_R + 6} delay={orbitDelay(id)} />}
       {/* 点亮那一刻：八道光芒往外散开 */}
       {pulse && state === 'done' && (
         <g className="sparks">

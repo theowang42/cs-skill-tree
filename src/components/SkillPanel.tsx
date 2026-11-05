@@ -1,7 +1,7 @@
 // 一个技能：像游戏里的技能卡。图标槽、名字、状态、一句话、点亮按钮、需要什么、解锁什么、去哪学。
 import type { SkillState } from '../types'
 import { useApp } from '../state'
-import { OrbitLight, SkillGlyph, hexPath, orbitDelay } from './SkillTree'
+import { Rays, SkillGlyph, hexPath, orbitDelay } from './SkillTree'
 import { Links, StatusControl } from './common'
 
 const BADGE: Record<SkillState, string> = { locked: '未解锁', available: '可点亮', done: '已点亮' }
@@ -22,7 +22,7 @@ function Slot({ uid, icon, language, state, size = 96 }: { uid: string; icon: st
           <circle className="slot-box" r={R} />
         </>
       )}
-      {state === 'done' && <OrbitLight uid={`s-${uid}`} r={language ? R + 10 : R + 8} language={language} delay={orbitDelay(uid)} />}
+      {state === 'done' && <Rays r={R + 5} delay={orbitDelay(uid)} />}
       <foreignObject x={-16} y={-16} width="32" height="32">
         <div className="slot-glyph"><SkillGlyph icon={icon} size={32} /></div>
       </foreignObject>
@@ -56,7 +56,7 @@ export function SkillPanel({ id }: { id: string }) {
 
       {s.prerequisites.length > 0 && (
         <section className="card-sec">
-          <h4>先点亮下一级</h4>
+          <h4>先点亮上一级</h4>
           <div className="mini-row">
             {s.prerequisites.map((p) => {
               const q = tree.skill(p)
