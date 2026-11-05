@@ -76,9 +76,13 @@ test('主线在中间：AI Infra 在 AI 产品的右边、底层系统的左边'
   assert.ok(node('pytorch').x < node('kernel').x)
 })
 
-test('起点排成整齐的一排：等距，最大的子树在中间', () => {
+test('起点都在最下面同一排，最大的子树在中间，子树之间不留大空白', () => {
   const roots = tree.roadmap.skills.filter((s) => !s.parent).map((s) => node(s.id)).sort((a, b) => a.x - b.x)
-  const gaps = roots.slice(1).map((r, i) => r.x - roots[i].x)
-  for (const g of gaps) assert.ok(Math.abs(g - gaps[0]) < 0.5, `起点间距不一样：${gaps.map((x) => x.toFixed(0)).join('、')}`)
+  for (const r of roots) assert.equal(r.y, 0)
   assert.equal(roots[Math.floor(roots.length / 2)].id, 'cs61a')
+  // 从左到右，相邻两列之间不会有一大片空白
+  const xs = [...layout.nodes.values()].map((n) => n.x).sort((a, b) => a - b)
+  let widest = 0
+  for (let i = 1; i < xs.length; i++) widest = Math.max(widest, xs[i] - xs[i - 1])
+  assert.ok(widest < 400, `有一段 ${widest.toFixed(0)} 像素宽的空白`)
 })

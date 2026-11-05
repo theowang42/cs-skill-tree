@@ -2,7 +2,7 @@
 //
 //   - 每个技能只挂在它的“主前置”上（种子里前置的第一个）。画出来是一条条往上的链，只在关键节点分叉。
 //     其余前置不画线（会横穿整张图），选中时只让那些节点保持清楚，面板里列出来。
-//   - 最下面一排是起点（没有前置的技能），往上一排深一层。最大的那棵子树放中间，起点之间等距，排成整齐的一排。
+//   - 最下面一排是起点（没有前置的技能），都在同一排，往上一排深一层。最大的那棵子树放中间，几棵子树按轮廓紧挨着，中间不留大空白。
 //   - 列：子树按轮廓紧挨着排（每一层左右边界不重叠就行），父节点在第一个和最后一个孩子的正中间；
 //     只有一个孩子时和它对齐，链是直的。兄弟按领域排，AI 产品在左，AI Infra 在中间，底层系统和安全在右。
 //   - 职业是最上面一排的终极节点（大徽章），从它挂的技能一根实线直直连上去。
@@ -187,11 +187,6 @@ export function layoutWeb(tree: Tree): WebLayout {
     rootX.set(r, x)
     merge(all, c, x)
   }
-  // 起点之间等距：把相邻起点的间距都拉到最大的那个，只往外挪，子树之间不会撞
-  const gaps = roots.slice(1).map((r, i) => rootX.get(r)! - rootX.get(roots[i])!)
-  const even = Math.max(0, ...gaps)
-  const mid = Math.floor(roots.length / 2)
-  roots.forEach((r, i) => rootX.set(r, rootX.get(roots[mid])! + (i - mid) * even))
 
   // ── 绝对坐标 ──
   const xs = new Map<string, number>()
