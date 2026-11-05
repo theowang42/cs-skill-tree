@@ -69,6 +69,8 @@ const Node = memo(function Node({ id, language, x, y, name, icon, state, focused
       onPointerEnter={() => onHover(id)}
       onPointerLeave={() => onHover(null)}
     >
+      {/* 点亮了：身后一团金色的光 */}
+      <circle className="halo" r={NODE_R + 30} />
       {/* 点亮后外面多一圈：像游戏里激活了的技能槽 */}
       {language ? (
         <>
@@ -83,11 +85,21 @@ const Node = memo(function Node({ id, language, x, y, name, icon, state, focused
           <circle className="box" r={NODE_R} />
         </>
       )}
+      {/* 点亮了：左上角一道高光，像发亮的宝石 */}
+      <ellipse className="shine" cx={-NODE_R * 0.38} cy={-NODE_R * 0.5} rx={NODE_R * 0.34} ry={NODE_R * 0.16} transform="rotate(-32)" />
       <foreignObject x={-14} y={-14} width="28" height="28">
         <div className="glyph">
           <SkillGlyph icon={icon} size={28} />
         </div>
       </foreignObject>
+      {/* 点亮那一刻：八道光芒往外散开 */}
+      {pulse && state === 'done' && (
+        <g className="sparks">
+          {Array.from({ length: 8 }, (_, i) => (
+            <line key={i} x1={0} y1={-NODE_R - 10} x2={0} y2={-NODE_R - 22} transform={`rotate(${i * 45})`} />
+          ))}
+        </g>
+      )}
       {next && <path className="next-mark" d={`M-7,${-NODE_R - 22} L7,${-NODE_R - 22} L0,${-NODE_R - 13}Z`} />}
       <text className="lbl" y={LABEL_Y}>{name}</text>
     </g>
@@ -350,6 +362,17 @@ export function SkillTree() {
         role="img"
         aria-label="技能树"
       >
+        <defs>
+          {/* 点亮的节点：上亮下暖的金色 */}
+          <linearGradient id="lit-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#ffe58f" />
+            <stop offset="1" stopColor="#f5a524" />
+          </linearGradient>
+          <radialGradient id="lit-halo">
+            <stop offset="0.45" stopColor="#ffbe3d" stopOpacity="0.55" />
+            <stop offset="1" stopColor="#ffbe3d" stopOpacity="0" />
+          </radialGradient>
+        </defs>
         <g ref={world}>
           <g className="edges">
             {layout.edges.map((e) => (
