@@ -18,7 +18,7 @@ export function Hud({ onTogglePanel, panelOpen }: { onTogglePanel: () => void; p
         </span>
       </button>
       <div className="hud-right">
-        <button className="hud-text hud-goal" onClick={() => setFocus({ kind: 'category', id: tree.roadmap.categories[0].id })} title="最外圈的终极节点">
+        <button className="hud-text hud-goal" onClick={() => setFocus({ kind: 'category', id: tree.roadmap.categories[0].id })} title="最上面一排的终极节点">
           职业 <b>{reachedCount}</b> / {tree.roadmap.subs.length}
         </button>
         {next && !readOnly && (
