@@ -159,7 +159,7 @@ INSERT INTO skill_rows VALUES
  '用 LoRA 在自己的数据上微调开源模型。', '["hf", "gpt"]',
  '[["PEFT 文档", "https://huggingface.co/docs/peft/"]]'),
 ('distillation', 'infra', NULL, 'filter', '模型蒸馏',
- '让小模型学大模型的输出，便宜地拿到大部分能力。', '["finetune"]',
+ '让小模型学大模型的输出，便宜地拿到大部分能力。', '["sft"]',
  '[["蒸馏论文", "https://arxiv.org/abs/1503.02531"]]'),
 ('vllm', 'infra', NULL, 'zap', 'vLLM 推理',
  '部署和改进推理引擎：PagedAttention、连续批处理、KV cache。', '["gpt", "concurrency"]',
@@ -301,28 +301,7 @@ INSERT INTO skill_rows VALUES
  '[["Ghidra", "https://ghidra-sre.org/"]]'),
 ('ctf', 'security', NULL, 'flag', 'CTF 竞赛',
  '限时解题：Web、Pwn、逆向、密码学一起上。', '["pwn", "crypto"]',
- '[["CTFtime", "https://ctftime.org/"], ["CTF Wiki", "https://ctf-wiki.org/"]]'),
-('ros', 'robotics', NULL, 'si:ros', 'ROS 2',
- '机器人软件框架：传感器、控制、通信。', '["cpp", "python"]',
- '[["ROS 2 官方教程", "https://docs.ros.org/en/rolling/Tutorials.html"]]'),
-('sim', 'robotics', NULL, 'box', '物理仿真',
- '在 MuJoCo、Isaac Sim 里先让机器人跑起来。', '["ros"]',
- '[["MuJoCo", "https://mujoco.org/"]]'),
-('robot-learning', 'robotics', NULL, 'hand', '机器人学习',
- '模仿学习和强化学习，让模型控制机械臂。', '["sim", "rl", "cv"]',
- '[["LeRobot", "https://github.com/huggingface/lerobot"]]'),
-('bitcoin', 'chain', NULL, 'si:bitcoin', '比特币原理',
- '工作量证明、UTXO、钱包：去中心化账本怎么成立。', '["crypto"]',
- '[["比特币白皮书", "https://bitcoin.org/files/bitcoin-paper/bitcoin_zh_cn.pdf"], ["Princeton 比特币课程", "https://bitcoinbook.cs.princeton.edu/"]]'),
-('ethereum', 'chain', NULL, 'si:ethereum', '以太坊',
- '账户、Gas、EVM：一台全世界共享的计算机。', '["bitcoin"]',
- '[["以太坊开发文档", "https://ethereum.org/zh/developers/docs/"]]'),
-('solidity', 'chain', NULL, 'scroll-text', '智能合约',
- '用 Solidity 写跑在以太坊上的合约。', '["ethereum", "javascript"]',
- '[["Solidity 文档", "https://docs.soliditylang.org/"], ["CryptoZombies", "https://cryptozombies.io/zh/"]]'),
-('dapp', 'chain', NULL, 'app-window', '链上应用',
- '前端连钱包、调合约，做一个完整的去中心化应用。', '["solidity", "react"]',
- '[["Scaffold-ETH", "https://scaffoldeth.io/"]]');
+ '[["CTFtime", "https://ctftime.org/"], ["CTF Wiki", "https://ctf-wiki.org/"]]');
 
 -- ═════════ 第二批：主线往深处挖，各条边线补齐 ═════════
 INSERT INTO skill_rows VALUES
@@ -386,21 +365,12 @@ INSERT INTO skill_rows VALUES
 ('fuzzing', 'security', NULL, 'shuffle', '模糊测试',
  '自动生成大量怪输入，把隐藏的崩溃找出来。', '["pwn"]',
  '[["AFL++", "https://aflplus.plus/"]]'),
-('control', 'robotics', NULL, 'joystick', '控制理论',
- 'PID、状态空间：让机器按你要的方式动。', '["math"]',
- '[["Brian Douglas 控制理论", "https://www.youtube.com/@BrianDouglas"]]'),
-('slam', 'robotics', NULL, 'map', 'SLAM 定位建图',
- '一边走一边画地图，知道自己在哪。', '["ros", "cv"]',
- '[["Cartographer", "https://google-cartographer.readthedocs.io/"]]'),
 ('factor', 'quant', NULL, 'sigma', '因子研究',
  '找出能解释收益的信号，并检验它是不是巧合。', '["timeseries"]',
  '[["Alphalens", "https://github.com/quantopian/alphalens"]]'),
 ('risk', 'quant', NULL, 'shield-alert', '风险管理',
  '仓位、回撤、对冲：先活下来，再谈收益。', '["quant-research"]',
- '[["Riskfolio-Lib", "https://riskfolio-lib.readthedocs.io/"]]'),
-('defi', 'chain', NULL, 'coins', 'DeFi 协议',
- '交易所、借贷、稳定币：链上的金融积木。', '["solidity"]',
- '[["Uniswap 文档", "https://docs.uniswap.org/"]]');
+ '[["Riskfolio-Lib", "https://riskfolio-lib.readthedocs.io/"]]');
 
 -- ═════════ 第三批：补齐主线、地基、产品 ═════════
 INSERT INTO skill_rows VALUES
@@ -468,6 +438,27 @@ INSERT INTO skill_rows VALUES
  '用 GRPO 这类方法训练模型一步步想清楚再回答。', '["rlhf", "llm-eval"]',
  '[["DeepSeek-R1 论文", "https://arxiv.org/abs/2501.12948"]]');
 
+-- ═════════ 第四批：补齐各个职业徽章需要的技能 ═════════
+INSERT INTO skill_rows VALUES
+('recsys', 'llm', NULL, 'star', '推荐系统',
+ '召回、排序、特征工程：信息流和电商首页背后的那套东西。', '["dl"]',
+ '[["Google 推荐系统课", "https://developers.google.com/machine-learning/recommendation"], ["Microsoft Recommenders", "https://github.com/recommenders-team/recommenders"]]'),
+('graphics', 'dev', NULL, 'shapes', '计算机图形学',
+ '光栅化、着色、光线追踪：屏幕上的每一帧是怎么画出来的。对应 GAMES101。', '["cpp", "math"]',
+ '[["GAMES101", "https://sites.cs.ucsb.edu/~lingqi/teaching/games101.html"], ["LearnOpenGL 中文", "https://learnopengl-cn.github.io/"]]'),
+('csharp', 'dev', NULL, 'si:dotnet', 'C#',
+ 'Unity 游戏和 Windows 应用的语言。', '["java"]',
+ '[["C# 文档（中文）", "https://learn.microsoft.com/zh-cn/dotnet/csharp/"]]'),
+('game-engine', 'dev', NULL, 'si:unity', '游戏引擎',
+ '用 Unity 或 Unreal 做出能玩的游戏：场景、物理、动画、脚本。', '["csharp", "graphics"]',
+ '[["Unity Learn", "https://learn.unity.com/"], ["Unreal Engine 文档", "https://dev.epicgames.com/documentation/zh-cn/unreal-engine"]]'),
+('embedded', 'systems', NULL, 'radio-receiver', '嵌入式开发',
+ '在单片机上写固件：寄存器、中断、外设驱动、实时操作系统。', '["c"]',
+ '[["FreeRTOS", "https://www.freertos.org/"], ["Zephyr 文档", "https://docs.zephyrproject.org/latest/"]]'),
+('spark', 'quant', NULL, 'si:apachespark', 'Spark 大数据',
+ '用 Spark 在一群机器上处理 TB 级的数据。', '["data-eng", "distributed"]',
+ '[["Spark 文档", "https://spark.apache.org/docs/latest/"]]');
+
 -- 编程语言是一种特别的节点：天赋。树上画成六边形
 UPDATE skills SET is_language = 1
- WHERE id IN ('python', 'c', 'cpp', 'rust', 'go', 'java', 'javascript', 'typescript', 'sql', 'shell', 'swift', 'kotlin');
+ WHERE id IN ('python', 'c', 'cpp', 'rust', 'go', 'java', 'csharp', 'javascript', 'typescript', 'sql', 'shell', 'swift', 'kotlin');

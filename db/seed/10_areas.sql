@@ -8,10 +8,9 @@ INSERT INTO layers (id, name, position) VALUES
 INSERT INTO area_rows VALUES
 ('base',     'foundation', '地基',     'CS 核心课、数学和每天都用的工具。每样都要有，最可迁移。'),
 ('infra',    'core',       'AI Infra', '让大模型跑得更快更省：推理引擎、GPU kernel、AI 编译器。'),
-('llm',      'core',       '大模型',   '训练和对齐大模型本身：预训练、后训练、评测。'),
+('llm',      'core',       'AI 算法',  '训练模型本身：大模型的预训练和对齐，推荐、视觉这些机器学习算法。'),
+('dev',      'core',       '软件开发', '图形学、游戏引擎这些做软件和游戏要用的技能。'),
 ('product',  'core',       'AI 产品',  '用大模型做出自己的产品：后端、前端、RAG、Agent。'),
 ('systems',  'core',       '底层系统', '操作系统、并发、网络、编译器、分布式：AI Infra 的根。'),
-('quant',    'advanced',   '量化',     '用数据和统计研究市场。'),
-('security', 'advanced',   '安全',     '找漏洞、补漏洞。'),
-('robotics', 'advanced',   '机器人',   '让模型控制真实世界的机器。'),
-('chain',    'advanced',   '区块链',   '智能合约和去中心化应用。');
+('quant',    'advanced',   '数据与量化', '处理和分析数据，用数据研究市场。'),
+('security', 'advanced',   '安全',     '找漏洞、补漏洞。');

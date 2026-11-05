@@ -147,5 +147,5 @@ test('规则：前置都点亮了才能点亮；取消前置，后继一起熄�
 
 test('编程语言是语言天赋：Python、C、Rust 这些，别的技能不是', () => {
   const langs = roadmap.skills.filter((s) => s.language).map((s) => s.id).sort()
-  assert.deepEqual(langs, ['c', 'cpp', 'go', 'java', 'javascript', 'kotlin', 'python', 'rust', 'shell', 'sql', 'swift', 'typescript'])
+  assert.deepEqual(langs, ['c', 'cpp', 'csharp', 'go', 'java', 'javascript', 'kotlin', 'python', 'rust', 'shell', 'sql', 'swift', 'typescript'])
 })

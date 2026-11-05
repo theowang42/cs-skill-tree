@@ -14,7 +14,7 @@ interface View {
   k: number
 }
 
-const MIN_K = 0.3
+const MIN_K = 0.15
 const MAX_K = 2.5
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 

@@ -25,7 +25,7 @@ const TIP_HALF = 78
 
 /** 左右的顺序：AI 产品在左，AI Infra 在中间，底层系统和安全在右 */
 const AREA_ORDER: Record<string, number> = {
-  chain: 0, product: 1, quant: 2, llm: 2.6, infra: 3, robotics: 4, base: 5, systems: 6, security: 7,
+  dev: 0, product: 1, quant: 2, llm: 2.6, infra: 3, base: 5, systems: 6, security: 7,
 }
 
 export interface WebNode {
