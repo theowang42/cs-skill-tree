@@ -11,8 +11,9 @@ permissions:
   pages: write
   id-token: write
 
+# 同一个分支上新的推送取消旧的；不同分支互不影响（别的分支的推送不会打断默认分支的发布）
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

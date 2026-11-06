@@ -33,7 +33,9 @@ db/seed/*.sql         全部内容（一个技能一行）
         │  npm run db:build：删库重建 → 灌内容 → 体检 → 导出
         ▼
 data/cs-skill-tree.db ──► public/data/roadmap.json ──► 静态站点（GitHub Pages）
-        │                                              进度存 localStorage，可导出 / 导入 / 分享
+        │                                ├──► 技能树（/tree/，单页应用）
+        │                                │    进度存 localStorage，可导出 / 导入 / 分享
+        │                                └──► scripts/pages.ts：首页、每个技能一页、每个职业一页、sitemap
         └──► server/index.ts（API，零依赖）──► VITE_API=1 构建的前端
                                                进度、目标、操作记录存进数据库
 ```
@@ -96,7 +98,7 @@ erDiagram
 | `npm run db -- events` | 最近的学习记录 |
 | `npm run db -- query "SQL"` | 随手查，比如 `SELECT * FROM sub_learning_plan WHERE sub_id='backend' ORDER BY step` |
 | `npm test` | 数据库、视图与前端算法的一致性、API、前端纯逻辑 |
-| `npm run build` | 重建数据库 → 类型检查 → 打包到 `dist/` |
+| `npm run build` | 重建数据库 → 类型检查 → 技能树打包到 `dist/tree/` → 生成首页、技能页、职业页到 `dist/` |
 
 体检规则（`server/db.ts` 的 `check`）：
 
@@ -115,7 +117,24 @@ erDiagram
 - `GET /api/learners/:id/timeline` 按天汇总的成长记录（点亮、开始学、取消），来自触发器写的 `learner_events`
 - `POST /api/learners/:id/import` 接受前端导出的进度文件，不认识的技能丢掉并在 `dropped` 里报告
 
-## 6. 前端：技能树
+## 6. 静态页面：首页、技能页、职业页
+
+技能树是单页应用，搜索引擎看不到里面的内容。`scripts/pages.ts` 在打包时把同一份 `roadmap.json` 写成纯 HTML：
+
+| 地址 | 内容 |
+| --- | --- |
+| `/` | 首页：一句话、演示短片、三步用法、全部职业路线、全部技能目录 |
+| `/skill/<id>/` | 一个技能：一句话、去哪学、前置、学会后可以学、哪些职业要学、同领域的其他技能 |
+| `/career/<id>/` | 一个职业：做什么、按步骤排好的学习路线、加分项、参考项目、同类职业 |
+| `/tree/` | 技能树本身；`/tree/#/skill/<id>`、`/tree/#/sub/<id>` 直接打开对应的卡片 |
+| `/sitemap.xml` | 以上全部地址，提交给搜索引擎用 |
+
+- 每页有自己的标题、描述、canonical 和面包屑（JSON-LD），图标在打包时用 React 渲染成 SVG 内联进去，不需要 JS。
+- 样式在 `site/site.css`，首页的短片和封面也在 `site/`，打包时原样复制到 `dist/`。
+- 技能树以前在首页：旧链接（`/#share=…`、`/#/skill/…`）打开首页时会自动转到 `/tree/`。
+- `tests/pages.test.ts` 检查每个技能和职业都有页面、站内链接都指向存在的页面、标题和描述不重复。
+
+## 7. 前端：技能树
 
 ```
 src/
@@ -155,14 +174,14 @@ src/
 - API 模式下所有请求排队发出，顺序和界面一致；只有服务器明确返回 404 才会新建学习者
 - 导入、清空、用分享链接覆盖都可以撤销；万一渲染出错，错误页提供备份进度和清空重试
 
-## 7. 常见修改
+## 8. 常见修改
 
 - **加一个技能**：在 `db/seed/20_skills.sql` 对应领域的 `INSERT INTO skill_rows` 里加一行（id、领域、等级（一般写 NULL，按深度）、图标、名字、一句话、前置、链接），跑 `npm run db:build`。体检会查等级倒挂、重复图标、名字太长、缺链接；图标名不存在时导出直接报错。
 - **改方向要求**：`db/seed/40_directions.sql`，必学只写最高层的技能；任选组写成 `{"组名": ["a", "b"]}`。
 - **加一个领域**：`db/seed/10_areas.sql` 加一行，再在 `src/lib/webLayout.ts` 的 `AREA_ORDER` 里给它排个位置。
 - **改技能 id**：尽量别改，会让用户已有的进度和分享链接对不上。真要改，旧 id 的进度会在下次加载时被清掉。
 
-## 8. 以后可以做
+## 9. 以后可以做
 
 - 每个技能配几道自测题，答对才能点亮
 - 按每个技能的预计学时估算离目标还要多久

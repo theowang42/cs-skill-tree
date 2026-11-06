@@ -8,6 +8,7 @@
 - Like a game skill tree: from a starting point in the center, intro programming, Linux and calculus sit on the first ring and skills grow outward ring by ring, and a skill lights up only after everything below it is lit
 - The outer ring holds 17 career badges, each at the end of its own chain, covering where CS graduates usually end up. Light everything a career needs and its badge lights up on its own; there is nothing to pick first
 - Opening a skill shows one sentence and where to learn it
+- Every skill and every career also has its own page, such as [Docker](https://theowang42.github.io/cs-skill-tree/skill/docker/) or [LLM algorithm engineer](https://theowang42.github.io/cs-skill-tree/career/llm-algo/), for search and sharing
 
 👉 https://theowang42.github.io/cs-skill-tree/
 

@@ -8,6 +8,7 @@
 - 像游戏的技能树：从正中心的起点出发，编程入门、Linux、微积分在第一圈，一条条链沿半径笔直往外长，越往外越深；前置都点亮了才能点亮下一个
 - 最外圈是 17 枚职业徽章，各在自己那条链的尽头，覆盖计算机毕业生的主要去处。要学的都点亮了，徽章自己就亮，不用先选
 - 点进任何一个技能，只有一句话和去哪学的链接
+- 每个技能、每个职业还有自己的页面，比如 [Docker 怎么学](https://theowang42.github.io/cs-skill-tree/skill/docker/)、[大模型算法工程师要学什么](https://theowang42.github.io/cs-skill-tree/career/llm-algo/)，方便搜索和分享
 
 👉 https://theowang42.github.io/cs-skill-tree/
 
