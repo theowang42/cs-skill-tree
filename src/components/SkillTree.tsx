@@ -1,12 +1,12 @@
-// 技能树：从下往上长，一列一列，最上面一排是方向。白底黑线。
+// 技能树：一个圆，编程入门在正中心，一圈一圈往外长，最外圈是职业。白底黑线。
 // 每个节点一个图标和名字。点亮了是实心黑，能点是黑框，还够不着是浅灰。只有点亮和没点亮两种状态。
 // 每个节点只画一根枝（连到主前置）；悬停或选中时，它的全部前置和它解锁的保持清楚，其余变淡。
 // 平移缩放不走 React：直接改 <g> 的 transform。
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
-import { LABEL_Y, layoutWeb, NODE_R, subNodeId, TIP_R } from '../lib/webLayout'
-import { stars, tierOf } from '../lib/tree'
+import { LABEL_Y, layoutWeb, NODE_R, START_R, subNodeId, TIP_R } from '../lib/webLayout'
+import { frontier, stars, tierOf, totals } from '../lib/tree'
 import { ICONS } from '../generated/icons'
 
 interface View {
@@ -15,7 +15,8 @@ interface View {
   k: number
 }
 
-const MIN_K = 0.15
+/** 兜底：窗口尺寸还没量出来时用 */
+const MIN_K = 0.05
 const MAX_K = 2.5
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 
@@ -146,7 +147,7 @@ interface TipProps {
 }
 
 /**
- * 职业：技能树最上面一排的终极节点。一枚双圈的奖章（外粗内细），中间是职业图标，
+ * 职业：技能树最外圈的终极节点。一枚双圈的奖章（外粗内细），中间是职业图标，
  * 外面一圈进度环随着点亮要学的技能慢慢填满。全部点亮就自动达成：徽章变黑，外面一大圈光芒转起来。
  */
 const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim, pulse, onClick, onHover }: TipProps) {
@@ -193,7 +194,7 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
   )
 })
 
-export function SkillTree() {
+export function SkillTree({ onCenter }: { onCenter?: () => void } = {}) {
   const { tree, states, focus, setFocus, hover, setHover, pulse, flyRequest, readinessBySub } = useApp()
   const layout = useMemo(() => layoutWeb(tree), [tree])
   const wrap = useRef<HTMLDivElement>(null)
@@ -203,24 +204,30 @@ export function SkillTree() {
   const anim = useRef(0)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [tipHover, setTipHover] = useState<string | null>(null)
+  const [centerHover, setCenterHover] = useState(false)
+  const lit = useMemo(() => totals(states), [states])
+  /** 下一步能点亮的：前置都亮了、自己还没亮 */
+  const next = useMemo(() => new Set(frontier(tree, states, null).map((f) => f.id)), [tree, states])
   const focusedSkill = focus?.kind === 'skill' ? focus.id : null
   const focusedSub = focus?.kind === 'sub' ? focus.id : null
   const focusedArea = focus?.kind === 'area' ? focus.id : null
 
   // ── 视图 ──
-  // 边界：最小缩到刚好装下整棵树；拖动时树的边最多拖到屏幕边上，不会拖进一片空白
-  const b0 = layout.bounds
-  const minK = size.w ? Math.max(MIN_K, Math.min(size.w / (b0.maxX - b0.minX), size.h / (b0.maxY - b0.minY))) : MIN_K
-  const limits = useRef({ minK, w: size.w, h: size.h, b: b0 })
-  limits.current = { minK, w: size.w, h: size.h, b: b0 }
+  // 边界：最小缩到刚好装下整个圆；放大后屏幕中心能到图上任何一点
+  // 最小缩放就是刚好把整个圆（含最外圈徽章）装进屏幕，窗口再小也能看全
+  const minK = size.w ? Math.max(MIN_K, Math.min(size.w, size.h) / (layout.bounds.maxX - layout.bounds.minX)) : MIN_K
+  const limits = useRef({ minK, w: size.w, h: size.h, b: layout.bounds })
+  limits.current = { minK, w: size.w, h: size.h, b: layout.bounds }
   const apply = useCallback((raw: View) => {
     const { minK: lo, w, h, b } = limits.current
     const k = Math.min(MAX_K, Math.max(lo, raw.k))
-    // 屏幕中心对着的世界坐标：树的边最多拖到屏幕边上；屏幕比树还宽（高）时，那个方向就居中
-    const clamp = (c: number, lo: number, hi: number, half: number) =>
-      lo + half > hi - half ? (lo + hi) / 2 : Math.min(hi - half, Math.max(lo + half, c))
-    const cx = clamp((w / 2 - raw.x) / raw.k, b.minX, b.maxX, w / 2 / k)
-    const cy = clamp((h / 2 - raw.y) / raw.k, b.minY, b.maxY, h / 2 / k)
+    // 屏幕中心对着的世界坐标：放大后可以拖到图上任何一点（最外圈的徽章也能放到屏幕正中）；
+    // 缩到最小时整张图固定在正中，越放大能拖的范围越大
+    const free = Math.min(1, Math.max(0, (k / lo - 1) / 0.5))
+    const mx = (b.minX + b.maxX) / 2
+    const my = (b.minY + b.maxY) / 2
+    const cx = mx + Math.min((b.maxX - mx) * free, Math.max((b.minX - mx) * free, (w / 2 - raw.x) / raw.k - mx))
+    const cy = my + Math.min((b.maxY - my) * free, Math.max((b.minY - my) * free, (h / 2 - raw.y) / raw.k - my))
     const v = { x: w / 2 - cx * k, y: h / 2 - cy * k, k }
     viewRef.current = v
     world.current?.setAttribute('transform', `translate(${v.x},${v.y}) scale(${v.k})`)
@@ -248,11 +255,11 @@ export function SkillTree() {
     flyTo({ x: size.w / 2 - ((b.minX + b.maxX) / 2) * k, y: size.h / 2 - ((b.minY + b.maxY) / 2) * k, k }, ms)
   }, [layout, size, minK, flyTo])
 
-  /** 打开时：从最下面的起点看起，主线在屏幕中间，字看得清；往上拖或点“看全图”再看方向 */
+  /** 打开时：编程入门在屏幕正中，看得见里面几圈；缩小看整个圆，放大看清细节 */
   const home = useCallback((ms?: number) => {
     if (!size.w) return
-    const k = size.w < 700 ? 0.85 : 1.15
-    flyTo({ x: size.w / 2 - layout.home.x * k, y: size.h - (size.w < 700 ? 120 : 80) - layout.home.y * k, k }, ms)
+    const k = Math.min(1, Math.max(0.4, Math.min(size.w, size.h) / 2 / 760))
+    flyTo({ x: size.w / 2 - layout.home.x * k, y: size.h / 2 - layout.home.y * k, k }, ms)
   }, [layout, size, flyTo])
 
   const centerOn = useCallback((x: number, y: number) => {
@@ -367,6 +374,7 @@ export function SkillTree() {
   const anc = useMemo(() => (lens ? tree.ancestors(lens) : new Set<string>()), [tree, lens])
   const plan = useMemo(() => (subLens ? tree.closures.get(subLens)! : null), [tree, subLens])
   const relation = (id: string): Relation => {
+    if (centerHover) return next.has(id) ? 'path' : 'dim'
     if (plan) return plan.has(id) ? 'path' : 'dim'
     if (lens) {
       if (lens === id) return 'none'
@@ -378,6 +386,7 @@ export function SkillTree() {
   }
   /** 一根枝在当前视角下怎么画 */
   const edgeLens = (from: string, to: string): string => {
+    if (centerHover) return next.has(to) ? ' e-path' : ' e-dim'
     if (plan) {
       if (to.startsWith('sub:')) return to === subNodeId(subLens!) ? ' e-path' : ' e-dim'
       return (from === 'root' || plan.has(from)) && plan.has(to) ? ' e-path' : ' e-dim'
@@ -422,10 +431,35 @@ export function SkillTree() {
         aria-label="技能树"
       >
         <g ref={world}>
+          <g className="rings" aria-hidden>
+            {layout.rings.map((r) => <circle key={r} r={r} />)}
+          </g>
           <g className="edges">
             {layout.edges.map((e) => (
               <path key={`${e.from}>${e.to}`} d={e.d} className={`edge ${edgeState(e.from, e.to)}${edgeLens(e.from, e.to)}${e.to.startsWith('sub:') ? ' e-tip' : ''}`} />
             ))}
+          </g>
+          {/* 圆心：你。中间是点亮了几个，外圈是总进度；悬停看下一步能点哪些，点开看我的进度 */}
+          <g
+            className={`start${lit.done ? ' lit' : ''}${centerHover ? ' hover' : ''}`}
+            role="button"
+            tabIndex={0}
+            aria-label={`你：已点亮 ${lit.done} / ${lit.total}。点开看我的进度`}
+            onPointerEnter={() => setCenterHover(true)}
+            onPointerLeave={() => setCenterHover(false)}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (!drag.current?.moved) onCenter?.()
+            }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onCenter?.() }}
+          >
+            <title>{`你：已点亮 ${lit.done} / ${lit.total}\n悬停看下一步能点哪些，点开看我的进度`}</title>
+            {lit.done > 0 && <Rays r={START_R + 9} count={32} long={10} short={5} />}
+            <circle className="start-track" r={START_R + 4} />
+            <circle className="start-progress" r={START_R + 4} pathLength={100} strokeDasharray={`${(lit.done / lit.total) * 100} 100`} transform="rotate(-90)" />
+            <circle className="start-ring" r={START_R - 2} />
+            <text className="start-num" y={-7}>{lit.done}</text>
+            <text className="start-lbl" y={15}>我的进度</text>
           </g>
           <g className="tips">
             {tree.roadmap.subs.map((sub) => {
