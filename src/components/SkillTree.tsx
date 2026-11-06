@@ -15,7 +15,8 @@ interface View {
   k: number
 }
 
-const MIN_K = 0.15
+/** 兜底：窗口尺寸还没量出来时用 */
+const MIN_K = 0.05
 const MAX_K = 2.5
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 
@@ -213,6 +214,7 @@ export function SkillTree({ onCenter }: { onCenter?: () => void } = {}) {
 
   // ── 视图 ──
   // 边界：最小缩到刚好装下整个圆；放大后屏幕中心能到图上任何一点
+  // 最小缩放就是刚好把整个圆（含最外圈徽章）装进屏幕，窗口再小也能看全
   const minK = size.w ? Math.max(MIN_K, Math.min(size.w, size.h) / (layout.bounds.maxX - layout.bounds.minX)) : MIN_K
   const limits = useRef({ minK, w: size.w, h: size.h, b: layout.bounds })
   limits.current = { minK, w: size.w, h: size.h, b: layout.bounds }

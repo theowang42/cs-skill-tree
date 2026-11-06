@@ -1,4 +1,4 @@
-# 🌲 cs-skill-tree
+# cs-skill-tree
 
 简体中文 | [English](docs/README.en.md)
 
