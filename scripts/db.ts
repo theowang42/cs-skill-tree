@@ -66,6 +66,8 @@ export function check(db: DatabaseSync): Finding[] {
   error('SELECT id FROM categories WHERE id NOT IN (SELECT category_id FROM subs)', (r) => `大方向 ${r.id} 下面没有职业`)
   error('SELECT id FROM subs WHERE id NOT IN (SELECT sub_id FROM sub_projects)', (r) => `职业 ${r.id} 没有代表项目`)
   warning('SELECT id, length(intro) AS n FROM skills WHERE length(intro) > 50', (r) => `技能 ${r.id} 的一句话有 ${r.n} 个字，最好控制在 50 字以内`)
+  // 技能的一句话写掌握到什么程度：会做什么，能做到什么
+  warning("SELECT id FROM skills WHERE intro NOT LIKE '会%能%'", (r) => `技能 ${r.id} 的一句话要写成“会……，能……”，说清掌握到什么程度`)
   // 名字的显示宽度：中文算 2，英文数字算 1。树上节点下面放得下 16
   for (const r of rows('SELECT id, name FROM skills')) {
     const width = [...String(r.name)].reduce((n, c) => n + (c.charCodeAt(0) > 0x2e80 ? 2 : 1), 0)
