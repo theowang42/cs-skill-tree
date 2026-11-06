@@ -22,7 +22,6 @@
     "verbatimModuleSyntax": true
   },
   "include": [
-    "server",
     "scripts",
     "tests",
     "src/types.ts",

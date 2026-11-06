@@ -1,12 +1,12 @@
 // 技能树布局：确定性、一棵从圆心往外长的树、同一圈不重叠、职业在最外圈
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { getRoadmap } from '../server/roadmap.ts'
+import { build } from '../scripts/db.ts'
+import { getRoadmap } from '../scripts/roadmap.ts'
 import { Tree } from '../src/lib/tree.ts'
 import { labelWidth, layoutWeb, NODE_R, RING, START_R, subNodeId, TIP_R } from '../src/lib/webLayout.ts'
-import { freshDb } from './helpers.ts'
 
-const tree = new Tree(getRoadmap(freshDb()))
+const tree = new Tree(getRoadmap(build()))
 const layout = layoutWeb(tree)
 const node = (id: string) => layout.nodes.get(id)!
 const radius = (id: string) => Math.hypot(node(id).x, node(id).y)
@@ -39,11 +39,11 @@ test('三个起点都在第一圈', () => {
 })
 
 test('一圈一圈往外：孩子正好在父亲外面一圈，同一圈半径相同', () => {
+  // 在第几圈（从 1 数）；不在任何一圈上是 0
+  const ring = (id: string) => layout.rings.findIndex((r) => Math.abs(radius(id) - r) < 1) + 1
   for (const s of tree.roadmap.skills) {
-    if (!s.parent) continue
-    const d = node(s.id).depth
-    assert.equal(d, node(s.parent).depth + 1)
-    assert.ok(Math.abs(radius(s.id) - layout.rings[d - 1]) < 1, `${s.id} 不在第 ${d} 圈`)
+    assert.ok(ring(s.id) > 0, `${s.id} 不在任何一圈上`)
+    if (s.parent) assert.equal(ring(s.id), ring(s.parent) + 1, `${s.id} 不在 ${s.parent} 外面一圈`)
   }
   for (let i = 1; i < layout.rings.length; i++) assert.ok(layout.rings[i] - layout.rings[i - 1] >= RING - 1)
 })

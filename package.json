@@ -4,16 +4,11 @@
   "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "dev": "npm run db:build && vite",
-    "dev:api": "npm run db:build && node scripts/dev-api.ts",
-    "api": "node --no-warnings=ExperimentalWarning server/index.ts",
-    "db": "node --no-warnings=ExperimentalWarning scripts/db.ts",
-    "db:build": "npm run db -- build --export",
-    "db:check": "npm run db -- check",
-    "db:export": "npm run db -- export",
-    "test": "node --no-warnings=ExperimentalWarning --test tests/*.test.ts",
+    "dev": "npm run data && vite",
+    "data": "node --no-warnings=ExperimentalWarning scripts/data.ts",
+    "test": "npm run data && node --no-warnings=ExperimentalWarning --test tests/*.test.ts",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json",
-    "build": "npm run db:build && npm run typecheck && vite build --base ./ --outDir dist/tree --emptyOutDir && node --no-warnings=ExperimentalWarning scripts/pages.ts",
+    "build": "npm run data && npm run typecheck && vite build --base ./ --outDir dist/tree --emptyOutDir && node --no-warnings=ExperimentalWarning scripts/pages.ts",
     "preview": "vite preview --outDir dist"
   },
   "dependencies": {

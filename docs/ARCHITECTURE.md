@@ -8,116 +8,83 @@
 
 | 概念 | 含义 | 存在哪 |
 | --- | --- | --- |
-| **技能** | 树上最小的、能点亮的单位。`concept` 是知识点（属于某个知识领域），`tool` 是语言 / 框架 / 平台（属于某个工具组） | `skills` |
-| **知识领域** | 一组相关的知识点，比如“操作系统”。20 个，分基础层、核心层、进阶层 | `areas`、`layers` |
-| **前置** | 学 A 之前最好先会 B。整棵树是一张有向无环图 | `skill_prerequisites` |
-| **学会的标志** | 2~3 条“做得到就算会了”的自测标准 | `skill_checks` |
-| **方向** | 大方向（AI）下的细分方向（Agent 开发）。直接要求一组技能，前置自动带上；还可以有“任选其一”的组 | `categories`、`subs`、`sub_requirements` |
-| **点亮** | 学习者点亮一个技能（存成 `done`）。只有点亮和没点亮两种 | 浏览器或 `learner_skills` |
+| **技能** | 树上能点亮的单位，每个都是一项能写进简历的能力 | `skills` |
+| **领域** | 技能树上的一支，比如“底层系统” | `areas` |
+| **前置** | 学 A 之前要先会 B。整棵树是一张有向无环图 | `skill_prerequisites` |
+| **职业** | 最外圈的徽章，属于某个大方向。直接要求一组技能，前置自动带上；还可以有不算进达成条件的加分项 | `categories`、`subs`、`sub_requirements` |
+| **点亮** | 进度就是“点亮了哪些技能”这个集合，存在浏览器里 | `localStorage` |
 
-学习者只做一件事：点亮或取消。规则：**前置都点亮了才能点亮；取消一个，依赖它的一起熄灭**。浏览器和服务端用同一个函数算（`src/lib/tree.ts` 的 `planChanges`），数据库触发器再挡一道；API 违反规则时回 409，整批不写。页面上每个技能有三种画法，后两种是推导出来的，不存：
+规则只有一条：**前置都点亮了才能点亮；熄灭一个，依赖它的一起熄灭**（`src/lib/tree.ts` 的 `plan`）。每个技能有三种画法，都是从点亮集合推导出来的：
 
 | 状态 | 条件 | 页面上 |
 | --- | --- | --- |
-| `done` 已点亮 | 学习者点亮的 | 实心黑 |
+| `done` 已点亮 | 点亮了 | 实心黑，外面一圈光芒 |
 | `available` 能点亮 | 前置全部点亮，自己没点 —— **能力边界** | 黑框 |
 | `locked` 够不着 | 还有前置没点亮 | 浅灰框 |
 
-方向的**就绪度** = (必学闭包里已点亮的技能数 + 已满足的任选组数) / (必学闭包大小 + 任选组数)。
+职业要学的全部技能（加分项不算）都点亮了，就自动达成。
 
 ## 2. 数据怎么流动
 
 ```
-db/migrations/*.sql   表、视图、触发器
-db/seed/*.sql         全部内容（一个技能一行）
-        │  npm run db:build：删库重建 → 灌内容 → 体检 → 导出
+db/schema.sql      表和推导视图
+db/seed/*.sql      全部内容（一个技能一行）
+        │  npm run data：在内存里建库 → 灌内容 → 体检 → 导出
         ▼
-data/cs-skill-tree.db ──► public/data/roadmap.json ──► 静态站点（GitHub Pages）
-        │                                ├──► 技能树（/tree/，单页应用）
-        │                                │    进度存 localStorage，可导出 / 导入 / 分享
-        │                                └──► scripts/pages.ts：首页、每个技能一页、每个职业一页、sitemap
-        └──► server/index.ts（API，零依赖）──► VITE_API=1 构建的前端
-                                               进度、目标、操作记录存进数据库
+public/data/roadmap.json ──┬──► 技能树（/tree/，单页应用），进度存浏览器，可导出 / 导入 / 分享
+src/generated/icons.ts     └──► scripts/pages.ts：首页、每个技能一页、每个职业一页、sitemap
 ```
 
-- 运行时只用 Node 自带的 `node:sqlite` 和类型擦除，没有原生依赖，也不需要编译服务端代码。
-- 前置闭包、学习顺序、四种状态、能力边界、就绪度都在**数据库视图**里实现；
-  前端为了离线可用，在 `src/lib/tree.ts` 里有同样的算法，`tests/tree.test.ts` 用 25 份随机进度逐个比对两边的结果。
+运行时只用 Node 自带的 `node:sqlite` 和类型擦除，没有原生依赖。数据库只在构建时存在，用完就扔。
 
 ## 3. 数据库
 
 ```mermaid
 erDiagram
-  layers ||--o{ areas : "分层"
-  areas ||--o{ area_courses : "公开课"
-  areas ||--o{ skills : "知识点"
-  tool_groups ||--o{ skills : "工具"
+  areas ||--o{ skills : ""
   skills ||--o{ skill_prerequisites : "前置"
-  skills ||--o{ skill_checks : "学会的标志"
-  skills ||--o{ skill_topics : "要学的内容"
-  skills ||--o{ skill_resources : "资料"
-  categories ||--o{ subs : "细分方向"
-  subs ||--o{ sub_requirements : "必学 / 任选"
+  skills ||--o{ skill_resources : "去哪学"
+  categories ||--o{ subs : "职业"
+  subs ||--o{ sub_requirements : "必学 / 加分项"
   sub_requirements }o--|| skills : ""
-  subs ||--o{ sub_items : ""
-  subs ||--o{ sub_topics : ""
+  subs ||--o{ sub_items : "关键词"
+  subs ||--o{ sub_topics : "平时做什么"
   subs ||--o{ sub_projects : "代表项目"
-  learners ||--o{ learner_skills : "点亮状态"
-  learners ||--o{ learner_events : "操作记录"
-  learners }o--o| subs : "目标"
 ```
 
-| 迁移 | 内容 |
+`db/schema.sql` 里的推导视图：
+
+| 视图 | 算什么 | 用在哪 |
+| --- | --- | --- |
+| `skill_ancestors` | 每个技能的全部前置 | 下面几个视图、体检 |
+| `skill_tiers` | 领域内第几行（只看同领域的前置） | 导出时技能的顺序，布局按这个顺序摆 |
+| `skill_weight` | 有多少技能直接或间接依赖它 | “下一个学什么”的排序 |
+| `sub_skill_closure` | 职业必学的全部技能 | 学习路线、“哪些职业要学它” |
+| `sub_learning_plan` | 第几步学：没有前置的是第 1 步，其余是最晚的前置 + 1 | 职业页的学习路线 |
+
+递归视图都用 `UNION` 去重并限制深度，数据里误写了环也能停下来，环由体检报错。
+
+种子文件往 `db/seed/00_helpers.sql` 建的临时视图里 `INSERT`，一个技能、一个职业各占一行，触发器把它拆到各张表里并按出现顺序编号。
+
+体检（`scripts/db.ts` 的 `check`），有错误时 `npm run data` 失败：
+
+| 级别 | 规则 |
 | --- | --- |
-| `0001_content.sql` | 内容表。`STRICT` 表，CHECK 约束保证 id 格式、链接是 http(s)、知识点和工具的字段互斥 |
-| `0002_graph_views.sql` | `skill_ancestors`（全部前置）、`skill_tiers`（领域内第几行）、`sub_skill_closure`（方向必学的全部技能）、`sub_learning_plan`（第几步学）、`sub_choices`、`skill_unlocks`、`skill_weight`（被多少技能依赖） |
-| `0003_learners.sql` | `learners`、`learner_skills`、`learner_events`（三个触发器自动记录每次状态变化）；视图 `learner_skill_state`（四种状态）、`learner_frontier`（能力边界）、`learner_sub_readiness`（就绪度） |
-| `0011_career_icon.sql` | 职业是最外圈的终极节点，每个有自己的图标 |
-| `0010_language_talent.sql` | 编程语言标成语言天赋（`is_language`），树上画成六边形 |
-| `0009_prerequisites_first.sql` | 前置都点亮了才能点亮：清掉旧数据里不合规的，触发器挡住不合规的写入，取消时一层层熄灭后继 |
-| `0008_lit_only.sql` | 只有点亮一种状态：去掉“在学”，旧数据里的“在学”当作没点亮，触发器挡住新的 |
-| `0007_tree_parent.sql` | 树上画的那根枝：技能的主前置 `parent_id`，方向挂在哪 `anchor_id`（都取种子里写的第一个） |
-| `0006_derived_level.sql` | 等级不写就按树的深度（最多 5） |
-| `0005_resume_skills.sql` | 技能改成能写进简历的颗粒度：`skills` 加 `level`（1~5，手写）和 `icon`（Lucide 名或 `si:` 品牌图标）；`skill_level` 视图改为直接读 `level` |
-| `0004_skill_depth.sql` | `skill_depth`（全局最长前置链）、`skill_level`（星图的 5 个等级：入门 / 基础 / 进阶 / 专精 / 前沿，由所在层和领域内层级映射，再按前置抬高，保证前置不在更高级）、`learner_reach`（每个领域点亮到第几圈） |
+| 错误 | 引用对不上、前置成环、主前置不是真正的前置、徽章挂的技能不是必学的、技能没有链接、大方向下没有职业、职业没有代表项目、加分项已经是必学的 |
+| 提醒 | 多余的前置、多余的必学要求、孤立的技能、没有职业用到的技能、一句话太长、名字太长放不下、链接重复 |
 
-递归视图都用 `UNION` 去重，行数被限制在“节点数 × 深度”以内，数据里就算误写了环也能停下来，环由体检报错。
-
-**重新播种不会丢学习者的进度**：内容表在一个事务里清空重灌，学习者表不动；指向已删除技能的记录会被清掉并报告数量。
+表约束另外挡住：id 格式、图标重复、前置指向自己、链接不是 https。
 
 ## 4. 命令
 
 | 命令 | 作用 |
 | --- | --- |
-| `npm run dev` | 重建数据库 + 导出 JSON + 启动 Vite，进度存浏览器 |
-| `npm run dev:api` | 同时启动 API（3000）和 Vite（`/api` 代理过去），进度存数据库 |
-| `npm run api` | 只启动 API；构建过 `dist/` 的话也会把页面一起发出去 |
-| `npm run db:build` | 删库重建、灌内容、体检、导出 `public/data/roadmap.json` |
-| `npm run db:check` | 只体检 |
-| `npm run db -- stats` | 每张表多少行 |
-| `npm run db -- events` | 最近的学习记录 |
-| `npm run db -- query "SQL"` | 随手查，比如 `SELECT * FROM sub_learning_plan WHERE sub_id='backend' ORDER BY step` |
-| `npm test` | 数据库、视图与前端算法的一致性、API、前端纯逻辑 |
-| `npm run build` | 重建数据库 → 类型检查 → 技能树打包到 `dist/tree/` → 生成首页、技能页、职业页到 `dist/` |
+| `npm run dev` | 导出数据，启动 Vite 开发服务器 |
+| `npm run data` | 建库、体检、导出 `public/data/roadmap.json` 和 `src/generated/icons.ts` |
+| `npm test` | 导出数据，再跑全部测试 |
+| `npm run build` | 导出 → 类型检查 → 技能树打包到 `dist/tree/` → 生成首页、技能页、职业页到 `dist/` |
 
-体检规则（`server/db.ts` 的 `check`）：
-
-| 级别 | 规则 |
-| --- | --- |
-| 错误 | 外键、完整性、前置成环、前置指向更高的层（知识点不能依赖工具）、编号不连续、缺“学会的标志”/链接/公开课、方向没有必学技能、任选项已经是必学 |
-| 提醒 | 多余的前置（已经是另一个前置的祖先）、多余的方向要求、孤立的知识点、没人用的工具、链接重复、介绍太长、热门方向太多 |
-
-## 5. API
-
-全部 JSON，见 `server/index.ts` 开头的列表。要点：
-
-- `GET /api/roadmap` 和静态的 `roadmap.json` 完全一样
-- `PATCH /api/learners/:id/skills` 批量改状态，在一个事务里；有一个不认识的技能就整批拒绝
-- `GET /api/learners/:id/summary` 直接返回视图算出的状态计数、能力边界（目标里的排前面）、目标就绪度、最近的方向
-- `GET /api/learners/:id/timeline` 按天汇总的成长记录（点亮、开始学、取消），来自触发器写的 `learner_events`
-- `POST /api/learners/:id/import` 接受前端导出的进度文件，不认识的技能丢掉并在 `dropped` 里报告
-
-## 6. 静态页面：首页、技能页、职业页
+## 5. 静态页面：首页、技能页、职业页
 
 技能树是单页应用，搜索引擎看不到里面的内容。`scripts/pages.ts` 在打包时把同一份 `roadmap.json` 写成纯 HTML：
 
@@ -126,63 +93,62 @@ erDiagram
 | `/` | 首页：一句话、演示短片、三步用法、全部职业路线、全部技能目录 |
 | `/skill/<id>/` | 一个技能：一句话、去哪学、前置、学会后可以学、哪些职业要学、同领域的其他技能 |
 | `/career/<id>/` | 一个职业：做什么、按步骤排好的学习路线、加分项、参考项目、同类职业 |
-| `/tree/` | 技能树本身；`/tree/#/skill/<id>`、`/tree/#/sub/<id>` 直接打开对应的卡片 |
+| `/tree/` | 技能树本身；`#/skill/<id>`、`#/sub/<id>`、`#/careers` 直接打开对应的卡片 |
 | `/sitemap.xml` | 以上全部地址，提交给搜索引擎用 |
 
 - 每页有自己的标题、描述、canonical 和面包屑（JSON-LD），图标在打包时用 React 渲染成 SVG 内联进去，不需要 JS。
-- 样式在 `site/site.css`，首页的短片和封面也在 `site/`，打包时原样复制到 `dist/`。
+- `site/` 里的文件（样式、短片和封面）原样复制到 `dist/`。`site/tokens.css` 是颜色和字体，技能树也用它。
 - 技能树以前在首页：旧链接（`/#share=…`、`/#/skill/…`）打开首页时会自动转到 `/tree/`。
-- `tests/pages.test.ts` 检查每个技能和职业都有页面、站内链接都指向存在的页面、标题和描述不重复。
 
-## 7. 前端：技能树
+## 6. 前端：技能树
 
 ```
 src/
-  types.ts              前后端共用的数据形状
-  generated/icons.ts    由 npm run db:export 生成：只 import 用到的图标（不进 git）
-  lib/tree.ts           索引、四种状态、能力边界、就绪度（和数据库视图同一套算法）
-  lib/webLayout.ts      技能树布局：从下往上、一列一列、每个节点一根枝、方向在最上面（tests/webLayout.test.ts）
-  lib/store.ts          进度存储：LocalStore（浏览器）/ ApiStore（服务端），接口一样
-  lib/share.ts          分享链接：已点亮技能的位图 → base64url
-  state.tsx             全局状态和所有会改进度的动作（乐观更新、撤销、解锁动画）
+  types.ts                roadmap.json 的形状
+  generated/icons.ts      由 npm run data 生成：只 import 用到的图标（不进 git）
+  lib/tree.ts             索引、三种状态、点亮规则、职业进度
+  lib/webLayout.ts        布局：一个圆，从圆心往外一圈一圈长（tests/webLayout.test.ts）
+  lib/progress.ts         进度存进浏览器、导出成文件、从文件导入
+  lib/share.ts            分享链接：点亮的技能编成位图 → base64url
+  state.tsx               全局状态和所有会改进度的动作（撤销、解锁动画、地址栏同步）
   components/
-    SkillTree.tsx       技能树：平移缩放、同心圆、节点、枝条、最外圈的职业
-    Hud.tsx             顶栏：进度、达成了几个职业、下一个
-    Panel.tsx           右侧面板：我的进度 / 技能 / 领域 / 方向，都只有一句话和链接
+    SkillTree.tsx         技能树：同心圆、枝条、圆心的“你”、节点、最外圈的职业
+    useCamera.ts          镜头：缩放、拖动、双指缩放、飞到某处
+    glyphs.tsx            树和面板共用的画法：图标、光芒、六边形、技能槽
+    Hud.tsx               顶栏：进度、达成了几个职业、下一个
+    Panel.tsx             右侧面板：我的进度 / 技能 / 职业 / 全部职业
 ```
 
 布局（`lib/webLayout.ts`）：
 
-- 树：每个技能挂在主前置（`parent`）上，方向挂在 `anchor` 上。其余前置不画线，选中时只让那些节点保持清楚。
-- 一个圆：圆心 (0, 0) 是起点，编程入门、Linux、微积分在第一圈，各自正对着自己那一片；第 d 圈是深度 d，孩子在父亲外面一圈。职业在最外圈，就在它那一列的尽头。
-- 角度：子树按每一圈的左右轮廓紧挨着排（宽度换成弧度 = 像素宽 / 半径），父节点在第一个和最后一个孩子正中间；一个孩子时同一个角度，链是直的。节点沿圆周占多宽看它在哪个方向（左右两边按名字宽，上下两边按节点加名字的高），先排一遍再按角度重排几遍。先紧凑排一遍；再松弛：同一圈挨得太近的连同整条直链往两边转开。每圈半径取“同圈相邻排得下、和里圈斜着不叠、比里圈至少大 `RING`”。职业那一列从挂的技能一直占到最外圈，线沿半径直直出去。大模型算法工程师朝正上方。兄弟按领域排（`AREA_ORDER`）。
-- 枝条是直角折线，终点停在孩子名字下面。
-- 体检会查：主前置必须是真正的前置，方向挂的位置必须是它必学的技能。
+- 树：每个技能挂在主前置（`parent`）上，职业挂在 `anchor` 上。其余前置不画线，选中时只让那些节点保持清楚。
+- 一个圆：圆心 (0, 0) 是“你”，编程入门、Linux、微积分在第一圈，孩子在父亲外面一圈。职业在最外圈，就在它那一列的尽头。
+- 角度：子树按每一圈的左右轮廓紧挨着排（宽度换成弧度 = 像素宽 / 半径），父节点在孩子正中间；一个孩子时同一个角度，链是直的。节点沿圆周占多宽看它在哪个方向（左右两边按名字宽，上下两边按节点加名字的高），先排一遍再按角度重排几遍。再松弛：同一圈挨得太近的连同整条直链往两边转开。每圈半径取“同圈相邻排得下、和里圈斜着不叠、比里圈至少大 `RING`”。大模型算法工程师朝正上方，兄弟按领域排（`AREA_ORDER`）。
+- 枝条从父节点沿半径往外，到两圈中间沿一小段圆弧转过去，再沿半径停在孩子前面；线绕开所有名字和节点（测试逐条检查）。
 
 交互：
 
-- 点节点：右侧面板打开（一句话、点亮按钮、去哪学）。
-- 悬停或选中节点：只亮它往下的全部依赖（都画成黑边），其余变淡。前置没点亮时，点亮按钮是灰的，面板里列出缺哪个前置，点它跳过去。
-- 职业是最外圈的终极节点，不用选：要学的技能（不算加分项）都点亮了就自动达成（`isReached`），放一次庆祝动画。点它亮出它要学的全部技能，视图缩到装下整条路线。顶栏显示达成了几个职业。学习者表里的 goal 字段还在，页面不再用。
-- 设了目标后，最该学的节点上方有一个朱砂小三角；顶栏“下一个”飞过去。
+- 点节点：右侧面板打开（一句话、点亮按钮、去哪学）。悬停或选中节点：它的全部前置画成黑的，其余变淡。
+- 点职业：亮出它要学的全部技能，镜头缩到装下整条路线。
+- 悬停圆心：只亮下一步能点亮的技能；点圆心打开“我的进度”。
+- 镜头：最小缩放刚好装下整个圆；越放大能拖得越远，最外圈的徽章也能拖到屏幕正中。
 - 美术规则见 [ART.md](ART.md)。
 
 进度的安全措施：
 
-- 内容更新后，浏览器里存的、导入的、分享链接里带的已删除技能和方向会被清掉（`sanitize`），页面不会因为旧数据出错
-- 两个标签页同时改进度不会互相覆盖：每次写之前重读 localStorage，并监听 `storage` 事件同步
-- API 模式下所有请求排队发出，顺序和界面一致；只有服务器明确返回 404 才会新建学习者
-- 导入、清空、用分享链接覆盖都可以撤销；万一渲染出错，错误页提供备份进度和清空重试
+- 内容更新后，浏览器里存的、导入的、分享链接里带的已删除技能和前置没点亮的记录会被清掉（`clean`），页面不会因为旧数据出错。
+- 两个标签页同时开着，一边改了另一边跟着刷新（`storage` 事件）。
+- 熄灭连带一串、导入、清空、用分享链接覆盖都可以撤销；万一渲染出错，错误页提供备份进度和清空重试。
 
-## 8. 常见修改
+## 7. 常见修改
 
-- **加一个技能**：在 `db/seed/20_skills.sql` 对应领域的 `INSERT INTO skill_rows` 里加一行（id、领域、等级（一般写 NULL，按深度）、图标、名字、一句话、前置、链接），跑 `npm run db:build`。体检会查等级倒挂、重复图标、名字太长、缺链接；图标名不存在时导出直接报错。
-- **改方向要求**：`db/seed/40_directions.sql`，必学只写最高层的技能；任选组写成 `{"组名": ["a", "b"]}`。
+- **加一个技能**：在 `db/seed/20_skills.sql` 对应领域里加一行（id、领域、图标、名字、一句话、前置、链接），跑 `npm run data`。图标名不存在时直接报错。
+- **改职业要求**：`db/seed/40_directions.sql`，必学只写最高层的技能，第一个是徽章挂的位置；加分项写在最后一列。
 - **加一个领域**：`db/seed/10_areas.sql` 加一行，再在 `src/lib/webLayout.ts` 的 `AREA_ORDER` 里给它排个位置。
 - **改技能 id**：尽量别改，会让用户已有的进度和分享链接对不上。真要改，旧 id 的进度会在下次加载时被清掉。
 
-## 9. 以后可以做
+## 8. 以后可以做
 
 - 每个技能配几道自测题，答对才能点亮
-- 按每个技能的预计学时估算离目标还要多久
-- 和同一目标的人比较能力边界（数据库里已经有 `learner_events`，可以画成长曲线）
+- 登录和跨设备同步进度
+- 按每个技能的预计学时估算离一个职业还要多久

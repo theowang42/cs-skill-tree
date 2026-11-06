@@ -1,40 +1,39 @@
-// 我的进度：几个数、离得最近的职业、下一个、数据。就这些。
+// 我的进度：几个数、离得最近的职业、下一个可以学的、数据。
 import { useRef, useState } from 'react'
 import { useApp } from '../state'
 import { frontier, totals } from '../lib/tree'
-import { parseFile, toFile } from '../lib/store'
+import { parseFile, toFile } from '../lib/progress'
 import { encodeShare } from '../lib/share'
 import { Meter } from './common'
 
 export function Dashboard() {
-  const { tree, states, progress, readinessBySub, setFocus, readOnly, replaceProgress, resetProgress, store, toast } = useApp()
+  const { tree, lit, states, progressBySub, setFocus, readOnly, replace, reset, toast } = useApp()
   const t = totals(states)
-  // 按“还差几个”排，最近的三个
+  // 还差得最少的三个职业
   const closest = tree.roadmap.subs
-    .map((sub) => ({ sub, r: readinessBySub.get(sub.id)! }))
-    .sort((a, b) => a.r.coreTotal - a.r.coreDone - (b.r.coreTotal - b.r.coreDone) || b.r.coreDone - a.r.coreDone)
+    .map((sub) => ({ sub, p: progressBySub.get(sub.id)! }))
+    .sort((a, b) => a.p.total - a.p.done - (b.p.total - b.p.done) || b.p.done - a.p.done)
     .slice(0, 3)
-  const next = frontier(tree, states, null).slice(0, 5)
+  const next = frontier(tree, states).slice(0, 5)
   const file = useRef<HTMLInputElement>(null)
   const [confirmReset, setConfirmReset] = useState(false)
 
   const exportFile = () => {
-    const blob = new Blob([JSON.stringify(toFile(progress), null, 2)], { type: 'application/json' })
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
+    a.href = URL.createObjectURL(new Blob([toFile(lit)], { type: 'application/json' }))
     a.download = `cs-skill-tree-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(a.href)
   }
   const importFile = async (f: File) => {
     try {
-      await replaceProgress(parseFile(await f.text()))
+      replace(parseFile(await f.text()))
     } catch (e) {
       toast(`导入失败：${(e as Error).message}`)
     }
   }
   const share = async () => {
-    const url = `${location.origin}${location.pathname}#${encodeShare(tree, progress)}`
+    const url = `${location.origin}${location.pathname}${encodeShare(tree, lit)}`
     try {
       await navigator.clipboard.writeText(url)
       toast('链接已复制，别人打开能看到你点亮的技能')
@@ -55,16 +54,16 @@ export function Dashboard() {
 
       <h4>离得最近的职业</h4>
       <ul className="plain-list">
-        {closest.map(({ sub, r }) => (
+        {closest.map(({ sub, p }) => (
           <li key={sub.id}>
             <button className="row-link" onClick={() => setFocus({ kind: 'sub', id: sub.id }, { scroll: true })}>
-              <span>{r.coreDone >= r.coreTotal ? '★ ' : ''}{sub.name}</span>
-              <small>{r.coreDone >= r.coreTotal ? '已达成' : `${r.coreDone} / ${r.coreTotal}`}</small>
+              <span>{p.done === p.total ? '★ ' : ''}{sub.name}</span>
+              <small>{p.done === p.total ? '已达成' : `${p.done} / ${p.total}`}</small>
             </button>
           </li>
         ))}
         <li>
-          <button className="row-link" onClick={() => setFocus({ kind: 'category', id: tree.roadmap.categories[0].id })}>
+          <button className="row-link" onClick={() => setFocus({ kind: 'careers' })}>
             <span>全部职业 →</span>
           </button>
         </li>
@@ -74,11 +73,11 @@ export function Dashboard() {
         <>
           <h4>下一个可以学</h4>
           <ul className="plain-list">
-            {next.map((f) => (
-              <li key={f.id}>
-                <button className="row-link" onClick={() => setFocus({ kind: 'skill', id: f.id }, { scroll: true })}>
-                  <span>{tree.skill(f.id).name}</span>
-                  <small>{tree.containerName(f.id)}</small>
+            {next.map((id) => (
+              <li key={id}>
+                <button className="row-link" onClick={() => setFocus({ kind: 'skill', id }, { scroll: true })}>
+                  <span>{tree.skill(id).name}</span>
+                  <small>{tree.areas.get(tree.skill(id).areaId)!.name}</small>
                 </button>
               </li>
             ))}
@@ -89,14 +88,14 @@ export function Dashboard() {
       {!readOnly && (
         <>
           <h4>数据</h4>
-          <p className="note">{store.where}</p>
+          <p className="note">进度保存在这台设备的浏览器里。换设备前记得导出。</p>
           <div className="row-actions wrap">
             <button onClick={share}>分享链接</button>
             <button onClick={exportFile}>导出</button>
             <button onClick={() => file.current?.click()}>导入</button>
             {confirmReset ? (
               <>
-                <button className="danger" onClick={() => { setConfirmReset(false); void resetProgress() }}>确定清空</button>
+                <button className="danger" onClick={() => { setConfirmReset(false); reset() }}>确定清空</button>
                 <button onClick={() => setConfirmReset(false)}>算了</button>
               </>
             ) : (

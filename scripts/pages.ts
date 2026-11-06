@@ -13,7 +13,7 @@ import type { Roadmap, Skill, Sub } from '../src/types.ts'
 import { ICONS } from '../src/generated/icons.ts'
 
 export const SITE = 'https://theowang42.github.io/cs-skill-tree/'
-export const REPO = 'https://github.com/theowang42/cs-skill-tree'
+const REPO = 'https://github.com/theowang42/cs-skill-tree'
 const NAME = 'CS 技能树'
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -120,7 +120,7 @@ export function renderSite(rm: Roadmap): Map<string, string> {
   // ── 首页 ──
   {
     const careers = rm.categories
-      .map((cat) => `<section class="group"><h3>${esc(cat.name)}</h3><div class="grid">${cat.subIds.map((id) => careerCard(subs.get(id)!, '')).join('')}</div></section>`)
+      .map((cat) => `<section class="group"><h3>${esc(cat.name)}</h3><p class="muted">${esc(cat.intro)}</p><div class="grid">${cat.subIds.map((id) => careerCard(subs.get(id)!, '')).join('')}</div></section>`)
       .join('')
     const all = rm.areas
       .map((a) => `<section class="group"><h3>${esc(a.name)}<span>${a.skillIds.length}</span></h3><p class="muted">${esc(a.intro)}</p><div class="chips">${a.skillIds.map((id) => skillChip(sk(id), '')).join('')}</div></section>`)
@@ -178,9 +178,6 @@ export function renderSite(rm: Roadmap): Map<string, string> {
       .join('')
     const cat = rm.categories.find((x) => x.id === c.categoryId)!
     const siblings = cat.subIds.filter((id) => id !== c.id).map((id) => careerCard(subs.get(id)!, root)).join('')
-    const choices = c.choices
-      .map((ch) => `<section class="block"><h2>${esc(ch.label)}</h2><div class="grid">${ch.options.map((id) => skillCard(sk(id), root)).join('')}</div></section>`)
-      .join('')
     put({
       path: `career/${c.id}/`,
       title: `${c.name}要学什么？${c.plan.length} 个技能的学习路线 | ${NAME}`,
@@ -203,7 +200,7 @@ ${c.topics.length ? `<section class="block"><h2>平时做什么</h2><ul class="l
   <p class="muted">同一步里的技能互不依赖，先学哪个都行；下一步的技能要用到上一步的。</p>
   <ol class="plan">${plan}</ol>
 </section>
-${choices}
+${c.bonus.length ? `<section class="block"><h2>加分项</h2><div class="grid">${c.bonus.map((id) => skillCard(sk(id), root)).join('')}</div></section>` : ''}
 ${c.projects.length ? `<section class="block"><h2>可以参考的开源项目</h2><ul class="list">${c.projects.map((l) => `<li><a href="${esc(l.url)}" rel="noopener">${esc(l.label)} ↗</a></li>`).join('')}</ul></section>` : ''}
 ${siblings ? `<section class="block"><h2>同类职业</h2><div class="grid">${siblings}</div></section>` : ''}
 `,

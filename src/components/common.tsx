@@ -1,63 +1,25 @@
 // 面板里反复用到的小部件
-import type { ReactNode } from 'react'
 import { Check, ChevronsUp, Lock } from 'lucide-react'
-import type { SkillState } from '../types'
+import type { Link } from '../types'
 import { useApp } from '../state'
-import { STATE_LABEL } from '../lib/format'
+import { SkillSlot } from './glyphs'
 
-/** 进度条。value / max */
-export function Meter({ value, max, label }: { value: number; max: number; label?: string }) {
-  const w = max ? (100 * value) / max : 0
+/** 进度条 */
+export function Meter({ value, max }: { value: number; max: number }) {
   return (
-    <span className="meter" role="meter" aria-valuemin={0} aria-valuemax={max} aria-valuenow={value} aria-label={label}>
-      <span className="meter-done" style={{ width: `${w}%` }} />
+    <span className="meter" role="meter" aria-valuemin={0} aria-valuemax={max} aria-valuenow={value}>
+      <span className="meter-done" style={{ width: `${max ? (100 * value) / max : 0}%` }} />
     </span>
   )
 }
 
-export function StateDot({ state }: { state: SkillState }) {
-  return <span className={`dot d-${state}`} aria-hidden />
-}
-
-/** 一个可点击的技能小标签，带状态点 */
-export function SkillChip({ id, note }: { id: string; note?: ReactNode }) {
-  const { tree, states, setFocus } = useApp()
-  const s = tree.skill(id)
-  const state = states.get(id)!
-  return (
-    <button className={`chip c-${state}`} onClick={() => setFocus({ kind: 'skill', id }, { scroll: true })} title={`${s.name} · ${STATE_LABEL[state]}`}>
-      <StateDot state={state} />
-      {s.name}
-      {note && <small>{note}</small>}
-    </button>
-  )
-}
-
-export function SubChip({ id }: { id: string }) {
-  const { tree, readinessBySub, setFocus, progress } = useApp()
-  const s = tree.subs.get(id)!
-  const r = readinessBySub.get(id)!
-  return (
-    <button className="chip sub-chip" onClick={() => setFocus({ kind: 'sub', id }, { scroll: true })}>
-      {progress.goalSubId === id && <span aria-label="目标">★</span>}
-      {s.name}
-      <small>{Math.round(r.percent)}%</small>
-    </button>
-  )
-}
-
-/** 点亮 / 取消点亮：只有这两种状态。前置没点亮时按不了 */
+/** 点亮 / 熄灭。前置没点亮时按不了 */
 export function StatusControl({ id }: { id: string }) {
-  const { progress, states, setStatus, readOnly } = useApp()
-  const lit = progress.skills[id]?.status === 'done'
+  const { states, setLit, readOnly } = useApp()
+  const lit = states.get(id) === 'done'
   const locked = states.get(id) === 'locked'
   return (
-    <button
-      className={`light-toggle${lit ? ' on' : ''}${locked ? ' locked' : ''}`}
-      aria-pressed={lit}
-      disabled={readOnly || locked}
-      onClick={() => setStatus(id, lit ? null : 'done')}
-    >
+    <button className={`light-toggle${lit ? ' on' : ''}${locked ? ' locked' : ''}`} aria-pressed={lit} disabled={readOnly || locked} onClick={() => setLit(id, !lit)}>
       {lit ? (
         <>
           <Check size={18} strokeWidth={3} />
@@ -80,19 +42,21 @@ export function StatusControl({ id }: { id: string }) {
   )
 }
 
-export function Section({ title, children, aside }: { title: ReactNode; children: ReactNode; aside?: ReactNode }) {
+/** 列表里的一个技能：小技能槽、名字、点亮了没有。点了飞过去 */
+export function MiniSkill({ id, from }: { id: string; from: string }) {
+  const { tree, states, setFocus } = useApp()
+  const s = tree.skill(id)
+  const st = states.get(id)!
   return (
-    <section className="p-section">
-      <h4>
-        <span>{title}</span>
-        {aside}
-      </h4>
-      {children}
-    </section>
+    <button className={`mini s-${st}`} onClick={() => setFocus({ kind: 'skill', id }, { scroll: true })}>
+      <SkillSlot uid={`${from}-${id}`} icon={s.icon} language={s.language} state={st} size={52} />
+      <span className="mini-name">{s.name}</span>
+      <span className="mini-state">{st === 'done' ? '已点亮' : '未点亮'}</span>
+    </button>
   )
 }
 
-export function Links({ links }: { links: { label: string; url: string }[] }) {
+export function Links({ links }: { links: Link[] }) {
   return (
     <ul className="links">
       {links.map((l) => (

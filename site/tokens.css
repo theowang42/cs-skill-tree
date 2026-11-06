@@ -1,0 +1,22 @@
+/* 技能树和首页、技能页、职业页共用的颜色和字体。白底黑字，像一张印在纸上的示意图。规则见 docs/ART.md。
+   只有黑和几档灰；唯一的颜色是提醒用的一点朱砂。 */
+:root {
+  --paper: #ffffff;
+  --ink: #111111;
+  --ink-2: #666666;
+  --ink-3: #9a9a9a;
+  --line: #d9d9d9;
+  --line-2: #ededed;
+  --wash: #f4f4f4;
+  --goal: #d94f3d;
+  /* 没点亮的：线和字都要看得清，不能灰到看不见 */
+  --off-line: #b9b9b9;
+  --off-ink: #6b6b6b;
+  --sans: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}

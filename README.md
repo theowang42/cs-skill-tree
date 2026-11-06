@@ -28,13 +28,12 @@
 
 ```bash
 npm ci
-npm run dev        # 只有前端，进度存浏览器
-npm run dev:api    # 前端 + API，进度存 SQLite
-npm test
+npm run dev        # 开发服务器
+npm test           # 体检内容，跑全部测试
 ```
 
 ## 改内容
 
-内容都在 `db/seed/*.sql`，一个技能一行。改完跑 `npm run db:build`，会重建数据库并体检，有问题会报出来。
+内容都在 `db/seed/*.sql`，一个技能一行。改完跑 `npm run data`，会重建数据库并体检，有问题会报出来。
 
-数据库、API 和前端结构见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，美术规范见 [docs/ART.md](docs/ART.md)。课程主要参考 [csdiy.wiki](https://csdiy.wiki/)。
+数据库和前端结构见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，美术规范见 [docs/ART.md](docs/ART.md)。课程主要参考 [csdiy.wiki](https://csdiy.wiki/)。

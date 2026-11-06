@@ -1,120 +1,105 @@
-#!/usr/bin/env node
-// 数据库命令行。用法：npm run db -- <命令>
-//
-//   build    删掉旧库，建表并灌入 db/seed 的内容，再体检（加 --export 顺便导出 JSON）
-//   migrate  只跑还没跑过的迁移，保留已有数据（线上升级用）
-//   seed     只重新灌内容，保留学习者数据
-//   check    体检：外键、成环、编号、没人用的内容
-//   export   把整棵树导出成 public/data/roadmap.json，给静态站点用
-//   stats    每张表有多少行
-//   query    跑一条 SQL，例如 npm run db -- query "SELECT * FROM sub_learning_plan WHERE sub_id = 'agent'"
-//   events   最近的学习记录（API 模式下有数据）
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { check, DEFAULT_DB_PATH, migrate, openDatabase, rebuild, seed, tableCounts } from '../server/db.ts'
-import { getRoadmap } from '../server/roadmap.ts'
+// 建库和体检：在内存里建一个空库，跑 db/schema.sql 和 db/seed/*.sql，再检查表约束管不到的事。
+import { DatabaseSync } from 'node:sqlite'
+import { readdirSync, readFileSync } from 'node:fs'
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const require = createRequire(import.meta.url)
-export const EXPORT_PATH = join(ROOT, 'public', 'data', 'roadmap.json')
-
-const [command, ...args] = process.argv.slice(2)
-
-function printTable(rows: Record<string, unknown>[]) {
-  if (!rows.length) return console.log('（没有结果）')
-  console.table(rows)
-}
-
-function runCheck(db = openDatabase()): boolean {
-  const findings = check(db)
-  for (const f of findings) console.log(`${f.level === 'error' ? '✗' : '!'} [${f.rule}] ${f.message}`)
-  const errors = findings.filter((f) => f.level === 'error').length
-  const warnings = findings.length - errors
-  console.log(`体检完成：${errors} 个错误，${warnings} 个提醒`)
-  return errors === 0
-}
-
-const ICONS_PATH = join(ROOT, 'src', 'generated', 'icons.ts')
-const pascal = (s: string) => s.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join('')
-const siName = (s: string) => 'si' + s[0].toUpperCase() + s.slice(1)
+const DB = new URL('../db/', import.meta.url)
 
 /**
- * 生成前端用的图标表：只 import 用到的图标，打包时其余的都被摇掉。
- * 名字不存在就直接报错，比运行时少一个图标好查。
+ * 建好并灌完内容的内存数据库。
+ * 前置可以引用写在后面的技能，所以灌的时候不查外键，灌完再整体核对，指出是哪张表的哪一行对不上。
  */
-function writeIcons(names: string[]) {
-  const lucide = [...new Set(names.filter((n) => !n.startsWith('si:') && !n.startsWith('text:')))].sort()
-  const brands = [...new Set(names.filter((n) => n.startsWith('si:')).map((n) => n.slice(3)))].sort()
-  const lucideMod = require('lucide-react') as { icons: Record<string, unknown> }
-  const siMod = require('simple-icons') as Record<string, unknown>
-  const bad = [...lucide.filter((n) => !lucideMod.icons[pascal(n)]), ...brands.filter((n) => !siMod[siName(n)]).map((n) => 'si:' + n)]
-  if (bad.length) throw new Error(`这些图标不存在：${bad.join('、')}。Lucide 图标名见 https://lucide.dev/icons`)
-  const src = `// 由 npm run db:export 生成，别手改。改图标请改 db/seed 里技能的 icon 字段。
-import type { LucideIcon } from 'lucide-react'
-import { ${lucide.map(pascal).join(', ')} } from 'lucide-react'
-import { ${brands.map(siName).join(', ')} } from 'simple-icons'
-
-export type SkillIcon = { kind: 'lucide'; Icon: LucideIcon } | { kind: 'brand'; path: string; title: string }
-
-export const ICONS: Record<string, SkillIcon> = {
-${lucide.map((n) => `  ${JSON.stringify(n)}: { kind: 'lucide', Icon: ${pascal(n)} },`).join('\n')}
-${brands.map((n) => `  ${JSON.stringify('si:' + n)}: { kind: 'brand', path: ${siName(n)}.path, title: ${siName(n)}.title },`).join('\n')}
-}
-`
-  mkdirSync(dirname(ICONS_PATH), { recursive: true })
-  writeFileSync(ICONS_PATH, src)
-}
-
-function runExport(db = openDatabase()) {
-  const roadmap = getRoadmap(db)
-  mkdirSync(dirname(EXPORT_PATH), { recursive: true })
-  writeFileSync(EXPORT_PATH, JSON.stringify(roadmap, null, 2) + '\n')
-  writeIcons([...roadmap.skills.map((s) => s.icon), ...roadmap.subs.map((s) => s.icon)])
-  console.log(`已导出 ${EXPORT_PATH}：${roadmap.areas.length} 个分支、${roadmap.skills.length} 个技能、${roadmap.subs.length} 个方向`)
-}
-
-switch (command) {
-  case 'build': {
-    const db = rebuild()
-    console.log(`已重建 ${DEFAULT_DB_PATH}`)
-    if (!runCheck(db)) process.exit(1)
-    if (args.includes('--export')) runExport(db)
-    break
-  }
-  case 'migrate': {
-    const r = migrate(openDatabase())
-    console.log(`应用了 ${r.applied.length} 个迁移${r.applied.length ? '：' + r.applied.join('、') : ''}，跳过 ${r.skipped.length} 个`)
-    break
-  }
-  case 'seed': {
-    const r = seed(openDatabase())
-    console.log(`已重新灌入 ${r.files.join('、')}${r.orphaned ? `，清理了 ${r.orphaned} 条失效的学习记录` : ''}`)
-    break
-  }
-  case 'check':
-    if (!runCheck()) process.exit(1)
-    break
-  case 'export':
-    runExport()
-    break
-  case 'stats':
-    printTable(Object.entries(tableCounts(openDatabase())).map(([table, rows]) => ({ table, rows })))
-    break
-  case 'events':
-    printTable(openDatabase().prepare('SELECT e.at, e.learner_id, s.name, e.from_status, e.to_status FROM learner_events e LEFT JOIN skills s ON s.id = e.skill_id ORDER BY e.id DESC LIMIT 30').all() as Record<string, unknown>[])
-    break
-  case 'query': {
-    const sql = args.join(' ')
-    if (!sql) {
-      console.error('请给一条 SQL')
-      process.exit(2)
+export function build(): DatabaseSync {
+  const seed = new URL('seed/', DB)
+  const db = new DatabaseSync(':memory:', { enableForeignKeyConstraints: false })
+  db.exec(readFileSync(new URL('schema.sql', DB), 'utf8'))
+  for (const name of readdirSync(seed).filter((f) => f.endsWith('.sql')).sort()) {
+    try {
+      db.exec(readFileSync(new URL(name, seed), 'utf8'))
+    } catch (e) {
+      throw new Error(`种子文件 ${name} 出错：${(e as Error).message}`)
     }
-    printTable(openDatabase().prepare(sql).all() as Record<string, unknown>[])
-    break
   }
-  default:
-    console.error('用法：npm run db -- build [--export] | migrate | seed | check | export | stats | events | query "<SQL>"')
-    process.exit(2)
+  const broken = db.prepare('PRAGMA foreign_key_check').all() as { table: string; parent: string; rowid: number }[]
+  if (broken.length) {
+    const sample = broken.slice(0, 5).map((b) => `${b.table} 第 ${b.rowid} 行 → ${b.parent}`).join('；')
+    throw new Error(`种子里有 ${broken.length} 处引用对不上（多半是 id 拼错了）：${sample}`)
+  }
+  return db
+}
+
+interface Finding {
+  level: 'error' | 'warning'
+  message: string
+}
+
+/** error 让构建失败；warning 只是提醒 */
+export function check(db: DatabaseSync): Finding[] {
+  const findings: Finding[] = []
+  const rows = (sql: string) => db.prepare(sql).all() as Record<string, string | number>[]
+  const error = (sql: string, message: (r: Record<string, string | number>) => string) => {
+    for (const r of rows(sql)) findings.push({ level: 'error', message: message(r) })
+  }
+  const warning = (sql: string, message: (r: Record<string, string | number>) => string) => {
+    for (const r of rows(sql)) findings.push({ level: 'warning', message: message(r) })
+  }
+
+  // ── 前置关系 ──
+  error('SELECT skill_id FROM skill_ancestors WHERE skill_id = ancestor_id', (r) => `技能 ${r.skill_id} 的前置绕了一圈又回到了自己`)
+  error(
+    'SELECT id, parent_id FROM skills WHERE parent_id IS NOT NULL AND parent_id NOT IN (SELECT prerequisite_id FROM skill_prerequisites WHERE skill_id = skills.id)',
+    (r) => `技能 ${r.id} 挂在 ${r.parent_id} 上，但 ${r.parent_id} 不是它的前置`,
+  )
+  error(
+    'SELECT id, anchor_id FROM subs WHERE anchor_id NOT IN (SELECT skill_id FROM sub_requirements WHERE sub_id = subs.id AND is_bonus = 0)',
+    (r) => `职业 ${r.id} 挂在 ${r.anchor_id} 上，但那不是它必学的技能`,
+  )
+  warning(
+    `SELECT p.skill_id, p.prerequisite_id, o.prerequisite_id AS via
+       FROM skill_prerequisites p
+       JOIN skill_prerequisites o ON o.skill_id = p.skill_id AND o.prerequisite_id <> p.prerequisite_id
+       JOIN skill_ancestors a ON a.skill_id = o.prerequisite_id AND a.ancestor_id = p.prerequisite_id`,
+    (r) => `技能 ${r.skill_id} 的前置 ${r.prerequisite_id} 已经是 ${r.via} 的前置，可以不写`,
+  )
+
+  // ── 内容齐不齐 ──
+  error('SELECT id FROM skills WHERE id NOT IN (SELECT skill_id FROM skill_resources)', (r) => `技能 ${r.id} 没有“去哪学”的链接`)
+  error('SELECT id FROM categories WHERE id NOT IN (SELECT category_id FROM subs)', (r) => `大方向 ${r.id} 下面没有职业`)
+  error('SELECT id FROM subs WHERE id NOT IN (SELECT sub_id FROM sub_projects)', (r) => `职业 ${r.id} 没有代表项目`)
+  warning('SELECT id, length(intro) AS n FROM skills WHERE length(intro) > 50', (r) => `技能 ${r.id} 的一句话有 ${r.n} 个字，最好控制在 50 字以内`)
+  // 名字的显示宽度：中文算 2，英文数字算 1。树上节点下面放得下 16
+  for (const r of rows('SELECT id, name FROM skills')) {
+    const width = [...String(r.name)].reduce((n, c) => n + (c.charCodeAt(0) > 0x2e80 ? 2 : 1), 0)
+    if (width > 16) findings.push({ level: 'warning', message: `技能 ${r.id} 的名字“${r.name}”太长，树上放不下` })
+  }
+  warning(
+    `SELECT id FROM skills WHERE id NOT IN (SELECT skill_id FROM skill_prerequisites)
+       AND id NOT IN (SELECT prerequisite_id FROM skill_prerequisites)
+       AND id NOT IN (SELECT skill_id FROM sub_requirements)`,
+    (r) => `技能 ${r.id} 既没有前置，也不是任何技能的前置`,
+  )
+  warning(
+    'SELECT id FROM skills WHERE id NOT IN (SELECT skill_id FROM sub_skill_closure) AND id NOT IN (SELECT skill_id FROM sub_requirements)',
+    (r) => `技能 ${r.id} 没有任何职业用到`,
+  )
+
+  // ── 职业的要求写得对不对 ──
+  warning(
+    `SELECT r.sub_id, r.skill_id, o.skill_id AS via
+       FROM sub_requirements r
+       JOIN sub_requirements o ON o.sub_id = r.sub_id AND o.skill_id <> r.skill_id AND o.is_bonus = 0
+       JOIN skill_ancestors a ON a.skill_id = o.skill_id AND a.ancestor_id = r.skill_id
+      WHERE r.is_bonus = 0`,
+    (r) => `职业 ${r.sub_id} 必学的 ${r.skill_id} 已经是 ${r.via} 的前置，可以不写`,
+  )
+  error(
+    'SELECT r.sub_id, r.skill_id FROM sub_requirements r JOIN sub_skill_closure c USING (sub_id, skill_id) WHERE r.is_bonus = 1',
+    (r) => `职业 ${r.sub_id} 的加分项 ${r.skill_id} 已经是必学的了`,
+  )
+
+  // ── 链接 ──
+  warning(
+    'SELECT url, COUNT(*) AS n FROM (SELECT url FROM skill_resources UNION ALL SELECT url FROM sub_projects) GROUP BY url HAVING n > 1',
+    (r) => `链接 ${r.url} 出现了 ${r.n} 次`,
+  )
+  return findings
 }

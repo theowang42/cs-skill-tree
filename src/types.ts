@@ -1,178 +1,74 @@
-// 前端和服务端共用的数据形状。
-// 内容（Roadmap）由 server/roadmap.ts 从数据库查出来：静态站点读导出的 public/data/roadmap.json，
-// 跑 API 服务时读 /api/roadmap，两者完全一样。所有引用都用 id，前端自己建索引。
+// 导出的 public/data/roadmap.json 的形状（scripts/roadmap.ts 生成）。所有引用都用 id。
 
 export interface Link {
   label: string
   url: string
 }
 
-export type SkillKind = 'concept' | 'tool'
-
 export interface Skill {
   id: string
-  kind: SkillKind
+  areaId: string
   name: string
   intro: string
-  /** 只有工具有：出品方 */
-  org?: string
-  /** 知识点所在的领域 */
-  areaId?: string
-  /** 工具所在的工具组 */
-  groupId?: string
-  /** 在领域里排第几行：领域内最长前置链的长度，从 1 开始 */
-  tier: number
-  /** 从无前置的技能出发的最长前置链长度，从 1 开始 */
-  depth: number
-  /** 等级：1 入门 · 2 基础 · 3 进阶 · 4 专精 · 5 前沿 */
-  level: number
-  /** Lucide 图标名，'si:' 开头的 Simple Icons 品牌图标，或 'text:' 开头的课号（课程） */
+  /** Lucide 图标名，或 'si:' 开头的 Simple Icons 品牌图标 */
   icon: string
-  /** 树上画出来的那根枝连向谁：主前置。没有前置的技能是 null，从中心长出来 */
+  /** 树上画的那根枝连向谁：主前置。没有前置的技能是 null，从中心长出来 */
   parent: string | null
-  /** 编程语言：一种特别的节点（天赋），树上画成六边形 */
+  /** 编程语言：树上画成六边形 */
   language: boolean
-  /** 直接前置 */
+  /** 有多少技能直接或间接依赖它 */
+  weight: number
   prerequisites: string[]
   /** 直接依赖它的技能 */
   dependents: string[]
-  /** 有多少技能直接或间接依赖它 */
-  weight: number
-  /** 学会的标志 */
-  checks: string[]
-  /** 要学的内容 */
-  topics: string[]
   resources: Link[]
-  /** 必学它的细分方向（含间接） */
+  /** 必学它的职业（含间接） */
   requiredBy: string[]
-}
-
-export interface Layer {
-  id: string
-  name: string
-  /** 1 是最底层 */
-  position: number
-  areaIds: string[]
 }
 
 export interface Area {
   id: string
-  layerId: string
   name: string
   intro: string
-  courses: Link[]
-  /** 按行、再按顺序排好 */
   skillIds: string[]
-}
-
-export interface ToolGroup {
-  id: string
-  name: string
-  shortName: string
-  skillIds: string[]
-}
-
-export interface PlanStep {
-  skillId: string
-  step: number
-}
-
-export interface Choice {
-  label: string
-  options: string[]
-}
-
-export interface Sub {
-  id: string
-  categoryId: string
-  name: string
-  intro: string
-  isHot: boolean
-  /** 方向画在哪个技能后面（必学技能的第一个） */
-  anchor: string
-  /** 终极节点中间的图标 */
-  icon: string
-  items: string[]
-  topics: string[]
-  projects: Link[]
-  /** 直接写在方向上的必学技能 */
-  requirements: string[]
-  /** 任选组 */
-  choices: Choice[]
-  /** 必学的全部技能（含前置）和学习顺序，由数据库视图 sub_learning_plan 算出 */
-  plan: PlanStep[]
 }
 
 export interface Category {
   id: string
   name: string
   intro: string
-  items: string[]
   subIds: string[]
 }
 
+/** 职业：技能树最外圈的徽章 */
+export interface Sub {
+  id: string
+  categoryId: string
+  name: string
+  intro: string
+  icon: string
+  isHot: boolean
+  /** 徽章挂在哪个技能后面 */
+  anchor: string
+  /** 三个关键词 */
+  items: string[]
+  /** 平时做什么 */
+  topics: string[]
+  projects: Link[]
+  /** 直接写的必学技能（前置不在里面） */
+  requirements: string[]
+  /** 加分项：不算进达成条件 */
+  bonus: string[]
+  /** 必学的全部技能（含前置）和第几步学 */
+  plan: { skillId: string; step: number }[]
+}
+
 export interface Roadmap {
-  version: 2
-  generatedAt: string
-  /** 从底层到顶层 */
-  layers: Layer[]
   areas: Area[]
-  toolGroups: ToolGroup[]
   skills: Skill[]
   categories: Category[]
   subs: Sub[]
 }
 
-// ───────────── 学习进度 ─────────────
-
-/** 学习者亲手标的状态 */
-export type Status = 'done'
-/** 页面上显示的状态：标过的直接用；没标的看前置是不是都 done */
-export type SkillState = 'locked' | 'available' | Status
-
-export interface ProgressEntry {
-  status: Status
-  /** ISO 时间 */
-  updatedAt: string
-}
-
-export interface Progress {
-  goalSubId: string | null
-  skills: Record<string, ProgressEntry>
-}
-
-/** 导出 / 导入用的进度文件 */
-export interface ProgressFile extends Progress {
-  format: 'cs-skill-tree-progress'
-  version: 1
-  exportedAt: string
-}
-
-/** API 里的学习者 */
-export interface Learner extends Progress {
-  id: string
-}
-
-export interface Readiness {
-  subId: string
-  coreTotal: number
-  coreDone: number
-  choiceTotal: number
-  choiceDone: number
-  /** 0~100，保留一位小数 */
-  percent: number
-}
-
-/** 成长时间线：按天汇总 */
-export interface TimelineDay {
-  date: string
-  lit: string[]
-  unlit: string[]
-}
-
-export interface LearnerEvent {
-  skillId: string
-  from: Status | null
-  to: Status | null
-  at: string
-}
+/** 树上每个技能的状态：点亮了；前置都亮了，可以点亮；还够不着 */
+export type SkillState = 'done' | 'available' | 'locked'

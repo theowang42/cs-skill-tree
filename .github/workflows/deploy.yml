@@ -26,10 +26,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # 重建数据库并体检：有错误就失败
-      - run: npm run db:build
-      - run: npm run typecheck
+      # 先建库、体检、导出（有错误就失败），再跑测试；类型检查要用到导出的图标表
       - run: npm test
+      - run: npm run typecheck
 
   build:
     needs: test

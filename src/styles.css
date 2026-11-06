@@ -1,28 +1,8 @@
-/* ═══════════════════════════════════════════════════════════════════
-   CS 技能树。白底黑字，像一张印在纸上的示意图。规则见 docs/ART.md。
-   只有黑和几档灰；唯一的颜色是目标用的一点朱砂。
-   ═══════════════════════════════════════════════════════════════════ */
+/* 技能树页面。颜色和字体在 site/tokens.css，和首页、技能页、职业页共用。 */
+@import '../site/tokens.css';
 
 :root {
-  --paper: #ffffff;
-  --ink: #111111;
-  --ink-2: #666666;
-  --ink-3: #9a9a9a;
-  --line: #d9d9d9;
-  --line-2: #ededed;
-  --wash: #f4f4f4;
-  --goal: #d94f3d;
-  /* 没点亮的：线和字都要看得清，不能灰到看不见 */
-  --off-line: #b9b9b9;
-  --off-ink: #6b6b6b;
-  --sans: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
   --panel-w: 360px;
-  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  color-scheme: light;
-}
-
-* {
-  box-sizing: border-box;
 }
 
 html,
@@ -42,13 +22,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-button,
-input {
+button {
   font: inherit;
   color: inherit;
-}
-
-button {
   cursor: pointer;
 }
 
@@ -64,14 +40,6 @@ a {
 :focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
 }
 
 .boot {
@@ -123,12 +91,6 @@ a {
 
 .web:active {
   cursor: grabbing;
-}
-
-/* ── 中心 ── */
-
-.root-dot {
-  fill: var(--ink);
 }
 
 /* ── 枝条 ── */
@@ -390,10 +352,6 @@ a {
   stroke-width: 2.5;
 }
 
-.node.s-done .ring {
-  stroke: transparent;
-}
-
 .node.s-done .glyph {
   color: var(--paper);
 }
@@ -428,10 +386,8 @@ a {
   stroke-width: 2.5;
 }
 
-.node.r-path .glyph,
-.node.r-path.s-locked .glyph {
+.node.r-path .glyph {
   color: var(--ink);
-  opacity: 1;
 }
 
 .node.r-path .lbl {
@@ -444,10 +400,6 @@ a {
 
 .node.r-path.s-done .glyph {
   color: var(--paper);
-}
-
-.next-mark {
-  fill: var(--goal);
 }
 
 .node.pulse .box,
@@ -630,8 +582,7 @@ a {
   white-space: nowrap;
 }
 
-.hud-text:hover,
-.hud-text.on {
+.hud-text:hover {
   color: var(--ink);
   border-bottom-color: var(--ink);
 }
@@ -639,20 +590,6 @@ a {
 .hud-text b {
   color: var(--ink);
   font-weight: 600;
-}
-
-.hud-goal b {
-  color: var(--ink);
-}
-
-.store-kind {
-  position: absolute;
-  left: 28px;
-  bottom: 14px;
-  z-index: 3;
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  color: var(--ink-3);
 }
 
 /* ═════════════ 右侧面板 ═════════════ */
@@ -737,32 +674,6 @@ a {
   text-wrap: balance;
 }
 
-.detail h2.with-icon {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.detail h2 .icon {
-  width: 22px;
-  height: 22px;
-  fill: currentColor;
-  flex: none;
-}
-
-.detail h2 .icon.stroke {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.detail h2 .icon.mono {
-  width: auto;
-  font-size: 14px;
-}
-
 .summary {
   margin: 0 0 16px;
   font-size: 14.5px;
@@ -804,33 +715,6 @@ a {
   color: var(--ink-2);
 }
 
-.note a {
-  border-bottom: 1px solid var(--line);
-  text-decoration: none;
-}
-
-.link-button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font-size: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.link-button.inline {
-  color: var(--ink);
-}
-
-.eyebrow .link-button {
-  text-decoration: none;
-}
-
-.eyebrow .link-button:hover {
-  color: var(--ink);
-}
-
 .meter {
   position: relative;
   display: block;
@@ -839,16 +723,14 @@ a {
   overflow: hidden;
 }
 
+
 .meter-done {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
-  transition: width 0.5s var(--ease), left 0.5s var(--ease);
-}
-
-.meter-done {
   background: var(--ink);
+  transition: width 0.5s var(--ease);
 }
 
 .goal-meter {
@@ -886,11 +768,6 @@ a {
 
 .row-actions button:hover {
   background: var(--wash);
-}
-
-button.primary {
-  background: var(--ink) !important;
-  color: var(--paper) !important;
 }
 
 button.danger {
@@ -932,12 +809,6 @@ button.danger {
   border-top: 1px solid var(--line-2);
 }
 
-.plain-list.small .row-link {
-  padding: 4px 0;
-  font-size: 13px;
-  color: var(--ink-2);
-}
-
 .row-link {
   display: flex;
   align-items: baseline;
@@ -960,11 +831,6 @@ button.danger {
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-.row-link.big {
-  font-size: 17px;
-  font-weight: 600;
 }
 
 .shared-banner {
@@ -1028,7 +894,7 @@ button.danger {
   }
 }
 
-/* ═════════════ 窄屏：分支列表变成顶上一排，面板变成底部抽屉 ═════════════ */
+/* ═════════════ 窄屏：顶栏只留职业，面板变成底部抽屉 ═════════════ */
 
 @media (max-width: 760px) {
   .hud {
@@ -1059,14 +925,6 @@ button.danger {
   .panel-body {
     padding: 32px 18px 32px;
   }
-
-  .store-kind {
-    display: none;
-  }
-
-  .toasts {
-    bottom: 24px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1078,11 +936,7 @@ button.danger {
   }
 }
 
-/* ── 选方向 ── */
-
-.dir-group h4 {
-  margin-top: 22px;
-}
+/* ── 全部职业 ── */
 
 .row-link.is-reached span,
 .row-link.is-reached small {
@@ -1093,10 +947,6 @@ button.danger {
 .career-badge {
   flex: none;
   cursor: default;
-}
-
-.more {
-  margin-top: 22px;
 }
 
 /* ═════════════ 技能卡：像游戏里的技能说明 ═════════════ */
@@ -1123,12 +973,6 @@ button.danger {
   stroke-width: 2;
 }
 
-.slot .slot-ring {
-  fill: none;
-  stroke: transparent;
-  stroke-width: 2;
-}
-
 .slot.s-available .slot-box {
   fill: var(--paper);
   stroke: var(--ink);
@@ -1138,10 +982,6 @@ button.danger {
 .slot.s-done .slot-box {
   fill: var(--ink);
   stroke: var(--ink);
-}
-
-.slot.s-done .slot-ring {
-  stroke: transparent;
 }
 
 .slot-glyph {
@@ -1293,10 +1133,6 @@ button.danger {
 
 .mini:hover {
   background: var(--wash);
-}
-
-.mini .slot-glyph {
-  transform: scale(1);
 }
 
 .mini-name {
