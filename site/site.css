@@ -1,0 +1,108 @@
+/* 首页、技能页、职业页。颜色和字体在 tokens.css，和技能树共用。 */
+@import 'tokens.css';
+
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.7 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+main { max-width: 1120px; margin: 0 auto; padding: 0 24px 40px; }
+h1, h2, h3 { line-height: 1.25; margin: 0; }
+.muted { color: var(--ink-2); }
+.small { font-size: 13px; }
+
+/* 顶栏 */
+.top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 60px; padding: 0 24px; background: rgba(255,255,255,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line-2); }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .06em; text-decoration: none; white-space: nowrap; }
+.logo .mark { width: 16px; height: 16px; border-radius: 3px; background: var(--ink); }
+.top nav { display: flex; align-items: center; gap: 22px; font-size: 14px; }
+.top nav a:not(.btn) { text-decoration: none; color: var(--ink-2); }
+.top nav a:not(.btn):hover { color: var(--ink); }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--ink); color: #fff; font-weight: 700; text-decoration: none; white-space: nowrap; transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
+.btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,.14); }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn.big { padding: 13px 26px; font-size: 16px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 22px 0 12px; }
+
+/* 首页 */
+.hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 48px; align-items: center; padding: 64px 0 56px; }
+.hero h1 { font-size: clamp(30px, 4.2vw, 48px); letter-spacing: .02em; }
+.hero h1 span { display: block; white-space: nowrap; }
+.lead { font-size: 17px; color: #333; margin: 18px 0 0; }
+.hero-media video { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 14px; border: 1px solid var(--line); background: var(--wash); box-shadow: 0 24px 60px rgba(0,0,0,.12); }
+.how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 8px 0 24px; }
+.how > div { padding: 22px; border: 1px solid var(--line); border-radius: 14px; }
+.how .n { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; }
+.how h3 { margin: 12px 0 6px; font-size: 17px; }
+.how p { margin: 0; color: var(--ink-2); font-size: 14px; }
+
+.block { padding: 36px 0 4px; }
+.block > h2 { font-size: 24px; margin-bottom: 6px; }
+.block > .muted { margin: 0 0 18px; }
+.group { margin-top: 26px; }
+.group h3 { font-size: 15px; margin-bottom: 10px; display: flex; align-items: baseline; gap: 8px; }
+.group h3 span { color: var(--ink-3); font-weight: 500; font-size: 13px; }
+.group > .muted { margin: -4px 0 12px; font-size: 14px; }
+
+/* 卡片 */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.card { display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; text-decoration: none; background: #fff; transition: border-color .2s var(--ease), transform .2s var(--ease), box-shadow .2s var(--ease); }
+.card:hover { border-color: var(--ink); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,.08); }
+.card .txt { display: flex; flex-direction: column; min-width: 0; }
+.card b { font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.card b em { font-style: normal; font-size: 11px; font-weight: 700; padding: 0 7px; border-radius: 999px; background: var(--ink); color: #fff; line-height: 18px; }
+.card small { color: var(--ink-2); font-size: 13px; line-height: 1.55; margin-top: 2px; }
+.card .meta { margin-top: 6px; font-size: 12px; color: var(--ink-3); }
+
+.slot { flex: none; display: grid; place-items: center; width: var(--s); height: var(--s); border-radius: 50%; border: 1.5px solid var(--ink); background: #fff; }
+.slot.hex { position: relative; border: none; background: none; }
+.slot.hex .hex-line { position: absolute; inset: 0; width: 100%; height: 100%; }
+.slot.hex .hex-line polygon { fill: #fff; stroke: var(--ink); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.slot.hex > svg:not(.hex-line) { position: relative; }
+.seal { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--ink); box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 5.5px var(--ink); }
+.seal.big { width: 88px; height: 88px; box-shadow: inset 0 0 0 7px #fff, inset 0 0 0 9px var(--ink); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 5px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; text-decoration: none; transition: border-color .2s var(--ease), background .2s var(--ease); }
+.chip:hover { border-color: var(--ink); background: var(--wash); }
+.chip svg { color: var(--ink-2); }
+
+/* 技能页、职业页 */
+.crumbs { display: flex; flex-wrap: wrap; gap: 8px; padding: 20px 0 0; font-size: 13px; color: var(--ink-3); }
+.crumbs a { color: var(--ink-2); text-decoration: none; }
+.crumbs a:hover { color: var(--ink); text-decoration: underline; }
+.crumbs i { font-style: normal; }
+.head { display: flex; gap: 28px; align-items: flex-start; padding: 28px 0 12px; border-bottom: 1px solid var(--line-2); }
+.head h1 { font-size: clamp(30px, 4vw, 42px); }
+.kicker { margin: 0 0 6px; color: var(--ink-2); font-size: 13px; letter-spacing: .04em; }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+.tags span { padding: 2px 10px; border-radius: 999px; background: var(--wash); font-size: 13px; }
+.list { margin: 0; padding-left: 20px; }
+.list li { margin: 4px 0; }
+.list a { text-underline-offset: 3px; }
+.plan { list-style: none; margin: 0; padding: 0; position: relative; }
+.plan::before { content: ''; position: absolute; left: 7px; top: 12px; bottom: 12px; width: 2px; background: var(--line-2); }
+.plan > li { position: relative; padding: 0 0 22px 34px; }
+.plan > li::before { content: ''; position: absolute; left: 0; top: 6px; width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid var(--ink); }
+.plan .step { display: block; font-weight: 700; font-size: 14px; margin-bottom: 10px; }
+
+.foot { max-width: 1120px; margin: 40px auto 0; padding: 28px 24px 48px; border-top: 1px solid var(--line-2); color: var(--ink-2); font-size: 13px; }
+.foot p { margin: 4px 0; }
+
+@media (max-width: 860px) {
+  .hero { grid-template-columns: 1fr; gap: 28px; padding: 36px 0 32px; }
+  .how { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  main { padding: 0 16px 32px; }
+  .top { padding: 0 16px; }
+  .top nav a:not(.btn) { display: none; }
+  .head { flex-direction: column; gap: 16px; }
+  .grid { grid-template-columns: 1fr; }
+}
+.edit { margin: 40px 0 0; }
+/* 技能页的学习流程：圆点连成一条竖线 */
+.flow { list-style: none; margin: 8px 0 0; padding: 0; }
+.flow li { position: relative; display: flex; align-items: center; gap: 14px; padding: 7px 0; font-size: 16px; }
+.flow li + li::before { content: ''; position: absolute; left: 13px; top: -7px; width: 2px; height: 14px; background: var(--ink); }
+.flow .dot { display: grid; flex: none; place-items: center; width: 28px; height: 28px; border: 1.5px solid var(--ink); background: #fff; font-size: 13px; font-weight: 700; }
+.flow i { font-style: normal; color: var(--ink-2); }

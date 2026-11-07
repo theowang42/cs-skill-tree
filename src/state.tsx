@@ -1,62 +1,58 @@
-// 全局状态：树、进度、推导出的四种状态、当前焦点，以及所有会改进度的动作。
-// 组件通过 useApp() 拿到它们。改进度一律走 change()：先乐观更新界面，再写进存储；
-// 同时算出“新解锁了哪些技能”给树上做动画，并留一份撤销。
+// 全局状态：树、点亮了哪些、推导出的状态、当前焦点，以及所有会改进度的动作。组件通过 useApp() 拿到它们。
+// 改进度一律走 setLit() 或 setStep()：按规则算出新的点亮集合，存进浏览器，同时算出“新解锁了哪些”给树上做动画。
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { Progress, Readiness, SkillState, Status } from './types'
-import { Tree, computeStates, enforcePrerequisites, isReached, planFor, readiness } from './lib/tree'
-import { applyChanges, sanitize, type Changes, type ProgressStore } from './lib/store'
+import type { SkillState } from './types'
+import { Tree, clean, cleanSteps, computeStates, plan, subProgress, type Lit } from './lib/tree'
+import { EMPTY, load, onOtherTab, save, type Progress } from './lib/progress'
 import { decodeShare } from './lib/share'
 
-export type FocusKind = 'skill' | 'area' | 'sub' | 'category'
-export type Focus = { kind: FocusKind; id: string } | null
+/** 选中了什么：一个技能、一个职业，或者全部职业的列表 */
+type Focus = { kind: 'skill' | 'sub'; id: string } | { kind: 'careers' } | null
 
-export interface Toast {
+const hashOf = (f: Focus) => (!f ? '' : f.kind === 'careers' ? '#/careers' : `#/${f.kind}/${f.id}`)
+
+/** 地址栏里的 #/skill/docker、#/sub/backend、#/careers */
+function parseFocus(tree: Tree, hash: string): Focus {
+  if (hash === '#/careers') return { kind: 'careers' }
+  const m = /^#\/(skill|sub)\/([a-z0-9-]+)$/.exec(hash)
+  if (!m) return null
+  const kind = m[1] as 'skill' | 'sub'
+  return (kind === 'skill' ? tree.skills : tree.subs).has(m[2]) ? { kind, id: m[2] } : null
+}
+
+interface Toast {
   id: number
   text: string
   action?: { label: string; run: () => void }
 }
 
-interface ChangeOptions {
-  /** 提示里显示的话；不给就自动生成 */
-  message?: string
-  /** 是否在提示里给“撤销” */
-  undo?: boolean
-}
-
-export interface AppState {
+interface AppState {
   tree: Tree
-  store: ProgressStore
-  /** 当前显示的进度：自己的，或者分享链接里别人的 */
-  progress: Progress
+  /** 当前显示的：自己的，或者分享链接里别人的 */
+  lit: Lit
+  /** 还没点亮的技能完成了学习流程的第几步 */
+  steps: ReadonlyMap<string, readonly number[]>
   states: Map<string, SkillState>
-  readinessBySub: Map<string, Readiness>
+  /** 每个职业要学的技能点亮了几个 */
+  progressBySub: Map<string, { done: number; total: number }>
   /** 正在看别人的分享，不能改 */
   readOnly: boolean
-  shared: Progress | null
   leaveShared: () => void
   adoptShared: () => void
 
   focus: Focus
-  /** opts.scroll：让星图飞过去 */
+  /** scroll：让树飞过去 */
   setFocus: (f: Focus, opts?: { scroll?: boolean }) => void
-  /** 每次要求星图飞到焦点时 +1，星图据此触发动画 */
+  /** 每次要求树飞到焦点时 +1，树据此触发动画 */
   flyRequest: number
-  hover: string | null
-  setHover: (id: string | null) => void
-  /** 页面上高亮的方向：正在看的细分方向，否则是目标 */
-  activeSubId: string | null
-  openCategory: string | null
-  setOpenCategory: (id: string | null) => void
-
-  /** 刚刚解锁或点亮的技能，树上闪一下 */
+  /** 刚刚点亮、解锁或达成的，树上闪一下；职业是 'sub:<id>' */
   pulse: Set<string>
 
-  change: (changes: Changes, opts?: ChangeOptions) => void
-  setStatus: (id: string, status: Status | null) => void
-  /** 连同所有没点亮的前置一起点亮 */
-  setGoal: (subId: string | null) => void
-  replaceProgress: (p: Progress) => Promise<void>
-  resetProgress: () => Promise<void>
+  setLit: (id: string, on: boolean) => void
+  /** 点亮或熄灭学习流程的第 n 步（从 1 开始）。最后一步做完，技能自动点亮 */
+  setStep: (id: string, n: number, on: boolean) => void
+  replace: (p: Progress) => void
+  reset: () => void
 
   toasts: Toast[]
   toast: (text: string, action?: Toast['action']) => void
@@ -71,26 +67,33 @@ export function useApp(): AppState {
   return v
 }
 
-export function AppProvider({
-  tree, store, initial, shared: initialShared, children,
-}: { tree: Tree; store: ProgressStore; initial: Progress; shared: Progress | null; children: ReactNode }) {
-  const [own, setOwn] = useState<Progress>(initial)
-  const [shared, setShared] = useState<Progress | null>(initialShared)
-  const progress = shared ?? own
+const clearHash = () => history.replaceState(null, '', location.pathname + location.search)
+
+const NO_STEPS: ReadonlyMap<string, readonly number[]> = new Map()
+
+export function AppProvider({ tree, children }: { tree: Tree; children: ReactNode }) {
+  /** 去掉已经不存在的技能、前置没点亮的点亮、对不上的步骤 */
+  const tidy = useCallback((p: Progress) => {
+    const { lit, dropped } = clean(tree, p.lit)
+    return { progress: { lit, steps: cleanSteps(tree, lit, p.steps) }, dropped }
+  }, [tree])
+  const [own, setOwn] = useState<Progress>(() => tidy(load()).progress)
+  const ownRef = useRef(own)
+  const [shared, setShared] = useState<Lit | null>(() => {
+    const s = decodeShare(tree, location.hash)
+    return s && clean(tree, s).lit
+  })
+  const lit = shared ?? own.lit
+  const steps = shared ? NO_STEPS : own.steps
   const readOnly = shared !== null
-  const states = useMemo(() => computeStates(tree, progress), [tree, progress])
-  const readinessBySub = useMemo(
-    () => new Map(tree.roadmap.subs.map((s) => [s.id, readiness(tree, s.id, progress)])),
-    [tree, progress],
-  )
+  const states = useMemo(() => computeStates(tree, lit), [tree, lit])
+  const progressBySub = useMemo(() => new Map(tree.roadmap.subs.map((s) => [s.id, subProgress(tree, s.id, lit)])), [tree, lit])
 
-  const [focus, setFocusState] = useState<Focus>(null)
+  // 地址栏里的焦点要在第一次渲染前读出来：下面把焦点同步到地址栏时，空焦点会把它清掉
+  const [focus, setFocusState] = useState<Focus>(() => parseFocus(tree, location.hash))
   const [flyRequest, setFlyRequest] = useState(0)
-  const [hover, setHover] = useState<string | null>(null)
-  const [openCategory, setOpenCategory] = useState<string | null>(null)
-
   const [pulse, setPulse] = useState<Set<string>>(new Set())
-  const pulseTimer = useRef<number>(0)
+  const pulseTimer = useRef(0)
   const [toasts, setToasts] = useState<Toast[]>([])
   const toastId = useRef(0)
 
@@ -103,168 +106,138 @@ export function AppProvider({
 
   const setFocus = useCallback((f: Focus, opts?: { scroll?: boolean }) => {
     setFocusState(f)
-    if (f?.kind === 'sub') setOpenCategory(tree.subs.get(f.id)!.categoryId)
-    if (f?.kind === 'category') setOpenCategory(f.id)
     if (f && opts?.scroll) setFlyRequest((n) => n + 1)
-  }, [tree])
+  }, [])
 
-  // 当前焦点同步到地址栏，方便复制链接和刷新后回到原处（看分享时不动地址栏）
+  // 焦点同步到地址栏，方便复制链接和刷新后回到原处（看分享时不动地址栏）
   useEffect(() => {
     if (readOnly) return
-    const hash = focus ? `#/${focus.kind}/${focus.id}` : ''
+    const hash = hashOf(focus)
     if (location.hash !== hash) history.replaceState(null, '', hash || location.pathname + location.search)
   }, [focus, readOnly])
 
-
-  const ownRef = useRef(own)
-  ownRef.current = own
-  // 去掉已删除的技能，再去掉前置没点亮的点亮记录
-  const clean = useCallback((p: Progress) => {
-    const a = sanitize(p, new Set(tree.skills.keys()), new Set(tree.subs.keys()))
-    const b = enforcePrerequisites(tree, a.progress)
-    return { progress: b.progress, dropped: [...a.dropped, ...b.dropped] }
-  }, [tree])
-  const setOwnNow = useCallback((p: Progress) => {
-    ownRef.current = p
-    setOwn(p)
+  // 打开时地址栏里带着焦点：等树量好了尺寸再飞过去
+  const focusAtStart = useRef(focus)
+  useEffect(() => {
+    if (!focusAtStart.current) return
+    const t = window.setTimeout(() => setFlyRequest((n) => n + 1), 50)
+    return () => window.clearTimeout(t)
   }, [])
 
-  // 存储失败时，用存储里的真实数据纠正界面
-  const resync = useCallback((e: unknown) => {
-    toast(`保存失败：${(e as Error).message}`)
-    store.load().then((p) => setOwnNow(clean(p).progress)).catch(() => undefined)
-  }, [store, toast, clean, setOwnNow])
-
-  // 别的标签页改了进度，这里跟着刷新
-  useEffect(() => store.subscribe?.(() => {
-    store.load().then((p) => setOwnNow(clean(p).progress)).catch(() => undefined)
-  }), [store, clean, setOwnNow])
-
-  // 加载后再改地址栏（粘贴链接、前进后退）也要生效
+  // 之后改地址栏（粘贴链接、前进后退）：分享链接，或者飞到某个技能、职业
   useEffect(() => {
     const onHash = () => {
-      const h = location.hash
-      const s = decodeShare(tree, h)
-      if (s) {
-        setShared(clean(s).progress)
-        return
-      }
-      const m = /^#\/(skill|area|sub|category)\/([a-z0-9-]+)$/.exec(h)
-      if (m) {
-        const kind = m[1] as FocusKind
-        const known = { skill: tree.skills, area: tree.areas, sub: tree.subs, category: tree.categories }[kind].has(m[2])
-        if (known) setFocus({ kind, id: m[2] }, { scroll: true })
-      }
+      const s = decodeShare(tree, location.hash)
+      if (s) setShared(clean(tree, s).lit)
+      const f = parseFocus(tree, location.hash)
+      if (f) setFocus(f, { scroll: true })
     }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
-  }, [tree, clean, setFocus])
+  }, [tree, setFocus])
 
-  const change = useCallback((changes: Changes, opts: ChangeOptions = {}) => {
+  const commit = useCallback((next: Progress) => {
+    // 立刻更新 ref：同一帧里连续两次改动（快速点击）要基于最新的进度算
+    ownRef.current = next
+    setOwn(next)
+    save(next)
+  }, [])
+
+  // 别的标签页改了进度，这里跟着刷新
+  useEffect(() => onOtherTab(() => commit(tidy(load()).progress)), [tidy, commit])
+
+  /** 点亮或熄灭一个技能。熄灭时 keep 是这个技能还留着的步骤（只熄灭了其中一步） */
+  const change = useCallback((id: string, on: boolean, keep: number[] = []) => {
     if (readOnly) return
-    const before = ownRef.current
-    // 按规则算：前置没点亮的不能点亮；取消一个，依赖它的一起熄灭
-    const plan = planFor(tree, before, changes)
-    if (plan.blocked.length) {
-      const { id, missing } = plan.blocked[0]
+    const { lit: before, steps: beforeSteps } = ownRef.current
+    const p = plan(tree, before, { [id]: on })
+    if (p.blocked) {
+      const { id: want, missing } = p.blocked
       const names = missing.map((m) => `「${tree.skill(m).name}」`).join('')
-      toast(`先点亮${names}，才能点亮「${tree.skill(id).name}」`, { label: '去前置', run: () => setFocus({ kind: 'skill', id: missing[0] }, { scroll: true }) })
+      toast(`先点亮${names}，才能点亮「${tree.skill(want).name}」`, { label: '去前置', run: () => setFocus({ kind: 'skill', id: missing[0] }, { scroll: true }) })
       return
     }
-    const real: Changes = plan.diff
-    const ids = Object.keys(real)
-    if (!ids.length) return
-    const after = applyChanges(before, real)
-    const prevStates = computeStates(tree, before)
-    const nextStates = computeStates(tree, after)
-    // 立刻更新 ref：同一帧里连续两次改动（快速点击、点亮前置）要基于最新的进度算
-    ownRef.current = after
-    setOwn(after)
-    store.apply(real).catch(resync)
+    const after = p.next
+    const changed = [...new Set([...before, ...after])].filter((x) => before.has(x) !== after.has(x))
+    if (!changed.length) return
+    const afterSteps = new Map(beforeSteps)
+    afterSteps.delete(id)
+    if (!on && keep.length) afterSteps.set(id, keep)
+    commit({ lit: after, steps: afterSteps })
 
-    // 新点亮的和新解锁的，闪一下；新达成的职业放一次大的庆祝
-    const lit = ids.filter((id) => real[id] === 'done')
-    const unlocked = [...nextStates].filter(([id, s]) => s === 'available' && prevStates.get(id) === 'locked').map(([id]) => id)
-    const reached = tree.roadmap.subs.filter((s) => isReached(tree, s.id, after) && !isReached(tree, s.id, before))
-    setPulse(new Set([...lit, ...unlocked, ...reached.map((s) => `sub:${s.id}`)]))
+    // 新点亮的和新解锁的闪一下；新达成的职业放一次大的庆祝
+    const was = computeStates(tree, before)
+    const unlocked = [...computeStates(tree, after)].filter(([x, s]) => s === 'available' && was.get(x) === 'locked').map(([x]) => x)
+    const isReached = (subId: string, l: Lit) => [...tree.closures.get(subId)!].every((x) => l.has(x))
+    const reached = tree.roadmap.subs.filter((s) => isReached(s.id, after) && !isReached(s.id, before))
+    setPulse(new Set([...changed.filter((x) => after.has(x)), ...unlocked, ...reached.map((s) => `sub:${s.id}`)]))
     window.clearTimeout(pulseTimer.current)
     pulseTimer.current = window.setTimeout(() => setPulse(new Set()), 1600)
 
-    const inverse: Changes = {}
-    for (const id of ids) inverse[id] = before.skills[id]?.status ?? null
-    const undo = () => {
-      setOwnNow(applyChanges(ownRef.current, inverse))
-      store.apply(inverse).catch(resync)
-    }
-    let text = opts.message
-    if (!text && reached.length) text = `达成职业：${reached.map((s) => `「${s.name}」`).join('')}`
-    const undoable = opts.undo || plan.cascaded.length > 0
-    if (!text && plan.cascaded.length) {
-      const names = plan.cascaded.slice(0, 3).map((id) => tree.skill(id).name).join('、')
-      text = `依赖它的 ${plan.cascaded.length} 个技能也一起熄灭了：${names}${plan.cascaded.length > 3 ? ' 等' : ''}`
-    }
-    if (!text && unlocked.length) {
-      const names = unlocked.slice(0, 3).map((id) => tree.skill(id).name).join('、')
-      text = `解锁了 ${unlocked.length} 个新技能：${names}${unlocked.length > 3 ? ' 等' : ''}`
-    }
-    if (text || undoable) toast(text ?? `改了 ${ids.length} 个技能`, undoable ? { label: '撤销', run: undo } : undefined)
-  }, [readOnly, tree, store, resync, toast, setOwnNow, setFocus])
+    const some = (ids: string[]) => ids.slice(0, 3).map((x) => tree.skill(x).name).join('、') + (ids.length > 3 ? ' 等' : '')
+    if (reached.length) toast(`达成职业：${reached.map((s) => `「${s.name}」`).join('')}`)
+    else if (p.cascaded.length) {
+      // 熄灭会连带一串：给个撤销，只把这次改的换回来
+      const undo = () => {
+        const next = new Set(ownRef.current.lit)
+        const nextSteps = new Map(ownRef.current.steps)
+        for (const x of changed) if (before.has(x)) {
+          next.add(x)
+          nextSteps.delete(x)
+        } else next.delete(x)
+        commit({ lit: next, steps: nextSteps })
+      }
+      toast(`依赖它的 ${p.cascaded.length} 个技能也一起熄灭了：${some(p.cascaded)}`, { label: '撤销', run: undo })
+    } else if (unlocked.length) toast(`解锁了 ${unlocked.length} 个新技能：${some(unlocked)}`)
+  }, [readOnly, tree, toast, setFocus, commit])
 
-  const setStatus = useCallback((id: string, status: Status | null) => change({ [id]: status }), [change])
+  const setLit = useCallback((id: string, on: boolean) => change(id, on), [change])
 
-  const setGoal = useCallback((subId: string | null) => {
+  const setStep = useCallback((id: string, n: number, on: boolean) => {
     if (readOnly) return
-    setOwn((p) => ({ ...p, goalSubId: subId }))
-    store.setGoal(subId).catch(resync)
-    if (subId) toast(`目标设为「${tree.subs.get(subId)!.name}」`)
-  }, [readOnly, store, resync, toast, tree])
+    const total = tree.skill(id).steps.length
+    const { lit: l, steps: s } = ownRef.current
+    const done = new Set(l.has(id) ? Array.from({ length: total }, (_, i) => i + 1) : s.get(id) ?? [])
+    if (on) done.add(n)
+    else done.delete(n)
+    const list = [...done].sort((a, b) => a - b)
+    if (list.length === total) return change(id, true)
+    if (l.has(id)) return change(id, false, list)
+    const nextSteps = new Map(s)
+    if (list.length) nextSteps.set(id, list)
+    else nextSteps.delete(id)
+    commit({ lit: l, steps: nextSteps })
+  }, [readOnly, tree, change, commit])
 
   /** 整体换掉进度，提示里可以撤销回原来的 */
-  const restore = useCallback((backup: Progress) => {
-    store.replace(backup, new Set(tree.skills.keys()))
-      .then(() => store.load())
-      .then((p) => setOwnNow(clean(p).progress))
-      .catch(resync)
-  }, [store, tree, clean, setOwnNow, resync])
-
-  const replaceProgress = useCallback(async (p: Progress) => {
+  const replaceWith = useCallback((next: Progress, message: string) => {
     const backup = ownRef.current
-    const { progress: cleaned, dropped } = clean(p)
-    await store.replace(cleaned, new Set(tree.skills.keys()))
-    setOwnNow(clean(await store.load()).progress)
-    const n = Object.keys(cleaned.skills).length
-    toast(`已导入 ${n} 个技能的进度${dropped.length ? `，跳过了 ${dropped.length} 个（已不存在，或前置没点亮）` : ''}`, { label: '撤销', run: () => restore(backup) })
-  }, [store, tree, toast, clean, setOwnNow, restore])
+    commit(next)
+    toast(message, { label: '撤销', run: () => commit(backup) })
+  }, [commit, toast])
 
-  const resetProgress = useCallback(async () => {
-    const backup = ownRef.current
-    await store.reset()
-    setOwnNow(await store.load())
-    toast('进度已清空', { label: '撤销', run: () => restore(backup) })
-  }, [store, toast, setOwnNow, restore])
+  const replace = useCallback((p: Progress) => {
+    const { progress, dropped } = tidy(p)
+    replaceWith(progress, `已导入 ${progress.lit.size} 个技能的进度${dropped ? `，跳过了 ${dropped} 个（已不存在，或前置没点亮）` : ''}`)
+  }, [tidy, replaceWith])
+
+  const reset = useCallback(() => replaceWith(EMPTY, '进度已清空'), [replaceWith])
 
   const leaveShared = useCallback(() => {
     setShared(null)
-    history.replaceState(null, '', location.pathname + location.search)
+    clearHash()
   }, [])
   const adoptShared = useCallback(() => {
     if (!shared) return
-    // 分享链接里没有时间，按现在算
-    const now = new Date().toISOString()
-    const p: Progress = { ...shared, skills: Object.fromEntries(Object.entries(shared.skills).map(([k, e]) => [k, { ...e, updatedAt: now }])) }
     setShared(null)
-    history.replaceState(null, '', location.pathname + location.search)
-    // 导入的提示里带“撤销”，点错了能换回来
-    replaceProgress(p).catch((e: Error) => toast(`导入失败：${e.message}`))
-  }, [shared, replaceProgress, toast])
-
-  const activeSubId = focus?.kind === 'sub' ? focus.id : progress.goalSubId
+    clearHash()
+    replace({ lit: shared, steps: NO_STEPS })
+  }, [shared, replace])
 
   const value: AppState = {
-    tree, store, progress, states, readinessBySub, readOnly, shared, leaveShared, adoptShared,
-    focus, setFocus, flyRequest, hover, setHover, activeSubId, openCategory, setOpenCategory,
-    pulse,
-    change, setStatus, setGoal, replaceProgress, resetProgress,
+    tree, lit, steps, states, progressBySub, readOnly, leaveShared, adoptShared,
+    focus, setFocus, flyRequest, pulse,
+    setLit, setStep, replace, reset,
     toasts, toast, dismissToast,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

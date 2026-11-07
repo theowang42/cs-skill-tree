@@ -8,6 +8,7 @@
 - Like a game skill tree: from a starting point in the center, intro programming, Linux and calculus sit on the first ring and skills grow outward ring by ring, and a skill lights up only after everything below it is lit
 - The outer ring holds 17 career badges, each at the end of its own chain, covering where CS graduates usually end up. Light everything a career needs and its badge lights up on its own; there is nothing to pick first
 - Opening a skill shows one sentence and where to learn it
+- Every skill and every career also has its own page, such as [Docker](https://theowang42.github.io/cs-skill-tree/skill/docker/) or [LLM algorithm engineer](https://theowang42.github.io/cs-skill-tree/career/llm-algo/), for search and sharing
 
 👉 https://theowang42.github.io/cs-skill-tree/
 
@@ -27,13 +28,12 @@ Requires Node 22.18 or newer. No database server needed.
 
 ```bash
 npm ci
-npm run dev        # front end only, progress in the browser
-npm run dev:api    # front end plus API, progress in SQLite
-npm test
+npm run dev        # dev server
+npm test           # check the content, run all tests
 ```
 
 ## Change the content
 
-All content lives in `db/seed/*.sql`, one row per skill. `npm run db:build` rebuilds the database and checks it, reporting anything wrong.
+All content lives in `content/`, one Markdown file per skill and per career. Every page on the site links to its file for editing; the format is described in [CONTRIBUTING.md](../CONTRIBUTING.md) (Chinese). `npm test` checks the content and reports anything wrong.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the database, API and front end, and [ART.md](ART.md) for the visual rules.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the database and front end, and [ART.md](ART.md) for the visual rules.

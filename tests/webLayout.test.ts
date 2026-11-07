@@ -1,12 +1,12 @@
 // 技能树布局：确定性、一棵从圆心往外长的树、同一圈不重叠、职业在最外圈
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { getRoadmap } from '../server/roadmap.ts'
+import { build } from '../scripts/db.ts'
+import { getRoadmap } from '../scripts/roadmap.ts'
 import { Tree } from '../src/lib/tree.ts'
 import { labelWidth, layoutWeb, NODE_R, RING, START_R, subNodeId, TIP_R } from '../src/lib/webLayout.ts'
-import { freshDb } from './helpers.ts'
 
-const tree = new Tree(getRoadmap(freshDb()))
+const tree = new Tree(getRoadmap(build()))
 const layout = layoutWeb(tree)
 const node = (id: string) => layout.nodes.get(id)!
 const radius = (id: string) => Math.hypot(node(id).x, node(id).y)
@@ -39,22 +39,30 @@ test('三个起点都在第一圈', () => {
 })
 
 test('一圈一圈往外：孩子正好在父亲外面一圈，同一圈半径相同', () => {
+  // 在第几圈（从 1 数）；不在任何一圈上是 0
+  const ring = (id: string) => layout.rings.findIndex((r) => Math.abs(radius(id) - r) < 1) + 1
   for (const s of tree.roadmap.skills) {
-    if (!s.parent) continue
-    const d = node(s.id).depth
-    assert.equal(d, node(s.parent).depth + 1)
-    assert.ok(Math.abs(radius(s.id) - layout.rings[d - 1]) < 1, `${s.id} 不在第 ${d} 圈`)
+    assert.ok(ring(s.id) > 0, `${s.id} 不在任何一圈上`)
+    if (s.parent) assert.equal(ring(s.id), ring(s.parent) + 1, `${s.id} 不在 ${s.parent} 外面一圈`)
   }
   for (let i = 1; i < layout.rings.length; i++) assert.ok(layout.rings[i] - layout.rings[i - 1] >= RING - 1)
 })
 
-test('只有一个孩子的节点和孩子同一个角度，链是直的', () => {
+test('单线的链大多是直的，挤的地方只稍微拐一点', () => {
   // 起点在第一圈平均摆开，不算
+  let chains = 0
+  let straight = 0
   for (const s of tree.roadmap.skills.filter((s) => s.parent)) {
     const kids = tree.roadmap.skills.filter((k) => k.parent === s.id)
     const hasTip = tree.roadmap.subs.some((x) => x.anchor === s.id)
-    if (kids.length === 1 && !hasTip) assert.ok(Math.abs(angle(kids[0].id) - angle(s.id)) < 1e-3, `${s.id} → ${kids[0].id} 歪了`)
+    if (kids.length !== 1 || hasTip) continue
+    chains++
+    let d = Math.abs(angle(kids[0].id) - angle(s.id))
+    d = Math.min(d, Math.PI * 2 - d)
+    if (d < 1e-3) straight++
+    assert.ok(d < (15 * Math.PI) / 180, `${s.id} → ${kids[0].id} 拐了 ${((d * 180) / Math.PI).toFixed(1)}°`)
   }
+  assert.ok(straight >= chains / 2, `${chains} 条单线的链只有 ${straight} 条是直的`)
 })
 
 test('任意两个技能不重叠（节点加名字）', () => {

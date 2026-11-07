@@ -1,15 +1,14 @@
 import { useApp } from '../state'
 import { Dashboard } from './Dashboard'
 import { SkillPanel } from './SkillPanel'
-import { AreaPanel } from './AreaPanel'
 import { SubPanel } from './SubPanel'
-import { CategoryPanel } from './CategoryPanel'
+import { CareersPanel } from './CareersPanel'
 
 export function Panel() {
-  const { focus, setFocus, shared, leaveShared, adoptShared } = useApp()
+  const { focus, setFocus, readOnly, leaveShared, adoptShared } = useApp()
   return (
     <>
-      {shared && (
+      {readOnly && (
         <div className="shared-banner">
           <p>你在看别人分享的技能树（只读）。</p>
           <div className="row-actions">
@@ -25,9 +24,8 @@ export function Panel() {
       )}
       {!focus && <Dashboard />}
       {focus?.kind === 'skill' && <SkillPanel id={focus.id} />}
-      {focus?.kind === 'area' && <AreaPanel id={focus.id} />}
       {focus?.kind === 'sub' && <SubPanel id={focus.id} />}
-      {focus?.kind === 'category' && <CategoryPanel id={focus.id} />}
+      {focus?.kind === 'careers' && <CareersPanel />}
     </>
   )
 }

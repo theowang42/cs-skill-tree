@@ -1,28 +1,8 @@
-/* ═══════════════════════════════════════════════════════════════════
-   CS 技能树。白底黑字，像一张印在纸上的示意图。规则见 docs/ART.md。
-   只有黑和几档灰；唯一的颜色是目标用的一点朱砂。
-   ═══════════════════════════════════════════════════════════════════ */
+/* 技能树页面。颜色和字体在 site/tokens.css，和首页、技能页、职业页共用。 */
+@import '../site/tokens.css';
 
 :root {
-  --paper: #ffffff;
-  --ink: #111111;
-  --ink-2: #666666;
-  --ink-3: #9a9a9a;
-  --line: #d9d9d9;
-  --line-2: #ededed;
-  --wash: #f4f4f4;
-  --goal: #d94f3d;
-  /* 没点亮的：线和字都要看得清，不能灰到看不见 */
-  --off-line: #b9b9b9;
-  --off-ink: #6b6b6b;
-  --sans: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
   --panel-w: 360px;
-  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  color-scheme: light;
-}
-
-* {
-  box-sizing: border-box;
 }
 
 html,
@@ -42,13 +22,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-button,
-input {
+button {
   font: inherit;
   color: inherit;
-}
-
-button {
   cursor: pointer;
 }
 
@@ -66,14 +42,6 @@ a {
   outline-offset: 2px;
 }
 
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-}
-
 .boot {
   display: grid;
   place-items: center;
@@ -84,7 +52,7 @@ a {
 .boot.error {
   gap: 12px;
   align-content: center;
-  color: var(--goal);
+  color: var(--ink);
 }
 
 /* ═════════════ 页面：顶栏 / 技能网 / 右边面板 ═════════════ */
@@ -125,12 +93,6 @@ a {
   cursor: grabbing;
 }
 
-/* ── 中心 ── */
-
-.root-dot {
-  fill: var(--ink);
-}
-
 /* ── 枝条 ── */
 
 .edge {
@@ -164,6 +126,83 @@ a {
 
 .edge.e-dim {
   opacity: 0.45;
+}
+
+/* ── 动起来 ── */
+
+/* 打开时：枝条从里往外画出来，节点和职业跟着浮现（延迟按离圆心多远，写在元素上） */
+.edge {
+  stroke-dasharray: 1;
+  animation: draw-in 0.7s var(--ease) backwards;
+}
+
+.node,
+.tip {
+  animation: fade-in 0.5s var(--ease) backwards;
+}
+
+@keyframes draw-in {
+  from {
+    stroke-dashoffset: 1;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* 点亮的枝条：一小段白光沿着线从里往外流，一圈接一圈 */
+.edge-light {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.9);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 8 92;
+  pointer-events: none;
+  animation: flow 2.6s linear infinite both;
+}
+
+@keyframes flow {
+  from {
+    stroke-dashoffset: 8;
+  }
+
+  to {
+    stroke-dashoffset: -92;
+  }
+}
+
+/* 同心圆：从圆心往外一圈一圈慢慢呼吸 */
+.rings circle {
+  animation: breathe 6s ease-in-out infinite both;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    stroke: #f2f2f2;
+  }
+
+  50% {
+    stroke: #d6d6d6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-light,
+  .rings circle {
+    animation: none;
+  }
+
+  .edge-light {
+    display: none;
+  }
 }
 
 /* ── 最上面一排：职业（终极节点） ── */
@@ -357,6 +396,13 @@ a {
   transition: stroke 0.3s var(--ease);
 }
 
+/* 学习流程做了一部分：外圈从正上方顺时针画出一段实线 */
+.node .part {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+
 /* 能点亮的：白底黑框，外面一圈虚线，像一个空着等你点的技能槽 */
 .node.s-available .box {
   fill: var(--paper);
@@ -388,10 +434,6 @@ a {
   fill: var(--ink);
   stroke: var(--ink);
   stroke-width: 2.5;
-}
-
-.node.s-done .ring {
-  stroke: transparent;
 }
 
 .node.s-done .glyph {
@@ -428,10 +470,8 @@ a {
   stroke-width: 2.5;
 }
 
-.node.r-path .glyph,
-.node.r-path.s-locked .glyph {
+.node.r-path .glyph {
   color: var(--ink);
-  opacity: 1;
 }
 
 .node.r-path .lbl {
@@ -444,10 +484,6 @@ a {
 
 .node.r-path.s-done .glyph {
   color: var(--paper);
-}
-
-.next-mark {
-  fill: var(--goal);
 }
 
 .node.pulse .box,
@@ -630,8 +666,7 @@ a {
   white-space: nowrap;
 }
 
-.hud-text:hover,
-.hud-text.on {
+.hud-text:hover {
   color: var(--ink);
   border-bottom-color: var(--ink);
 }
@@ -639,20 +674,6 @@ a {
 .hud-text b {
   color: var(--ink);
   font-weight: 600;
-}
-
-.hud-goal b {
-  color: var(--ink);
-}
-
-.store-kind {
-  position: absolute;
-  left: 28px;
-  bottom: 14px;
-  z-index: 3;
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  color: var(--ink-3);
 }
 
 /* ═════════════ 右侧面板 ═════════════ */
@@ -737,32 +758,6 @@ a {
   text-wrap: balance;
 }
 
-.detail h2.with-icon {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.detail h2 .icon {
-  width: 22px;
-  height: 22px;
-  fill: currentColor;
-  flex: none;
-}
-
-.detail h2 .icon.stroke {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.detail h2 .icon.mono {
-  width: auto;
-  font-size: 14px;
-}
-
 .summary {
   margin: 0 0 16px;
   font-size: 14.5px;
@@ -798,37 +793,109 @@ a {
   margin-top: 4px;
 }
 
+/* 卡片里的学习流程：一格一格的方块按钮，像技能栏，按下去有手感；点亮的格子是实心 */
+.flow {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flow li {
+  position: relative;
+}
+
+.flow li + li {
+  margin-top: 10px;
+}
+
+/* 格子之间的连线 */
+.flow li + li::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 22px;
+  width: 2px;
+  height: 10px;
+  background: var(--line);
+}
+
+.flow li.done + li.done::before {
+  background: var(--ink);
+}
+
+.flow button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid var(--ink);
+  background: var(--paper);
+  box-shadow: 3px 3px 0 var(--line);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.12s var(--ease), box-shadow 0.12s var(--ease), background 0.12s var(--ease);
+}
+
+.flow button:hover:not(:disabled) {
+  background: var(--wash);
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.flow button:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+.flow .dot {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--ink);
+  background: var(--paper);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.flow li.done button {
+  font-weight: 500;
+}
+
+.flow li.done .dot {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.flow.locked button {
+  border-color: var(--off-line);
+  box-shadow: none;
+  color: var(--off-ink);
+  cursor: not-allowed;
+}
+
+.flow.locked .dot {
+  border-color: var(--off-line);
+}
+
+.flow .boss {
+  color: var(--ink-2);
+}
+
+.card-sec h4 .count {
+  margin-left: 6px;
+  letter-spacing: 0;
+}
+
 .note {
   margin: 8px 0 0;
   font-size: 12.5px;
   color: var(--ink-2);
-}
-
-.note a {
-  border-bottom: 1px solid var(--line);
-  text-decoration: none;
-}
-
-.link-button {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font-size: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.link-button.inline {
-  color: var(--ink);
-}
-
-.eyebrow .link-button {
-  text-decoration: none;
-}
-
-.eyebrow .link-button:hover {
-  color: var(--ink);
 }
 
 .meter {
@@ -839,16 +906,14 @@ a {
   overflow: hidden;
 }
 
+
 .meter-done {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
-  transition: width 0.5s var(--ease), left 0.5s var(--ease);
-}
-
-.meter-done {
   background: var(--ink);
+  transition: width 0.5s var(--ease);
 }
 
 .goal-meter {
@@ -888,14 +953,11 @@ a {
   background: var(--wash);
 }
 
-button.primary {
-  background: var(--ink) !important;
-  color: var(--paper) !important;
-}
-
+/* 危险的操作：黑底白字，和普通按钮分开，不用颜色 */
 button.danger {
-  border-color: var(--goal) !important;
-  color: var(--goal);
+  border-color: var(--ink) !important;
+  background: var(--ink);
+  color: var(--paper);
 }
 
 .stats {
@@ -932,12 +994,6 @@ button.danger {
   border-top: 1px solid var(--line-2);
 }
 
-.plain-list.small .row-link {
-  padding: 4px 0;
-  font-size: 13px;
-  color: var(--ink-2);
-}
-
 .row-link {
   display: flex;
   align-items: baseline;
@@ -960,11 +1016,6 @@ button.danger {
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-.row-link.big {
-  font-size: 17px;
-  font-weight: 600;
 }
 
 .shared-banner {
@@ -1028,7 +1079,7 @@ button.danger {
   }
 }
 
-/* ═════════════ 窄屏：分支列表变成顶上一排，面板变成底部抽屉 ═════════════ */
+/* ═════════════ 窄屏：顶栏只留职业，面板变成底部抽屉 ═════════════ */
 
 @media (max-width: 760px) {
   .hud {
@@ -1059,14 +1110,6 @@ button.danger {
   .panel-body {
     padding: 32px 18px 32px;
   }
-
-  .store-kind {
-    display: none;
-  }
-
-  .toasts {
-    bottom: 24px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1078,11 +1121,7 @@ button.danger {
   }
 }
 
-/* ── 选方向 ── */
-
-.dir-group h4 {
-  margin-top: 22px;
-}
+/* ── 全部职业 ── */
 
 .row-link.is-reached span,
 .row-link.is-reached small {
@@ -1093,10 +1132,6 @@ button.danger {
 .career-badge {
   flex: none;
   cursor: default;
-}
-
-.more {
-  margin-top: 22px;
 }
 
 /* ═════════════ 技能卡：像游戏里的技能说明 ═════════════ */
@@ -1123,12 +1158,6 @@ button.danger {
   stroke-width: 2;
 }
 
-.slot .slot-ring {
-  fill: none;
-  stroke: transparent;
-  stroke-width: 2;
-}
-
 .slot.s-available .slot-box {
   fill: var(--paper);
   stroke: var(--ink);
@@ -1138,10 +1167,6 @@ button.danger {
 .slot.s-done .slot-box {
   fill: var(--ink);
   stroke: var(--ink);
-}
-
-.slot.s-done .slot-ring {
-  stroke: transparent;
 }
 
 .slot-glyph {
@@ -1254,7 +1279,7 @@ button.danger {
 
 .light-toggle.on:hover .lt-off {
   display: inline;
-  color: var(--goal);
+  color: var(--ink);
 }
 
 /* 前置还没点亮：灰的，按不了 */
@@ -1295,10 +1320,6 @@ button.danger {
   background: var(--wash);
 }
 
-.mini .slot-glyph {
-  transform: scale(1);
-}
-
 .mini-name {
   margin-top: 2px;
   font-size: 13px;
@@ -1321,7 +1342,7 @@ button.danger {
 
 .mini.s-locked .mini-state,
 .mini.s-available .mini-state {
-  color: var(--goal);
+  color: var(--ink);
 }
 
 /* 同心圆：每一圈一层，很淡，只当参照 */
