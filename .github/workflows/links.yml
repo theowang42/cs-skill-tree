@@ -1,6 +1,7 @@
 name: Check links
 
 # 内容里的链接坏了会让这条检查标红。和发布分开：链接失效不挡网站上线
+# 排除的是会拒绝自动化访问的网站（返回 403 或协议错误），人用浏览器打开是好的
 on:
   push:
     paths: ['content/**']
@@ -29,5 +30,7 @@ jobs:
             --exclude '^https://(x|twitter)\.com/'
             --exclude '^https://www\.(coursera|oreilly)\.(org|com)/'
             --exclude '^https://leetcode\.cn/'
+            --exclude '^https://www\.(producthunt|st)\.com/'
+            --exclude '^https://projects\.iq\.harvard\.edu/'
             'content/**/*.md'
           fail: true

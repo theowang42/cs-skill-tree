@@ -13,4 +13,4 @@ requires: [gpu-arch]
 - 手写矩阵乘 kernel
 
 ## 去哪学
-- [CUDA 编程指南](https://docs.nvidia.com/cuda/cuda-c-programming-guide/) · 文档 · 免费
+- [CUDA 编程指南](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html) · 文档 · 免费

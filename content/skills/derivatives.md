@@ -14,4 +14,4 @@ requires: [prob]
 - 给一个期权定价
 
 ## 去哪学
-- [Hull《期权、期货及其他衍生产品》](https://www-2.rotman.utoronto.ca/~hull/ofod/index.html) · 书 · 付费
+- [MIT 18.S096 金融中的数学](https://ocw.mit.edu/courses/18-s096-topics-in-mathematics-with-applications-in-finance-fall-2013/) · 课程 · 免费
