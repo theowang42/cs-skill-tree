@@ -128,3 +128,15 @@ test('线不穿过任何名字、徽章和别的节点', () => {
 test('名字、徽章、节点和“你”互相不叠', () => {
   for (const { name, l, skills, subs } of views) assert.deepEqual(overlaps(l, skills, subs), [], name)
 })
+
+test('看全貌时每个领域一个大标题，标题互相不叠', () => {
+  const { areas } = layoutTree(tree)
+  assert.equal(areas.length, tree.roadmap.areas.length)
+  // 标题 64px 一个字，高 80
+  const box = (a: Layout['areas'][number]) => ({ l: a.x - (a.name.length * 64) / 2, r: a.x + (a.name.length * 64) / 2, t: a.y - 40, b: a.y + 40 })
+  for (let i = 0; i < areas.length; i++) for (let j = i + 1; j < areas.length; j++) {
+    const a = box(areas[i])
+    const b = box(areas[j])
+    assert.ok(!(a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b), `${areas[i].name} 和 ${areas[j].name} 的标题叠在一起`)
+  }
+})

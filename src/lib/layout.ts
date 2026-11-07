@@ -23,8 +23,8 @@ const TIP_HALF = 78
 /** 最下面的“你” */
 export const START_R = 44
 /** 相邻两行隔多远；第一行离“你”多远 */
-const ROW = 124
-const FIRST = 170
+const ROW = 160
+const FIRST = 190
 /** 徽章那根竖线占多宽的一半：别的节点离它至少这么远 */
 const LANE_HALF = 12
 
@@ -39,6 +39,8 @@ export interface Layout {
   nodes: Map<string, { x: number; y: number }>
   /** 树上画出来的枝：每个节点一根，没有前置的技能从“你”（'root'）连出来 */
   edges: { from: string; to: string; d: string }[]
+  /** 整棵树里每个领域的大标题：放在这个领域的技能最集中的地方，缩小看全貌时显示（职业天赋树没有） */
+  areas: { id: string; name: string; x: number; y: number }[]
   /** 整张图（含徽章上面的名字）都在这个框里 */
   bounds: { minX: number; minY: number; maxX: number; maxY: number }
 }
@@ -174,6 +176,13 @@ export function layoutTree(tree: Tree, career?: string): Layout {
   for (const id of ids) link(tree.skill(id).parent ?? 'root', id, false)
   for (const [anchor, tip] of tipOf) link(anchor, tip, true)
 
+  // 领域的大标题：一个领域的技能会分散在好几支上，取横、竖两个方向的中位数，落在它最集中的那一片
+  const median = (v: number[]) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)]
+  const areas = career ? [] : tree.roadmap.areas.map((a) => {
+    const ps = a.skillIds.map((id) => nodes.get(id)!)
+    return { id: a.id, name: a.name, x: median(ps.map((p) => p.x)), y: median(ps.map((p) => p.y)) }
+  })
+
   // 整张图的框：左右是名字和徽章，上面是徽章的名字，下面是“你”
   const xs = [
     ...ids.map((id) => [nodes.get(id)!.x, Math.max(NODE_R, labelWidth(tree.skill(id).name) / 2)] as const),
@@ -182,6 +191,7 @@ export function layoutTree(tree: Tree, career?: string): Layout {
   return {
     nodes,
     edges,
+    areas,
     bounds: {
       minX: Math.min(-START_R, ...xs.map(([x, w]) => x - w)) - 40,
       maxX: Math.max(START_R, ...xs.map(([x, w]) => x + w)) + 40,

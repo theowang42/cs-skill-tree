@@ -184,6 +184,40 @@ a {
   }
 }
 
+/* ── 看全貌（地图模式）：缩得很小时，名字和图标藏起来，只看形状、点亮了哪些和每个领域的大标题 ── */
+
+.area-title {
+  font-size: 64px;
+  font-weight: 700;
+  fill: var(--ink);
+  text-anchor: middle;
+  dominant-baseline: central;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 16px;
+  stroke-linejoin: round;
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  transition: opacity 0.3s var(--ease);
+}
+
+.web.far .area-title {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.web.far .area-title:hover {
+  text-decoration: underline;
+}
+
+.web.far .lbl,
+.web.far .node foreignObject,
+.web.far .tip-name,
+.web.far .tip-pct {
+  opacity: 0;
+}
+
 /* ── 最上面一行：职业徽章 ── */
 
 .tip {

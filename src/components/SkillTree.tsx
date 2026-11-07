@@ -150,6 +150,20 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
   const focusedSkill = focus?.kind === 'skill' ? focus.id : null
   const focusedSub = focus?.kind === 'sub' ? focus.id : null
 
+  /** 把这些节点整片放进屏幕（徽章上面还有名字和进度，往上多留一点） */
+  const flyOver = (ids: string[]) => {
+    const pts = ids.map((id) => layout.nodes.get(id)!)
+    const pad = 90
+    const minX = Math.min(...pts.map((p) => p.x)) - pad
+    const maxX = Math.max(...pts.map((p) => p.x)) + pad
+    const minY = Math.min(...pts.map((p) => p.y)) - pad - TIP_R
+    const maxY = Math.max(...pts.map((p) => p.y)) + pad
+    // 面板正要打开时会占掉右边一块（已经开着的话，size.w 已经是让过之后的宽度）
+    const { w: sw, h: sh } = cam.size
+    const w = sw > 900 && window.innerWidth - sw < 100 ? sw - 360 : sw
+    cam.fly((minX + maxX) / 2, (minY + maxY) / 2, Math.min(1.1, w / (maxX - minX), sh / (maxY - minY)), w)
+  }
+
   // 选中了技能或职业，并且要求飞过去：技能放到屏幕正中；职业把它要学的整条路线放进屏幕。
   // 屏幕尺寸还没量出来时先等着，量好了再飞
   const measured = cam.size.w > 0
@@ -161,18 +175,7 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
       if (n) cam.fly(n.x, n.y, Math.max(cam.scale(), 1))
       return
     }
-    if (!layout.nodes.has(subNodeId(focus.id))) return
-    const pts = [subNodeId(focus.id), ...tree.closures.get(focus.id)!].map((id) => layout.nodes.get(id)!)
-    const pad = 90
-    const minX = Math.min(...pts.map((p) => p.x)) - pad
-    const maxX = Math.max(...pts.map((p) => p.x)) + pad
-    // 徽章上面还有名字和进度
-    const minY = Math.min(...pts.map((p) => p.y)) - pad - TIP_R
-    const maxY = Math.max(...pts.map((p) => p.y)) + pad
-    // 面板正要打开时会占掉右边一块（已经开着的话，size.w 已经是让过之后的宽度）
-    const { w: sw, h: sh } = cam.size
-    const w = sw > 900 && window.innerWidth - sw < 100 ? sw - 360 : sw
-    cam.fly((minX + maxX) / 2, (minY + maxY) / 2, Math.min(1.1, w / (maxX - minX), sh / (maxY - minY)), w)
+    if (layout.nodes.has(subNodeId(focus.id))) flyOver([subNodeId(focus.id), ...tree.closures.get(focus.id)!])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flyRequest, measured])
 
@@ -301,6 +304,21 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
               />
             )
           })}
+          {/* 看全貌时：每个领域一个大标题，点它飞进那一片，放大到看得清名字 */}
+          {layout.areas.map((a) => (
+            <text
+              key={a.id}
+              className="area-title"
+              x={a.x}
+              y={a.y}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (!cam.dragged()) cam.fly(a.x, a.y, 0.8)
+              }}
+            >
+              {a.name}
+            </text>
+          ))}
         </g>
       </svg>
 

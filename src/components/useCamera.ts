@@ -1,7 +1,8 @@
 // 技能树的镜头：滚轮平移、缩放、拖动、双指缩放、飞到某处。不走 React，直接改 <g> 的 transform。
 // “你”在 (0, 0)，整张图在 bounds 这个框里。
-//   - 最小缩放刚好把整张图装进屏幕，这时图固定在正中；
-//   - 越放大能拖得越远，放大到 1.5 倍以上时，屏幕中心能到图上任何一点（最上面的徽章也能放到正中）。
+//   - 打开时、点“看全图”时，缩放刚好把整张图装进屏幕；不能再小；
+//   - 任何缩放下都能拖，屏幕中心能到图上任何一点，图不会整个拖出屏幕；
+//   - 缩得比 FAR_K 还小是“地图模式”：<svg> 加上 far，名字藏起来、领域的大标题出来（样式里写）。
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
 import type { Layout } from '../lib/layout'
 
@@ -12,6 +13,8 @@ interface View {
 }
 
 const MAX_K = 2.5
+/** 比这还小就是地图模式：名字太小看不清，只看形状和领域 */
+export const FAR_K = 0.5
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 
 export function useCamera({ minX, minY, maxX, maxY }: Layout['bounds']) {
@@ -35,13 +38,13 @@ export function useCamera({ minX, minY, maxX, maxY }: Layout['bounds']) {
   const apply = useCallback((raw: View) => {
     const { minK: lo, w, h } = limits.current
     const k = Math.min(MAX_K, Math.max(lo, raw.k))
-    const reach = Math.min(1, Math.max(0, (k / lo - 1) / 0.5))
-    const clamp = (v: number, c: number, r: number) => Math.min(c + r * reach, Math.max(c - r * reach, v))
-    const x = clamp((w / 2 - raw.x) / raw.k, cx, rx)
-    const y = clamp((h / 2 - raw.y) / raw.k, cy, ry)
+    // 屏幕中心对着的那一点，不出整张图的框
+    const x = Math.min(maxX, Math.max(minX, (w / 2 - raw.x) / raw.k))
+    const y = Math.min(maxY, Math.max(minY, (h / 2 - raw.y) / raw.k))
     view.current = { x: w / 2 - x * k, y: h / 2 - y * k, k }
     world.current?.setAttribute('transform', `translate(${view.current.x},${view.current.y}) scale(${k})`)
-  }, [cx, cy, rx, ry])
+    svg.current?.classList.toggle('far', k < FAR_K)
+  }, [minX, minY, maxX, maxY])
 
   /** 让世界坐标 (cx, cy) 对着宽 width 的那块屏幕的正中，缩放 k；ms 是动画时长 */
   const flyTo = useCallback((cx: number, cy: number, k: number, { ms = 550, width = limits.current.w } = {}) => {
@@ -68,12 +71,10 @@ export function useCamera({ minX, minY, maxX, maxY }: Layout['bounds']) {
     return () => ro.disconnect()
   }, [])
 
-  // 开头：“你”在屏幕下方正中，往上看得见下面几行。窗口变了也重新来，除非用户已经动过
+  // 开头：看全貌。窗口变了也重新来，除非用户已经动过
   useEffect(() => {
-    if (!size.w || touched.current) return
-    const k = Math.min(1, Math.max(0.4, Math.min(size.w, size.h) / 2 / 760))
-    flyTo(0, -(size.h / 2 - 110) / k, k, { ms: 0 })
-  }, [size, flyTo])
+    if (size.w && !touched.current) flyTo(cx, cy, limits.current.minK, { ms: 0 })
+  }, [size, flyTo, cx, cy])
 
   /** 以屏幕上的 (sx, sy) 为中心缩放到 k */
   const zoomAt = useCallback((sx: number, sy: number, k: number) => {
