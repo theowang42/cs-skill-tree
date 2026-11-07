@@ -15,7 +15,7 @@ import { ICONS } from '../src/generated/icons.ts'
 export const SITE = 'https://theowang42.github.io/cs-skill-tree/'
 const REPO = 'https://github.com/theowang42/cs-skill-tree'
 /** 仓库的默认分支：“在 GitHub 上改这一页”打开这个分支上的文件 */
-const BRANCH = 'claude/jolly-albattani-d6no7f'
+const BRANCH = 'main'
 const editUrl = (file: string) => `${REPO}/edit/${BRANCH}/content/${file}`
 const NAME = 'CS 技能树'
 
