@@ -5,3 +5,5 @@ dist
 # 由 npm run data 生成
 public/data/
 src/generated/
+# 短片生成的中间文件和高清版
+tools/film/out/

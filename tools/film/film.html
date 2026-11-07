@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>CS 技能树 · 短片</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=block" rel="stylesheet">
+<style>html, body { margin: 0; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+// 一个由时间 t（秒）决定的短片：render(t) 画出第 t 秒的样子，cues 是同一张时间表上的音效。
+const W = 1920, H = 1080
+const C = document.getElementById('c')
+const X = C.getContext('2d')
+const INK = '#111111', OFF = '#b9b9b9', OFFINK = '#6b6b6b', NIGHT = '#0a0a0a'
+const SANS = '"Noto Sans SC", sans-serif', MONO = '"JetBrains Mono", "Noto Sans SC", monospace'
+const NODE_R = 31, TIP_R = 46
+const DURATION = 22.6
+
+// ── 小工具 ──
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x))
+const seg = (t, a, b) => clamp((t - a) / (b - a))
+const lerp = (a, b, x) => a + (b - a) * x
+const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2)
+const eoe = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x))
+const eo4 = (x) => 1 - Math.pow(1 - x, 4)
+const eob = (x) => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2) }
+function rng(seed) { return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
+const hash = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h) }
+
+// ── 音效时间表 ──
+const CUES = []
+const cue = (t, type, o = {}) => CUES.push({ t: +t.toFixed(4), type, ...o })
+
+/** 打字：每个字什么时候出现。人打字有快有慢，标点后停一下 */
+function typing(text, start, rand, base = 0.068) {
+  const times = []
+  let t = start
+  for (const ch of text) {
+    times.push(t)
+    cue(t, ch === ' ' ? 'space' : 'key', { v: rand() })
+    t += base * (0.65 + rand() * 0.75) + ('，。'.includes(ch) ? 0.16 : 0)
+  }
+  return { times, end: t }
+}
+const typedCount = (times, t) => { let n = 0; while (n < times.length && times[n] <= t) n++; return n }
+
+let D // 数据
+let S, byId, tips, kids, litAt, appearAt, closure, inference, docker, missingEnd, closureTotal
+const icons = new Map()
+
+// ═══════════ 时间表 ═══════════
+const r1 = rng(7)
+// 第一幕：终端
+const L1 = '学 CS 最难的，', L2 = '是不知道下一步学什么。'
+const T1 = typing(L1, 0.62, r1, 0.07)
+const T2 = typing(L2, T1.end + 0.22, r1, 0.066)
+const EXIT = 3.45
+// 第二幕：长出来
+const GROW0 = 4.5
+// 第三幕：命令
+const CMD1 = 'next', CMD2 = 'target 推理工程师'
+const K1 = typing(CMD1, 9.95, r1, 0.075)
+const ENTER1 = K1.end + 0.08
+const K2 = typing(CMD2, 13.95, r1, 0.062)
+const ENTER2 = K2.end + 0.1
+const STEP0 = 11.75, STEP_GAP = 0.27
+const DOCKER_LIT = STEP0 + 4 * STEP_GAP + 0.14
+// 第五幕：标题
+const TITLE1 = '一棵计算机技能树', TITLE2 = '解锁你的职业可能', URL = 'theowang42.github.io/cs-skill-tree'
+const TT1 = Array.from(TITLE1, (_, i) => 18.45 + i * 0.06)
+const TT2 = Array.from(TITLE2, (_, i) => 19.1 + i * 0.06)
+const TU = typing(URL, 19.95, r1, 0.03)
+const ENTER3 = TU.end + 0.35
+
+// 相机：世界坐标的中心和缩放，关键帧之间缓动（缩放按对数插值）
+let CAM = []
+function camera(t) {
+  let i = 0
+  while (i < CAM.length - 1 && CAM[i + 1].t <= t) i++
+  const a = CAM[i], b = CAM[Math.min(i + 1, CAM.length - 1)]
+  const x = a === b ? 1 : eio(seg(t, a.t, b.t))
+  return { x: lerp(a.x, b.x, x), y: lerp(a.y, b.y, x), s: Math.exp(lerp(Math.log(a.s), Math.log(b.s), x)) }
+}
+/** 树长到哪儿了（世界半径）：跟着镜头往外拉，始终长在画面边上 */
+function growR(t) {
+  if (t < GROW0 + 0.05) return 0
+  const s = camera(t).s
+  return Math.min(2600, (500 / s) * eoe(seg(t, GROW0 + 0.05, GROW0 + 0.6)))
+}
+
+function setup() {
+  S = D.skills
+  byId = new Map(S.map((s) => [s.id, s]))
+  tips = D.subs
+  kids = new Map()
+  for (const s of S) if (s.parent) kids.set(s.parent, [...(kids.get(s.parent) || []), s.id])
+  inference = tips.find((x) => x.id === 'inference')
+  docker = byId.get('docker')
+  closure = new Set(inference.closure)
+  closureTotal = closure.size
+
+  // 镜头
+  const sFull = 0.226
+  const dockS = 1.2
+  const pathS = 0.405
+  CAM = [
+    { t: 0, x: 0, y: 0, s: 1.5 },
+    { t: GROW0 + 0.35, x: 0, y: 0, s: 1.5 },
+    { t: 7.9, x: 0, y: 18, s: sFull },
+    { t: 8.05, x: 0, y: 18, s: sFull },
+    { t: 9.05, x: -10, y: 30, s: 0.6 },
+    { t: 10.55, x: -10, y: 30, s: 0.6 },
+    { t: 11.35, x: docker.x + (W / 2 - 560) / dockS, y: docker.y, s: dockS },
+    { t: 13.55, x: docker.x + (W / 2 - 560) / dockS, y: docker.y, s: dockS },
+    { t: 15.15, x: inference.x / 2 + (W / 2 - 700) / pathS, y: inference.y / 2 - 30, s: pathS },
+    { t: 17.55, x: inference.x / 2 + (W / 2 - 700) / pathS, y: inference.y / 2 - 30, s: pathS },
+    { t: 22.6, x: 0, y: 40, s: 0.17 },
+  ]
+
+  // 什么时候出现：树长到它那一圈
+  appearAt = new Map()
+  const all = [...S.map((s) => [s.id, Math.hypot(s.x, s.y)]), ...tips.map((x) => ['sub:' + x.id, Math.hypot(x.x, x.y)])]
+  for (let t = GROW0; t < 9; t += 0.002) {
+    const R = growR(t)
+    for (const [id, r] of all) if (!appearAt.has(id) && R >= r) appearAt.set(id, t)
+  }
+  // 每长到一圈，嗖一声；最外圈的职业一起出现，低沉一点
+  const rings = [...D.rings]
+  rings.forEach((r, i) => {
+    const t = [...appearAt.entries()].filter(([id]) => !id.startsWith('sub:') && Math.abs(Math.hypot(byId.get(id).x, byId.get(id).y) - r) < 2).map(([, t]) => t)
+    if (t.length) cue(Math.min(...t) - 0.06, 'whoosh', { d: 0.42, f: 500 + i * 220, g: 0.42 + i * 0.025, pan: i % 2 ? 0.35 : -0.35 })
+  })
+  const tipT = Math.min(...tips.map((x) => appearAt.get('sub:' + x.id)))
+  cue(tipT - 0.05, 'sub', { g: 0.8 })
+  cue(tipT - 0.1, 'whoosh', { d: 0.9, f: 260, g: 0.55, pan: 0 })
+
+  // 点亮：从圆心往外一个个亮
+  litAt = new Map()
+  const lit = D.lit.slice().sort((a, b) => byId.get(a).depth - byId.get(b).depth || Math.atan2(byId.get(a).x, -byId.get(a).y) - Math.atan2(byId.get(b).x, -byId.get(b).y))
+  lit.forEach((id, i) => {
+    const t = 8.25 + i * 0.1
+    litAt.set(id, t)
+    cue(t, 'light', { i, pan: clamp(byId.get(id).x / 600, -0.8, 0.8) })
+  })
+  cue(8.1, 'whoosh', { d: 1.1, f: 380, g: 0.4, pan: 0.0, rise: 1 })
+  litAt.set('docker', DOCKER_LIT)
+  missingEnd = [...closure].filter((id) => !litAt.has(id)).length
+
+  // 其他音效
+  cue(EXIT - 0.02, 'whoosh', { d: 0.5, f: 900, g: 0.35, pan: -0.2 })
+  cue(3.72, 'whoosh', { d: 0.55, f: 1400, g: 0.3, pan: 0.3 })
+  cue(4.03, 'sub', { g: 1 })
+  cue(4.0, 'whoosh', { d: 1.0, f: 300, g: 0.75, pan: 0, rise: 0 })
+  cue(ENTER1, 'enter')
+  cue(ENTER1 + 0.02, 'whoosh', { d: 0.8, f: 1100, g: 0.42, pan: 0, rise: 1 })
+  cue(10.6, 'whoosh', { d: 0.9, f: 420, g: 0.45, pan: 0.4 })
+  for (let i = 0; i < 5; i++) cue(STEP0 + i * STEP_GAP, 'press', { i })
+  cue(DOCKER_LIT, 'light', { i: 20, big: 1, pan: -0.3 })
+  cue(DOCKER_LIT, 'whoosh', { d: 0.7, f: 800, g: 0.5, pan: -0.3, rise: 1 })
+  cue(13.5, 'whoosh', { d: 0.5, f: 1200, g: 0.3, pan: 0.6 })
+  cue(ENTER2, 'enter')
+  cue(ENTER2 + 0.05, 'whoosh', { d: 1.3, f: 240, g: 0.7, pan: 0 })
+  for (let k = 0; k < closureTotal - missingEnd; k++) cue(15.75 + (k * 0.95) / (closureTotal - missingEnd), 'tick', { k })
+  cue(PATH1 - 0.05, 'sub', { g: 0.9 })
+  cue(17.7, 'whoosh', { d: 1.4, f: 200, g: 0.55, pan: 0 })
+  TT1.forEach((t, i) => cue(t, 'key', { v: (i * 0.37) % 1, soft: 1 }))
+  TT2.forEach((t, i) => cue(t, 'key', { v: (i * 0.61) % 1, soft: 1 }))
+  cue(ENTER3, 'enter', { last: 1 })
+  CUES.sort((a, b) => a.t - b.t)
+}
+const PATH0 = 15.35, PATH1 = 16.75
+
+// ═══════════ 画 ═══════════
+function iconImg(svg, color) {
+  const k = svg + color
+  if (!icons.has(k)) {
+    const img = new Image()
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replaceAll('#000', color))
+    icons.set(k, img)
+  }
+  return icons.get(k)
+}
+function hexPath(r) {
+  X.beginPath()
+  for (let i = 0; i < 6; i++) { const a = (Math.PI / 3) * i - Math.PI / 2; X[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r) }
+  X.closePath()
+}
+function shape(n, r) { if (n.language) hexPath(r + 2); else { X.beginPath(); X.arc(0, 0, r, 0, Math.PI * 2) } }
+
+const isLit = (id, t) => litAt.has(id) && litAt.get(id) <= t
+const isAvail = (id, t) => !isLit(id, t) && byId.get(id).pre.every((p) => isLit(p, t))
+
+// 第三幕高亮“下一步能学的”；第四幕高亮通往推理工程师的路
+const nextOn = (t) => seg(t, ENTER1, ENTER1 + 0.25) * (1 - seg(t, 13.35, 13.8))
+const pathOn = (t) => seg(t, ENTER2, ENTER2 + 0.4) * (1 - seg(t, 17.45, 18.1))
+const treeFade = (t) => 1 - 0.9 * eio(seg(t, 17.7, 18.9))
+
+/** 拉远看全图时，没点亮的线和框要深一点、粗一点，不然整张图发虚 */
+const offCol = (s) => (s < 0.5 ? `rgb(${Math.round(lerp(150, 185, seg(s, 0.22, 0.5)))},${Math.round(lerp(150, 185, seg(s, 0.22, 0.5)))},${Math.round(lerp(150, 185, seg(s, 0.22, 0.5)))})` : OFF)
+
+function nodeAlpha(id, t) {
+  let a = 1
+  const nx = nextOn(t)
+  if (nx > 0 && !isLit(id, t) && !isAvail(id, t)) a *= 1 - 0.7 * nx
+  const p = pathOn(t)
+  if (p > 0 && !closure.has(id)) a *= 1 - 0.8 * p
+  return a * treeFade(t)
+}
+
+function drawNode(n, t, cam) {
+  const at = appearAt.get(n.id)
+  if (at === undefined || t < at) return
+  const pop = eob(seg(t, at, at + 0.38))
+  const alpha = nodeAlpha(n.id, t) * clamp(seg(t, at, at + 0.12))
+  if (alpha <= 0.002) return
+  X.save()
+  X.translate(n.x, n.y)
+  X.globalAlpha = alpha
+  const lt = litAt.get(n.id)
+  const lit = lt !== undefined && t >= lt
+  const avail = isAvail(n.id, t)
+  const lp = lit ? seg(t, lt, lt + 0.32) : 0
+  let sc = pop
+  if (lit) sc *= 1 + 0.16 * Math.sin(Math.PI * seg(t, lt, lt + 0.42)) * (1 - seg(t, lt, lt + 0.42))
+  X.scale(sc, sc)
+  const px = 1 / cam.s
+
+  // 外圈：点亮后的光芒，能点亮的虚线圈
+  if (lit) {
+    const spin = t * 0.55 + (hash(n.id) % 628) / 100
+    X.save()
+    X.rotate(spin)
+    X.strokeStyle = INK
+    X.lineWidth = Math.max(1.6, 0.9 * px)
+    X.globalAlpha = alpha * eo4(seg(t, lt + 0.05, lt + 0.45))
+    for (let i = 0; i < 24; i++) {
+      const a = (Math.PI * 2 * i) / 24, len = i % 2 ? 5 : 9, r0 = NODE_R + 7 + 6 * (1 - eo4(seg(t, lt, lt + 0.5)))
+      X.beginPath(); X.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); X.lineTo(Math.cos(a) * (r0 + len), Math.sin(a) * (r0 + len)); X.stroke()
+    }
+    X.restore()
+  } else if (avail) {
+    X.setLineDash([3, 4])
+    X.strokeStyle = INK
+    X.lineWidth = Math.max(1.25, 0.8 * px)
+    X.beginPath(); n.language ? hexPath(NODE_R + 8) : X.arc(0, 0, NODE_R + 6, 0, Math.PI * 2); X.stroke()
+    X.setLineDash([])
+  }
+  // 第三幕（画在节点本体下面，不压名字）：下一步能学的，外面一圈朱砂色在呼吸
+  const nx = nextOn(t)
+  if (nx > 0 && avail) {
+    const d0 = Math.hypot(n.x, n.y)
+    const k = eoe(seg(t, ENTER1 + d0 / 4000, ENTER1 + d0 / 4000 + 0.5)) * nx
+    if (k > 0) {
+      X.save()
+      X.globalAlpha = k * treeFade(t)
+      X.strokeStyle = INK; X.lineWidth = Math.max(3.5, 1.8 * px)
+      const r = NODE_R + 13 + 3 * Math.sin((t - ENTER1) * 5 + hash(n.id))
+      X.beginPath(); X.arc(0, 0, r, 0, Math.PI * 2); X.stroke()
+      X.restore()
+    }
+  }
+  // 节点本体
+  shape(n, NODE_R)
+  X.fillStyle = lit || avail ? '#fff' : '#fafafa'
+  X.fill()
+  X.lineWidth = Math.max(lit || avail ? 2.5 : 2, (lit || avail ? 1.4 : 1.2) * px)
+  X.strokeStyle = lit || avail ? INK : offCol(cam.s)
+  X.stroke()
+  // 点亮：墨从中间晕开
+  if (lit) {
+    X.save()
+    shape(n, NODE_R); X.clip()
+    X.beginPath(); X.arc(0, 0, (NODE_R + 4) * eob(lp), 0, Math.PI * 2); X.fillStyle = INK; X.fill()
+    X.restore()
+  }
+  const img = iconImg(n.icon, lit && lp > 0.5 ? '#fff' : avail || lit ? INK : '#8a8a8a')
+  X.globalAlpha = alpha * (lit || avail ? 1 : 0.75)
+  X.drawImage(img, -15, -15, 30, 30)
+  X.globalAlpha = alpha
+  // 名字：放大时才看得清
+  const la = seg(cam.s, 0.42, 0.62)
+  if (la > 0) {
+    X.globalAlpha = alpha * la
+    X.font = `${lit || avail ? 500 : 400} 15px ${SANS}`
+    X.textAlign = 'center'
+    X.lineWidth = 6; X.strokeStyle = '#fff'; X.lineJoin = 'round'
+    X.strokeText(n.name, 0, NODE_R + 23)
+    X.fillStyle = lit || avail ? INK : OFFINK
+    X.fillText(n.name, 0, NODE_R + 23)
+  }
+  X.restore()
+  // 点亮那一下：一圈冲击波
+  if (lit) {
+    const w = seg(t, lt, lt + 0.75)
+    if (w > 0 && w < 1) {
+      X.save(); X.translate(n.x, n.y)
+      X.globalAlpha = (1 - w) * 0.7 * treeFade(t)
+      X.strokeStyle = INK; X.lineWidth = Math.max(2, 1.2 * px)
+      X.beginPath(); X.arc(0, 0, NODE_R + 8 + 80 * eoe(w), 0, Math.PI * 2); X.stroke()
+      X.restore()
+    }
+  }
+  // 第四幕：路上还没会的，朱砂色描边
+  const p = pathOn(t)
+  if (p > 0 && closure.has(n.id) && !lit) {
+    const k = p * seg(pathR(t), Math.hypot(n.x, n.y) - 40, Math.hypot(n.x, n.y))
+    if (k > 0) {
+      X.save(); X.translate(n.x, n.y)
+      X.globalAlpha = k * treeFade(t)
+      X.strokeStyle = INK; X.lineWidth = Math.max(3, 1.8 * px)
+      shape(n, NODE_R + 1); X.stroke()
+      X.restore()
+    }
+  }
+}
+
+const pathR = (t) => 2500 * eio(seg(t, PATH0, PATH1))
+
+function drawTip(x, t, cam) {
+  const id = 'sub:' + x.id
+  const at = appearAt.get(id)
+  if (at === undefined || t < at) return
+  const pop = eob(seg(t, at, at + 0.45))
+  const hl = x.id === 'inference' ? pathOn(t) : 0
+  let alpha = clamp(seg(t, at, at + 0.15)) * treeFade(t)
+  if (pathOn(t) > 0 && x.id !== 'inference') alpha *= 1 - 0.8 * pathOn(t)
+  if (nextOn(t) > 0) alpha *= 1 - 0.6 * nextOn(t)
+  X.save()
+  X.translate(x.x, x.y)
+  const hit = x.id === 'inference' ? seg(t, PATH1 - 0.05, PATH1 + 0.5) : 0
+  const sc = pop * (1 + 0.22 * Math.sin(Math.PI * hit) * (1 - hit))
+  X.scale(sc, sc)
+  X.globalAlpha = alpha
+  const px = 1 / cam.s
+  const col = hl > 0.5 && hit > 0 ? INK : INK
+  X.fillStyle = '#fff'
+  X.beginPath(); X.arc(0, 0, TIP_R, 0, Math.PI * 2); X.fill()
+  X.strokeStyle = col; X.lineWidth = Math.max(2.5, 1.4 * px); X.stroke()
+  X.beginPath(); X.arc(0, 0, TIP_R - 8, 0, Math.PI * 2); X.lineWidth = Math.max(1.2, 0.8 * px); X.stroke()
+  X.drawImage(iconImg(x.icon, col), -17, -17, 34, 34)
+  const la = Math.max(seg(cam.s, 0.18, 0.3), hl)
+  if (la > 0) {
+    X.globalAlpha = alpha * la
+    X.font = `700 ${Math.max(16, 15 / Math.max(cam.s, 0.45))}px ${SANS}`
+    X.textAlign = 'center'
+    X.fillStyle = col
+    X.fillText(x.name, 0, -TIP_R - 18)
+  }
+  X.restore()
+  if (hit > 0 && hit < 1) {
+    X.save(); X.translate(x.x, x.y)
+    X.globalAlpha = (1 - hit) * 0.8 * treeFade(t)
+    X.strokeStyle = INK; X.lineWidth = Math.max(3, 2 / cam.s)
+    X.beginPath(); X.arc(0, 0, TIP_R + 10 + 160 * eoe(hit), 0, Math.PI * 2); X.stroke()
+    X.restore()
+  }
+}
+
+function drawWorld(t) {
+  const cam = camera(t)
+  X.fillStyle = '#fff'
+  X.fillRect(0, 0, W, H)
+  X.save()
+  X.translate(W / 2, H / 2)
+  X.scale(cam.s, cam.s)
+  X.translate(-cam.x, -cam.y)
+  const px = 1 / cam.s
+  const R = growR(t)
+  const fade = treeFade(t)
+
+  // 同心圆：从里到外依次变深再变浅
+  D.rings.forEach((r, i) => {
+    if (R < r) return
+    const b = 0.5 + 0.5 * Math.sin(t * 1.4 - i * 0.55)
+    X.strokeStyle = `rgba(0,0,0,${(0.05 + 0.05 * b) * fade})`
+    X.lineWidth = 1.4 * px
+    X.beginPath(); X.arc(0, 0, r, 0, Math.PI * 2); X.stroke()
+  })
+
+  // 枝条：长出来时按半径裁掉外面的
+  X.save()
+  if (R < 2600) { X.beginPath(); X.arc(0, 0, Math.max(R, 1), 0, Math.PI * 2); X.clip() }
+  X.lineCap = 'round'; X.lineJoin = 'round'
+  for (const e of D.edges) {
+    const toTip = e.to.startsWith('sub:')
+    const from = e.from === 'root' ? true : isLit(e.from, t)
+    const to = toTip ? false : isLit(e.to, t)
+    let a = fade
+    const nx = nextOn(t)
+    if (nx > 0 && !(to || (from && !toTip && isAvail(e.to, t)))) a *= 1 - 0.7 * nx
+    const p = pathOn(t)
+    const onPath = (toTip ? e.to === 'sub:inference' : closure.has(e.to))
+    if (p > 0 && !onPath) a *= 1 - 0.8 * p
+    X.globalAlpha = a
+    X.strokeStyle = from && to ? INK : from && !toTip ? INK : offCol(cam.s)
+    X.lineWidth = from && to ? Math.max(4.5, 1.9 * px) : from && !toTip ? Math.max(2.3, 1.3 * px) : Math.max(2, 1.15 * px)
+    X.stroke(new Path2D(e.d))
+  }
+  X.restore()
+
+  // 第四幕：通往推理工程师的路，朱砂色从圆心流出去
+  const p = pathOn(t)
+  if (p > 0) {
+    X.save()
+    X.beginPath(); X.arc(0, 0, Math.max(pathR(t), 1), 0, Math.PI * 2); X.clip()
+    X.globalAlpha = p * fade
+    X.strokeStyle = INK
+    X.lineCap = 'round'; X.lineJoin = 'round'
+    X.lineWidth = Math.max(6, 3 * px)
+    for (const e of D.edges) {
+      const onPath = e.to === 'sub:inference' || (closure.has(e.to) && (e.from === 'root' || closure.has(e.from)))
+      if (onPath) X.stroke(new Path2D(e.d))
+    }
+    X.restore()
+  }
+
+  // 圆心：你
+  if (t >= 4.0) {
+    const a = seg(t, 4.12, 4.4) * fade
+    X.save()
+    X.globalAlpha = a
+    X.fillStyle = '#fff'
+    X.beginPath(); X.arc(0, 0, 44, 0, Math.PI * 2); X.fill()
+    X.strokeStyle = INK; X.lineWidth = Math.max(2.5, 1.3 * px); X.stroke()
+    const n = [...litAt.values()].filter((x) => x <= t).length
+    if (n) {
+      X.beginPath(); X.arc(0, 0, 50, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * n) / 169)
+      X.lineWidth = Math.max(4, 2 * px); X.stroke()
+    }
+    X.fillStyle = INK
+    X.font = `700 26px ${SANS}`
+    X.textAlign = 'center'; X.textBaseline = 'middle'
+    X.fillText('你', 0, 1)
+    X.restore()
+  }
+
+  for (const n of S) drawNode(n, t, cam)
+  for (const x of tips) drawTip(x, t, cam)
+  X.restore()
+}
+
+// ── 屏幕上的字 ──
+function caption(t, a, b, num, text) {
+  const k = eoe(seg(t, a, a + 0.6)) * (1 - eio(seg(t, b - 0.35, b)))
+  if (k <= 0) return
+  X.save()
+  X.globalAlpha = k
+  // 左下角垫一层白，后面的节点名字不和字幕搅在一起
+  const g = X.createRadialGradient(260, H - 100, 0, 260, H - 100, 400)
+  g.addColorStop(0, 'rgba(255,255,255,0.92)'); g.addColorStop(0.6, 'rgba(255,255,255,0.7)'); g.addColorStop(1, 'rgba(255,255,255,0)')
+  X.fillStyle = g
+  X.fillRect(0, H - 500, 660, 500)
+  const y = H - 104 + 26 * (1 - eoe(seg(t, a, a + 0.6)))
+  if (num) {
+    X.font = `700 22px ${MONO}`; X.fillStyle = INK; X.textBaseline = 'alphabetic'; X.textAlign = 'left'
+    X.fillText(num, 96, y - 52)
+  }
+  X.font = `700 44px ${SANS}`; X.fillStyle = INK
+  X.fillText(text, 96, y)
+  // 一道细线从左往右划过
+  X.fillStyle = INK
+  X.fillRect(96, y + 22, 64 * eoe(seg(t, a + 0.1, a + 0.7)), 3)
+  X.restore()
+}
+
+function hud(t) {
+  const k = seg(t, 4.6, 5.2) * (1 - seg(t, 17.6, 18.3))
+  if (k <= 0) return
+  X.save()
+  X.globalAlpha = k
+  X.fillStyle = INK
+  X.fillRect(96, 72, 22, 22)
+  X.font = `700 24px ${SANS}`; X.textBaseline = 'middle'; X.textAlign = 'left'
+  X.fillText('CS 技能树', 132, 84)
+  const n = [...litAt.values()].filter((x) => x <= t).length
+  X.textAlign = 'right'
+  X.font = `500 20px ${MONO}`; X.fillStyle = OFFINK
+  X.fillText('/ 169', W - 96, 84)
+  const w = X.measureText('/ 169').width
+  X.font = `700 30px ${MONO}`; X.fillStyle = INK
+  X.fillText(String(n), W - 96 - w - 12, 83)
+  X.font = `500 18px ${SANS}`; X.fillStyle = OFFINK
+  X.fillText('已点亮', W - 96 - w - 12 - X.measureText(String(n)).width - 60, 84)
+  X.restore()
+}
+
+/** 屏幕下方的小终端：打一条命令，回车 */
+function chip(t, show, keys, text, enter) {
+  const a = seg(t, show, show + 0.35), b = 1 - eio(seg(t, enter + 0.3, enter + 0.55))
+  const k = eoe(a) * b
+  if (k <= 0) return
+  X.save()
+  X.globalAlpha = k
+  const w = 640, h = 78, x = W / 2 - w / 2 + 120, y = H - 150 + 30 * (1 - eoe(a))
+  X.fillStyle = NIGHT
+  X.beginPath(); X.roundRect(x, y, w, h, 14); X.fill()
+  X.font = `700 30px ${MONO}`; X.textBaseline = 'middle'; X.textAlign = 'left'
+  X.fillStyle = '#f2f2f2'
+  X.fillText('›', x + 32, y + h / 2 + 1)
+  const n = typedCount(keys.times, t)
+  const s = text.slice(0, [...text].slice(0, n).join('').length)
+  X.fillStyle = '#f2f2f2'
+  X.font = `500 30px ${MONO}`
+  X.fillText(s, x + 68, y + h / 2 + 1)
+  const cx = x + 68 + X.measureText(s).width + 4
+  const blink = t > keys.end + 0.05 && Math.floor((t - keys.end) * 2.4) % 2 === 1
+  if (!blink && t < enter + 0.05) { X.fillStyle = '#f2f2f2'; X.fillRect(cx, y + 22, 16, 34) }
+  // 回车：整条闪一下
+  const f = seg(t, enter, enter + 0.25)
+  if (f > 0 && f < 1) { X.globalAlpha = k * (1 - f) * 0.35; X.fillStyle = '#fff'; X.beginPath(); X.roundRect(x, y, w, h, 14); X.fill() }
+  X.restore()
+}
+
+/** Docker 的卡片：学习流程一步步点亮 */
+function card(t) {
+  const a = seg(t, 11.0, 11.55), b = seg(t, 13.4, 13.75)
+  const k = eoe(a) * (1 - eio(b))
+  if (k <= 0) return
+  X.save()
+  const x = 1070 + 90 * (1 - eoe(a)) + 60 * eio(b), y = 160, w = 660, h = 780
+  X.globalAlpha = k
+  X.fillStyle = '#e4e4e4'; X.fillRect(x + 10, y + 10, w, h)
+  X.fillStyle = '#fff'; X.fillRect(x, y, w, h)
+  X.strokeStyle = INK; X.lineWidth = 3; X.strokeRect(x, y, w, h)
+  const L = x + 56
+  X.textAlign = 'left'; X.textBaseline = 'alphabetic'
+  X.font = `500 20px ${SANS}`; X.fillStyle = OFFINK
+  X.fillText('技能 · 地基', L, y + 82)
+  X.font = `900 76px ${SANS}`; X.fillStyle = INK
+  X.fillText('Docker', L, y + 168)
+  X.font = `400 25px ${SANS}`; X.fillStyle = '#333'
+  X.fillText('会写 Dockerfile 打包应用，', L, y + 228)
+  X.fillText('能用镜像在任何机器上把服务跑起来。', L, y + 268)
+  const done = [0, 1, 2, 3, 4].filter((i) => t >= STEP0 + i * STEP_GAP).length
+  X.font = `500 19px ${SANS}`; X.fillStyle = OFFINK
+  X.fillText('学 习 流 程', L, y + 340)
+  X.font = `700 19px ${MONO}`; X.fillStyle = done === 5 ? INK : OFFINK
+  X.fillText(`${done} / 5`, L + 128, y + 340)
+  const steps = docker.steps
+  steps.forEach((s, i) => {
+    const st = STEP0 + i * STEP_GAP
+    const rowIn = eoe(seg(t, 11.25 + i * 0.06, 11.75 + i * 0.06))
+    const press = seg(t, st, st + 0.16)
+    const dz = press > 0 && press < 1 ? Math.sin(Math.PI * press) * 4 : 0
+    const on = t >= st
+    const ry = y + 368 + i * 76 + 20 * (1 - rowIn)
+    X.save()
+    X.globalAlpha = k * rowIn
+    const rx = L + dz, rw = w - 112, rh = 60
+    X.fillStyle = on ? '#cfcfcf' : '#e6e6e6'
+    X.fillRect(rx + 5 - dz, ry + 5 - dz + dz, rw, rh)
+    X.fillStyle = '#fff'; X.fillRect(rx, ry + dz, rw, rh)
+    X.strokeStyle = INK; X.lineWidth = 2; X.strokeRect(rx, ry + dz, rw, rh)
+    // 编号方块
+    const bx = rx + 14, by = ry + dz + 13
+    const fill = eob(seg(t, st, st + 0.22))
+    X.strokeRect(bx, by, 34, 34)
+    if (on) { X.fillStyle = INK; const z = 34 * Math.min(1, fill); X.fillRect(bx + (34 - z) / 2, by + (34 - z) / 2, z, z) }
+    X.textAlign = 'center'; X.textBaseline = 'middle'
+    if (on && fill > 0.6) {
+      X.strokeStyle = '#fff'; X.lineWidth = 3; X.lineCap = 'round'; X.lineJoin = 'round'
+      X.beginPath(); X.moveTo(bx + 9, by + 18); X.lineTo(bx + 15, by + 24); X.lineTo(bx + 26, by + 11); X.stroke()
+    } else if (!on) {
+      X.font = `700 18px ${MONO}`; X.fillStyle = INK; X.fillText(String(i + 1), bx + 17, by + 18)
+    }
+    X.textAlign = 'left'
+    X.font = `${on ? 700 : 500} 24px ${SANS}`; X.fillStyle = INK
+    X.fillText(s, bx + 56, by + 18)
+    if (i === steps.length - 1) { X.fillStyle = on ? INK : '#999'; X.fillText(' ★', bx + 56 + X.measureText(s).width, by + 18) }
+    X.restore()
+  })
+  X.restore()
+}
+
+/** 第四幕右边：还差几个技能 */
+function counter(t) {
+  const a = seg(t, 15.2, 15.7), b = seg(t, 17.4, 17.9)
+  const k = eoe(a) * (1 - eio(b))
+  if (k <= 0) return
+  const x = 1180
+  X.save()
+  X.globalAlpha = k
+  X.textAlign = 'left'; X.textBaseline = 'alphabetic'
+  X.font = `500 24px ${SANS}`; X.fillStyle = OFFINK
+  X.fillText(`推理工程师 · 要学 ${closureTotal} 个技能`, x, 380)
+  const known = closureTotal - missingEnd
+  const c = Math.round(known * seg(t, 15.75, 16.75))
+  const n = closureTotal - c
+  X.font = `700 28px ${SANS}`; X.fillStyle = INK
+  X.fillText('还差', x, 470)
+  X.font = `700 210px ${MONO}`; X.fillStyle = INK
+  const shake = c > 0 && c < known ? 0 : 0
+  X.fillText(String(n), x - 8 + shake, 660)
+  const nw = X.measureText(String(n)).width
+  X.font = `700 44px ${SANS}`; X.fillStyle = INK
+  X.fillText('个技能', x + nw + 8, 660)
+  X.globalAlpha = k * seg(t, 15.75, 16.0)
+  X.font = `500 22px ${SANS}`; X.fillStyle = OFFINK
+  X.fillText(`你已经会 ${c} 个，剩下的按顺序学`, x, 728)
+  X.restore()
+}
+
+// ── 第一幕：终端 ──
+function terminal(t) {
+  X.fillStyle = NIGHT
+  X.fillRect(0, 0, W, H)
+  // 角落里的小字
+  X.save()
+  X.globalAlpha = 0.55 * seg(t, 0.1, 0.6) * (1 - seg(t, EXIT, EXIT + 0.3))
+  X.font = `500 18px ${MONO}`; X.fillStyle = '#8a8a8a'; X.textAlign = 'left'; X.textBaseline = 'alphabetic'
+  X.fillText('~/cs  zsh', 96, 96)
+  X.restore()
+  const x0 = 250, y1 = 500, y2 = 610
+  const ex = eio(seg(t, EXIT, EXIT + 0.35))
+  X.save()
+  X.globalAlpha = 1 - ex
+  X.translate(0, -50 * ex)
+  X.textAlign = 'left'; X.textBaseline = 'alphabetic'
+  X.font = `700 30px ${MONO}`; X.fillStyle = '#9a9a9a'
+  X.fillText('›', x0 - 62, y1 - 8)
+  X.font = `700 84px ${SANS}`; X.fillStyle = '#f4f4f4'
+  const s1 = [...L1].slice(0, typedCount(T1.times, t)).join('')
+  const s2 = [...L2].slice(0, typedCount(T2.times, t)).join('')
+  X.fillText(s1, x0, y1)
+  X.fillText(s2, x0, y2)
+  X.restore()
+  // 光标：打字时常亮，停下来就闪；最后跑到正中间，变成“你”
+  X.font = `700 84px ${SANS}`
+  let cx, cy
+  if (t < T2.times[0]) { cx = x0 + X.measureText(s1Of(t)).width + 6; cy = y1 }
+  else { cx = x0 + X.measureText(s2Of(t)).width + 6; cy = y2 }
+  const m = eio(seg(t, 3.62, 4.02))
+  const bx = lerp(cx, W / 2 - 22, m), by = lerp(cy - 72, H / 2 - 44, m)
+  const bw = lerp(30, 88, m), bh = lerp(88, 88, m)
+  const typingNow = (t >= T1.times[0] && t < T1.end + 0.05) || (t >= T2.times[0] && t < T2.end + 0.05)
+  const blink = !typingNow && m === 0 && Math.floor(t * 2.2) % 2 === 1
+  if (!blink && t > 0.25) {
+    X.fillStyle = '#f4f4f4'
+    X.beginPath(); X.roundRect(lerp(bx, W / 2 - 44, m), by, m > 0 ? lerp(bw, 88, m) : bw, bh, lerp(0, 44, m)); X.fill()
+  }
+}
+const s1Of = (t) => [...L1].slice(0, typedCount(T1.times, t)).join('')
+const s2Of = (t) => [...L2].slice(0, typedCount(T2.times, t)).join('')
+
+// ── 第五幕：标题 ──
+function title(t) {
+  X.save()
+  X.textAlign = 'center'; X.textBaseline = 'alphabetic'
+  const line = (str, times, y, size) => {
+    X.font = `900 ${size}px ${SANS}`
+    const chars = [...str]
+    const total = X.measureText(str).width
+    let x = W / 2 - total / 2
+    for (let i = 0; i < chars.length; i++) {
+      const w = X.measureText(chars[i]).width
+      const k = eoe(seg(t, times[i], times[i] + 0.55))
+      if (k > 0) {
+        X.globalAlpha = k
+        X.fillStyle = INK
+        X.fillText(chars[i], x + w / 2, y + 36 * (1 - k))
+      }
+      x += w
+    }
+  }
+  line(TITLE1, TT1, 470, 128)
+  line(TITLE2, TT2, 630, 128)
+  // 一道朱砂色的线
+  const u = eoe(seg(t, 19.6, 20.3))
+  if (u > 0) { X.globalAlpha = 1; X.fillStyle = INK; X.fillRect(W / 2 - 60 * u, 700, 120 * u, 5) }
+  // 网址
+  const n = typedCount(TU.times, t)
+  if (t >= TU.times[0] - 0.3) {
+    X.font = `500 30px ${MONO}`
+    const s = URL.slice(0, n)
+    const full = X.measureText(URL).width
+    X.textAlign = 'left'
+    X.fillStyle = OFFINK
+    X.globalAlpha = 1
+    X.fillText(s, W / 2 - full / 2, 800)
+    const cx = W / 2 - full / 2 + X.measureText(s).width + 4
+    const idle = t > TU.end + 0.05
+    if (!(idle && Math.floor((t - TU.end) * 2.2) % 2 === 1)) { X.fillStyle = INK; X.fillRect(cx, 772, 14, 36) }
+  }
+  X.restore()
+}
+
+// ── 总的 ──
+function render(t) {
+  if (t < 4.0) { terminal(t); return }
+  drawWorld(t)
+  // 第一幕到第二幕：白色从中间张开
+  if (t < 4.6) {
+    const r = 44 + 1300 * eoe(seg(t, 4.0, 4.55))
+    X.save()
+    X.fillStyle = NIGHT
+    X.beginPath(); X.rect(0, 0, W, H); X.arc(W / 2, H / 2, r, 0, Math.PI * 2, true); X.fill('evenodd')
+    X.restore()
+  }
+  hud(t)
+  caption(t, 5.7, 8.1, '', `${S.length} 个技能 · ${tips.length} 个职业 · 一张图`)
+  caption(t, 8.25, 10.0, '01', '标出你会的')
+  caption(t, ENTER1 + 0.1, 13.85, '02', '下一步学什么')
+  caption(t, ENTER2 + 0.2, 17.7, '03', '离岗位还差多少')
+  chip(t, 9.7, K1, CMD1, ENTER1)
+  chip(t, 13.75, K2, CMD2, ENTER2)
+  card(t)
+  counter(t)
+  if (t > 18) title(t)
+  // 结尾：最后一下回车，整个画面轻轻收一下
+  const end = seg(t, DURATION - 0.5, DURATION)
+  if (end > 0) { X.fillStyle = `rgba(255,255,255,${end})`; X.fillRect(0, 0, W, H) }
+}
+
+// ── 准备：数据、字体、图标 ──
+window.ready = (async () => {
+  D = await (await fetch('out/data.json')).json()
+  setup()
+  const texts = [L1, L2, CMD2, TITLE1, TITLE2, URL, '你已点亮推理工程师要学个技能还差你已经会个按顺序学剩下的就行技能地基学习流程会写打包应用能用镜像在任何机器上把服务跑起来标出你会的下一步学什么离岗位还差多少个职业一张图CS技能树', ...S.map((s) => s.name), ...tips.map((x) => x.name), ...docker.steps, '0123456789/★›·']
+  const all = texts.join('')
+  for (const w of [400, 500, 700, 900]) await document.fonts.load(`${w} 40px "Noto Sans SC"`, all)
+  for (const w of [500, 700]) await document.fonts.load(`${w} 40px "JetBrains Mono"`, all)
+  await document.fonts.ready
+  // 图标都先解码好
+  const imgs = []
+  for (const n of S) for (const c of ['#fff', INK, '#8a8a8a']) imgs.push(iconImg(n.icon, c))
+  for (const x of tips) for (const c of [INK]) imgs.push(iconImg(x.icon, c))
+  await Promise.all(imgs.map((i) => i.decode().catch(() => {})))
+  window.CUES = CUES
+  window.DURATION = DURATION
+  render(0)
+  return true
+})()
+window.render = render
+
+if (location.search.includes('play')) {
+  window.ready.then(() => {
+    const t0 = performance.now()
+    const loop = () => { const t = ((performance.now() - t0) / 1000) % DURATION; render(t); requestAnimationFrame(loop) }
+    loop()
+  })
+}
+</script>
+</body>
+</html>
