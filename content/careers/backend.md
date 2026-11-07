@@ -1,11 +1,11 @@
 ---
-name: 后端工程师
+name: 后端开发工程师
 icon: server
 keywords: [接口, 数据库, 缓存]
-requires: [system-design, postgres, ci]
+requires: [postgres, system-design, ci]
 bonus: [go, java]
 ---
-写接口、管数据库、扛流量，让服务稳定地跑。
+写业务接口和数据库，让一个产品的服务稳定地跑起来。
 
 ## 平时做什么
 - 设计接口和数据表

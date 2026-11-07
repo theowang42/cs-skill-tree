@@ -4,7 +4,7 @@ icon: chart-spline
 keywords: [回测, 因子, 风控]
 requires: [portfolio, factor, derivatives, viz, gbdt, sql, cpp]
 ---
-用数据研究市场，做出能实盘的策略。
+用数据研究市场，做出能实盘的策略。门槛高、招的人少。
 
 ## 平时做什么
 - 做回测

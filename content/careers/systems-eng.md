@@ -1,16 +1,17 @@
 ---
-name: 系统工程师
+name: 嵌入式工程师
 icon: server-cog
-keywords: [内核, 嵌入式, 性能]
-requires: [ebpf, driver, rtos, perf, gdb, concurrency, arch, virtualization, networking, cpp, ci]
-bonus: [rust, shell]
+keywords: [单片机, 驱动, RTOS]
+requires: [rtos, driver, gdb, arch, cpp, concurrency, networking]
+bonus: [ebpf, rust, perf, compiler, llvm]
 ---
-写贴近硬件和操作系统的软件：内核、驱动、嵌入式固件。
+写贴近硬件的软件：单片机、驱动、内核。
 
 ## 平时做什么
-- 写系统服务和驱动
-- 排查性能问题
-- 读 Linux 源码
+- 写单片机和 RTOS 固件
+- 写驱动、调内核
+- 用调试器排查硬件问题
 
 ## 代表项目
 - [Linux](https://github.com/torvalds/linux)
+- [Zephyr](https://github.com/zephyrproject-rtos/zephyr)

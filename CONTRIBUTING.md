@@ -59,31 +59,31 @@ requires: [linux]
 
 ## 职业
 
-`content/careers/inference.md`：
+`content/careers/backend.md`：
 
 ```markdown
 ---
-name: 推理工程师
-icon: circle-gauge
-keywords: [vLLM, 分布式推理, 量化]
-requires: [dist-infer, bench, quantization, perf, english]
-bonus: [sglang, trt-llm]
+name: 后端开发工程师
+icon: server
+keywords: [接口, 数据库, 缓存]
+requires: [postgres, system-design, ci]
+bonus: [go, java]
 ---
-部署和改进推理引擎，在服务器和端侧设备上让模型跑得更快更省。
+写业务接口和数据库，让一个产品的服务稳定地跑起来。
 
 ## 平时做什么
-- 部署推理服务
-- 优化吞吐和延迟
+- 写接口和业务逻辑
+- 设计数据库表
 
 ## 代表项目
-- [vLLM](https://github.com/vllm-project/vllm)
+- [ByteByteGo](https://github.com/ByteByteGoHq/system-design-101)
 ```
 
 | 属性 | 写什么 |
 | --- | --- |
 | `name`、`icon` | 同技能。名字用招聘时最常写的岗位名 |
 | `keywords` | 三个关键词 |
-| `requires` | 必学的技能，只写最高层的，前置会自动带上。第一个是徽章挂在树上的位置 |
+| `requires` | 必学的技能，只写最高层的，前置会自动带上。第一个是徽章挂在树上的位置，徽章出现在这个技能所在领域的那一页 |
 | `bonus` | 加分项：有更好，不算进达成条件 |
 
 新职业要加进它所在大方向 `content/categories/*.md` 的 `careers` 列表。

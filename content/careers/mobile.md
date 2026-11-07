@@ -1,5 +1,5 @@
 ---
-name: 移动端工程师
+name: 客户端开发工程师
 icon: smartphone
 keywords: [iOS, Android, 跨平台]
 requires: [app-release, swiftui, compose, auth, ci]

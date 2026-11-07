@@ -1,11 +1,11 @@
 ---
-name: 前端工程师
+name: 前端开发工程师
 icon: layout-template
 keywords: [React, TypeScript, 全栈]
 requires: [design-system, web-perf, build-tools, e2e, nextjs, auth, ci]
 bonus: [vue, threejs, tailwind, fastapi]
 ---
-做网页和 Web 应用的界面，也能自己写接口做成全栈。
+做网页和 Web 应用的界面。
 
 ## 平时做什么
 - 做交互复杂的页面

@@ -3,7 +3,7 @@ name: 大模型算法工程师
 icon: atom
 keywords: [预训练, 后训练, 评测]
 requires: [reasoning-rl, pretrain-run]
-bonus: [distillation, train-framework]
+bonus: [distillation, train-framework, dist-train, dlsys, english]
 ---
 从零预训练基座模型，再用指令微调和强化学习把它调成好用的助手。
 

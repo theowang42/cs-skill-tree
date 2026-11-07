@@ -1,6 +1,6 @@
 ---
-name: AI 算法
-order: 1
-careers: [llm-algo, ml-algo]
+name: AI
+order: 6
+careers: [ml-algo, llm-algo, ai-app, inference]
 ---
-训练模型本身：大模型的预训练和对齐，推荐、视觉这些机器学习算法。
+做 AI：训练模型、用模型做应用、让模型跑得更快。
