@@ -101,7 +101,7 @@ skills: [cs61a, python, testing]
 CS 核心课、数学和每天都用的工具。
 ```
 
-`order` 是绕圆一圈的顺序。大方向（`content/categories/`）的写法一样，列表叫 `careers`。
+`order` 是首页技能目录里的先后顺序（树上的左右位置按领域排，见 `src/lib/layout.ts`）。大方向（`content/categories/`）的写法一样，列表叫 `careers`。
 
 ## 提交之前
 

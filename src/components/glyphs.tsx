@@ -1,7 +1,7 @@
 // 树上和面板里共用的画法：图标、点亮后的光芒、六边形、技能槽。
 import type { SkillState } from '../types'
 import { ICONS } from '../generated/icons'
-import { hexPath } from '../lib/webLayout'
+import { hexPath } from '../lib/layout'
 
 export function SkillGlyph({ icon, size }: { icon: string; size: number }) {
   const spec = ICONS[icon]

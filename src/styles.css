@@ -130,7 +130,7 @@ a {
 
 /* ── 动起来 ── */
 
-/* 打开时：枝条从里往外画出来，节点和职业跟着浮现（延迟按离圆心多远，写在元素上） */
+/* 打开时：枝条从下往上画出来，节点和职业跟着浮现（延迟按离“你”多远，写在元素上） */
 .edge {
   stroke-dasharray: 1;
   animation: draw-in 0.7s var(--ease) backwards;
@@ -157,7 +157,7 @@ a {
   }
 }
 
-/* 点亮的枝条：一小段白光沿着线从里往外流，一圈接一圈 */
+/* 点亮的枝条：一小段白光沿着线从下往上流，一趟接一趟 */
 .edge-light {
   fill: none;
   stroke: rgb(255 255 255 / 0.9);
@@ -178,34 +178,13 @@ a {
   }
 }
 
-/* 同心圆：从圆心往外一圈一圈慢慢呼吸 */
-.rings circle {
-  animation: breathe 6s ease-in-out infinite both;
-}
-
-@keyframes breathe {
-  0%,
-  100% {
-    stroke: #f2f2f2;
-  }
-
-  50% {
-    stroke: #d6d6d6;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .edge-light,
-  .rings circle {
-    animation: none;
-  }
-
   .edge-light {
     display: none;
   }
 }
 
-/* ── 最上面一排：职业（终极节点） ── */
+/* ── 最上面一行：职业徽章 ── */
 
 .tip {
   cursor: pointer;
@@ -644,12 +623,6 @@ a {
   color: var(--ink);
 }
 
-.hud-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
 .hud-text {
   padding: 0;
   border: 0;
@@ -664,11 +637,6 @@ a {
 .hud-text:hover {
   color: var(--ink);
   border-bottom-color: var(--ink);
-}
-
-.hud-text b {
-  color: var(--ink);
-  font-weight: 600;
 }
 
 /* ═════════════ 右侧面板 ═════════════ */
@@ -1075,14 +1043,6 @@ button.danger {
     gap: 10px;
   }
 
-  .hud-right {
-    gap: 12px;
-  }
-
-  .hud-text:not(.hud-goal) {
-    display: none;
-  }
-
   .panel {
     top: auto;
     left: 0;
@@ -1330,9 +1290,7 @@ button.danger {
   color: var(--ink);
 }
 
-/* 同心圆：每一圈一层，很淡，只当参照 */
-.rings circle { fill: none; stroke: #f0f0f0; stroke-width: 1.5; }
-/* 圆心：你。中间是点亮了几个，外圈进度环；点亮过东西后外面一圈光芒在转 */
+/* 最下面的“你”：中间是点亮了几个，外圈进度环；点亮过东西后外面一圈光芒在转 */
 .start { cursor: pointer; outline: none; }
 .start-track { fill: none; stroke: var(--line-2); stroke-width: 4; }
 .start-progress { fill: none; stroke: var(--ink); stroke-width: 4; transition: stroke-dasharray 0.6s var(--ease); }

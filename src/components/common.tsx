@@ -2,7 +2,7 @@
 import type { CSSProperties } from 'react'
 import { Check, ChevronsUp, Lock } from 'lucide-react'
 import type { Link } from '../types'
-import { labelWidth } from '../lib/webLayout'
+import { labelWidth } from '../lib/layout'
 import { useApp } from '../state'
 import { SkillSlot } from './glyphs'
 

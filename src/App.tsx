@@ -29,7 +29,7 @@ function Shortcuts() {
 
 function Shell() {
   const { focus, setFocus } = useApp()
-  // 选中东西就打开面板，取消选中就收起；顶上的名字和圆心可以单独打开“我的进度”
+  // 选中东西就打开面板，取消选中就收起；顶上的进度和最下面的“你”可以单独打开“我的进度”
   const [panelOpen, setPanelOpen] = useState(false)
   const wantOverview = useRef(false)
   useEffect(() => {

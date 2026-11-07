@@ -14,8 +14,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { Roadmap, Skill, Sub } from '../src/types.ts'
 import { ICONS } from '../src/generated/icons.ts'
 import { Tree } from '../src/lib/tree.ts'
-import { layoutCareer } from '../src/lib/careerLayout.ts'
-import { hexPath, NODE_R, START_R, subNodeId, TIP_R } from '../src/lib/webLayout.ts'
+import { hexPath, layoutTree, NODE_R, START_R, subNodeId, TIP_R } from '../src/lib/layout.ts'
 
 export const SITE = 'https://theowang42.github.io/cs-skill-tree/'
 const REPO = 'https://github.com/theowang42/cs-skill-tree'
@@ -113,7 +112,7 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
   const tree = new Tree(rm)
   /** 首页的小树：一个职业的天赋树，只画形状，从“你”往上一节一节长出来（离“你”越远越晚） */
   const miniTree = (c: Sub) => {
-    const l = layoutCareer(tree, c.id)
+    const l = layoutTree(tree, c.id)
     const { minX, minY, maxX, maxY } = l.bounds
     const at = (id: string) => l.nodes.get(id)!
     const delay = (y: number) => `style="animation-delay:${Math.round(-y * 0.55)}ms"`
@@ -160,16 +159,16 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
       bands.push(`<g class="band"><path d="M${x1},${y1} A${B2},${B2} 0 ${big} 1 ${x2},${y2} L${x3},${y3} A${B1},${B1} 0 ${big} 0 ${x4},${y4}Z"><title>${esc(cat.intro)}</title></path><text x="${tx}" y="${ty}">${esc(cat.name)}</text></g>`)
       cat.subIds.forEach((id, i) => {
         const a = (pos + i + 0.5) * unit
-        // 越靠近正上方、正下方，名字（两行，横着写）越要离徽章远一点才不压到它
-        const [lx, ly] = pt(R + 58 + 40 * Math.cos(a) ** 2, a)
-        jobs.push({ c: subs.get(id)!, a, lx, ly: ly - 12 })
+        // 越靠近正上方、正下方，名字（横着写）越要离徽章远一点才不压到它
+        const [lx, ly] = pt(R + 58 + 18 * Math.cos(a) ** 2, a)
+        jobs.push({ c: subs.get(id)!, a, lx, ly })
       })
       pos += cat.subIds.length + GAP
     }
-    // 名字写在徽章外面：右半边朝右写、左半边朝左写；同一边上下挨得太近的往下错开，两行字不叠
+    // 名字写在徽章外面，去掉末尾的“工程师”（圆心写全称）：右半边朝右写、左半边朝左写；同一边上下挨得太近的往下错开
     for (const right of [true, false]) {
       const half = jobs.filter((j) => Math.sin(j.a) > 0 === right).sort((p, q) => p.ly - q.ly)
-      for (let k = 1; k < half.length; k++) half[k].ly = Math.max(half[k].ly, half[k - 1].ly + 50)
+      for (let k = 1; k < half.length; k++) half[k].ly = Math.max(half[k].ly, half[k - 1].ly + 34)
     }
     const badges = jobs.map(({ c, a, lx, ly }, i) => {
       const [x, y] = pt(R, a)
@@ -177,9 +176,9 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
       const [sx2, sy2] = pt(R - 46, a)
       const anchor = Math.sin(a) > 0 ? 'start' : 'end'
       return `<line class="spoke" x1="${sx1}" y1="${sy1}" x2="${sx2}" y2="${sy2}"/>` +
-        `<a class="job" href="career/${c.id}/" data-id="${c.id}" data-name="${esc(c.name)}" data-intro="${esc(c.intro)}" style="--i:${i}">` +
+        `<a class="job" href="career/${c.id}/" data-id="${c.id}" data-name="${esc(c.name)}" data-n="${c.plan.length}" data-intro="${esc(c.intro)}" style="--i:${i}">` +
         `<g transform="translate(${x},${y})"><g class="b"><circle class="hit" r="50"/><circle class="track" r="42"/><circle class="ring" r="42" pathLength="100" stroke-dasharray="0 100" transform="rotate(-90)"/><circle class="seal" r="35"/><circle class="seal-in" r="29"/><g transform="translate(-16,-16) scale(1.33)">${icon(c.icon)}</g></g></g>` +
-        `<text class="job-name" x="${lx}" y="${r1(ly)}" text-anchor="${anchor}">${esc(c.name)}</text><text class="job-meta" x="${lx}" y="${r1(ly + 27)}" text-anchor="${anchor}">${c.plan.length} 个技能</text></a>`
+        `<text class="job-name" x="${lx}" y="${r1(ly)}" text-anchor="${anchor}">${esc(c.name.replace(/工程师$/, ''))}</text></a>`
     })
     return `<div class="ring-wrap"><svg class="jobs" viewBox="-580 -440 1160 900"><circle class="orbit" r="${R}"/>${bands.join('')}${badges.join('')}</svg>` +
       `<div class="ring-center"><b class="rc-name"></b><span class="rc-meta"></span><p class="rc-intro"></p><a class="rc-go" href="">看这条路线 →</a></div></div>`
@@ -205,8 +204,6 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
 <section class="hero">
   <h1>点亮你会的，<br>看你离岗位还差几个技能</h1>
   <p class="lead">一棵 ${rm.skills.length} 个技能的计算机技能树。每个技能写清学到什么程度算会、分几步学、去哪免费学。不用注册，进度只存在你的浏览器里。</p>
-  <p class="ask">你会哪些？点一下，下面马上算出离每个岗位还差几个。</p>
-  <div class="quick">${QUICK.map((id) => `<button type="button" class="chip" data-s="${id}" aria-pressed="false">${icon(sk(id).icon, 16)}${esc(sk(id).name)}</button>`).join('')}</div>
 </section>
 
 <svg width="0" height="0" class="defs" aria-hidden="true">${[...new Set(rm.subs.flatMap((c) => [...tree.closures.get(c.id)!]))].map((id) => `<symbol id="i-${id}" viewBox="0 0 24 24">${icon(sk(id).icon)}</symbol>`).join('')}</svg>
@@ -216,6 +213,8 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
   <h2>你想做哪个岗位？</h2>
   <p class="muted">点进去是这个岗位要学的全部技能，会的直接点亮。还没想好，就<a href="tree/">看整棵树</a>。</p>
   ${careerRing()}
+  <p class="ask">你会哪些？点一下，圆环上马上算出离每个岗位还差几个。</p>
+  <div class="quick">${QUICK.map((id) => `<button type="button" class="chip" data-s="${id}" aria-pressed="false">${icon(sk(id).icon, 16)}${esc(sk(id).name)}</button>`).join('')}</div>
 </section>
 </div>
 
@@ -249,7 +248,7 @@ function select(id) {
   name.textContent = j.dataset.name
   // 名字一行放下：中文按一个字宽，英文数字按半个多一点
   name.style.setProperty('--len', [...j.dataset.name].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 1 : 0.6), 0))
-  center.querySelector('.rc-meta').textContent = j.querySelector('.job-meta').textContent
+  center.querySelector('.rc-meta').textContent = j.dataset.meta ?? j.dataset.n + ' 个技能'
   center.querySelector('.rc-intro').textContent = j.dataset.intro
   center.querySelector('.rc-go').setAttribute('href', j.getAttribute('href'))
 }
@@ -261,7 +260,7 @@ function render() {
   for (const j of jobs) {
     const need = D.careers[j.dataset.id]
     const left = need.filter((s) => !l.has(s)).length
-    j.querySelector('.job-meta').textContent = !l.size ? need.length + ' 个技能' : left ? '还差 ' + left + ' 个' : '已达成'
+    j.dataset.meta = !l.size ? need.length + ' 个技能' : left ? '还差 ' + left + ' 个' : '已达成'
     j.querySelector('.ring').setAttribute('stroke-dasharray', Math.round((100 * (need.length - left)) / need.length) + ' 100')
     j.classList.toggle('done', left === 0)
     if (l.size && (!best || left < best.left)) best = { id: j.dataset.id, left }

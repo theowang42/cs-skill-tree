@@ -1,9 +1,9 @@
-// 技能树的镜头：缩放、拖动、双指缩放、飞到某处。不走 React，直接改 <g> 的 transform。
+// 技能树的镜头：滚轮平移、缩放、拖动、双指缩放、飞到某处。不走 React，直接改 <g> 的 transform。
 // “你”在 (0, 0)，整张图在 bounds 这个框里。
 //   - 最小缩放刚好把整张图装进屏幕，这时图固定在正中；
-//   - 越放大能拖得越远，放大到 1.5 倍以上时，屏幕中心能到图上任何一点（最外圈的徽章也能放到正中）。
+//   - 越放大能拖得越远，放大到 1.5 倍以上时，屏幕中心能到图上任何一点（最上面的徽章也能放到正中）。
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
-import type { Layout } from '../lib/webLayout'
+import type { Layout } from '../lib/layout'
 
 interface View {
   x: number
@@ -60,14 +60,19 @@ export function useCamera({ minX, minY, maxX, maxY }: Layout['bounds']) {
   }, [apply])
 
   useEffect(() => {
+    // 先量一次：有的环境里（比如无头浏览器）观察者开始时不报一次尺寸
+    const { width, height } = wrap.current!.getBoundingClientRect()
+    setSize({ w: width, h: height })
     const ro = new ResizeObserver(([e]) => setSize({ w: e.contentRect.width, h: e.contentRect.height }))
     ro.observe(wrap.current!)
     return () => ro.disconnect()
   }, [])
 
-  // 开头：圆心在屏幕正中，看得见里面几圈。窗口变了也重新来，除非用户已经动过
+  // 开头：“你”在屏幕下方正中，往上看得见下面几行。窗口变了也重新来，除非用户已经动过
   useEffect(() => {
-    if (size.w && !touched.current) flyTo(0, 0, Math.min(1, Math.max(0.4, Math.min(size.w, size.h) / 2 / 760)), { ms: 0 })
+    if (!size.w || touched.current) return
+    const k = Math.min(1, Math.max(0.4, Math.min(size.w, size.h) / 2 / 760))
+    flyTo(0, -(size.h / 2 - 110) / k, k, { ms: 0 })
   }, [size, flyTo])
 
   /** 以屏幕上的 (sx, sy) 为中心缩放到 k */
@@ -85,12 +90,13 @@ export function useCamera({ minX, minY, maxX, maxY }: Layout['bounds']) {
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
       touched.current = true
-      // 触控板双指捏合是带 ctrl 的滚轮，幅度小，要放大一些
-      zoomAt(e.clientX, e.clientY, view.current.k * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)))
+      // 滚轮和触控板双指滑动是平移（树很宽，Shift + 滚轮左右移）；按住 Ctrl / ⌘ 或双指捏合才缩放（捏合是带 ctrl 的滚轮，幅度小，要放大一些）
+      if (e.ctrlKey || e.metaKey) zoomAt(e.clientX, e.clientY, view.current.k * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)))
+      else apply({ ...view.current, x: view.current.x - e.deltaX, y: view.current.y - e.deltaY })
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, [zoomAt])
+  }, [zoomAt, apply])
 
   // ── 拖动、双指缩放 ──
   const drag = useRef<{ x: number; y: number; vx: number; vy: number; moved: boolean } | null>(null)

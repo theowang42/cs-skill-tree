@@ -1,18 +1,17 @@
-// 技能树：一个圆，圆心是“你”，一圈一圈往外长，最外圈是职业。白底黑线。
-// 职业页只画这个职业的天赋树：竖着长，“你”在最下面，徽章在最上面（lib/careerLayout.ts），画法一样。
+// 技能树：竖着长，最下面是“你”，一行一行往上，最上面一行是职业徽章（lib/layout.ts）。白底黑线。
+// 职业页只画这个职业要学的技能和它的徽章，画法一样。
 // 每个节点一个图标和名字。点亮了是实心黑加一圈光芒，能点是黑框，还够不着是浅灰。
 // 每个节点只画一根枝（连到主前置）；悬停或选中时，它的全部前置保持清楚，其余变淡。
 import { memo, useEffect, useMemo, useState } from 'react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
-import { hexPath, LABEL_Y, layoutWeb, NODE_R, START_R, subNodeId, TIP_R } from '../lib/webLayout'
-import { layoutCareer } from '../lib/careerLayout'
+import { hexPath, LABEL_Y, layoutTree, NODE_R, START_R, subNodeId, TIP_R } from '../lib/layout'
 import { frontier, totals } from '../lib/tree'
 import { Rays, SkillGlyph } from './glyphs'
 import { useCamera } from './useCamera'
 
-/** 打开时整棵树从圆心往外一圈圈长出来：离圆心越远，出现得越晚 */
-const growDelay = (x: number, y: number) => ({ animationDelay: `${Math.round(Math.hypot(x, y) * 0.32)}ms` })
+/** 打开时整棵树从“你”往上一行行长出来：越往上，出现得越晚 */
+const growDelay = (y: number) => ({ animationDelay: `${Math.round(-y * 0.45)}ms` })
 
 type Relation = 'none' | 'path' | 'dim'
 
@@ -39,7 +38,7 @@ const Node = memo(function Node({ id, language, x, y, name, icon, state, focused
     <g
       className={cls}
       transform={`translate(${x},${y})`}
-      style={growDelay(x, y)}
+      style={growDelay(y)}
       data-node={id}
       onClick={(e) => { e.stopPropagation(); onClick(id) }}
       onPointerEnter={() => onHover(id)}
@@ -96,7 +95,7 @@ interface TipProps {
 }
 
 /**
- * 职业：最外圈的终极节点。一枚双圈的奖章，中间是职业图标，外面一圈进度环随着点亮慢慢填满。
+ * 职业：最上面一行的终极节点。一枚双圈的奖章，中间是职业图标，外面一圈进度环随着点亮慢慢填满。
  * 全部点亮就自动达成：徽章变黑，外面一大圈光芒转起来。
  */
 const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim, pulse, onClick, onHover }: TipProps) {
@@ -106,7 +105,7 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
     <g
       className={cls}
       transform={`translate(${x},${y})`}
-      style={growDelay(x, y)}
+      style={growDelay(y)}
       data-sub={id}
       onClick={(e) => { e.stopPropagation(); onClick(id) }}
       onPointerEnter={() => onHover(id)}
@@ -140,7 +139,7 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
 
 export function SkillTree({ onCenter }: { onCenter: () => void }) {
   const { tree, career, states, steps, focus, setFocus, pulse, flyRequest, progressBySub } = useApp()
-  const layout = useMemo(() => (career ? layoutCareer(tree, career) : layoutWeb(tree)), [tree, career])
+  const layout = useMemo(() => layoutTree(tree, career ?? undefined), [tree, career])
   const cam = useCamera(layout.bounds)
   const [hover, setHover] = useState<string | null>(null)
   const [tipHover, setTipHover] = useState<string | null>(null)
@@ -178,7 +177,7 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
   }, [flyRequest, measured])
 
   // ── 关系 ──
-  // 看一个技能：它的全部前置画成黑的。看一个职业：它要学的全部技能。悬停圆心：下一步能点亮的
+  // 看一个技能：它的全部前置画成黑的。看一个职业：它要学的全部技能。悬停“你”：下一步能点亮的
   // 职业天赋树上画的全是这个职业要学的，看职业就不用再标出来
   const subLens = career ? null : tipHover ?? (hover ? null : focusedSub)
   const lens = subLens ? null : hover ?? focusedSkill
@@ -227,21 +226,18 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
         aria-label="技能树"
       >
         <g ref={cam.world}>
-          <g className="rings" aria-hidden>
-            {layout.rings.map((r, i) => <circle key={r} r={r} style={{ animationDelay: `${i * 0.5}s` }} />)}
-          </g>
           {layout.edges.map((e) => {
             const n = layout.nodes.get(e.to)!
             const state = edgeState(e.from, e.to)
             return (
               <g key={`${e.from}>${e.to}`}>
-                <path d={e.d} pathLength={1} style={growDelay(n.x, n.y)} className={`edge ${state}${edgeLens(e.from, e.to)}`} />
+                <path d={e.d} pathLength={1} style={growDelay(n.y)} className={`edge ${state}${edgeLens(e.from, e.to)}`} />
                 {/* 两头都点亮了：一道光沿着枝条往外流 */}
-                {state === 'e-done' && <path d={e.d} pathLength={100} className="edge-light" style={{ animationDelay: `${Math.round(Math.hypot(n.x, n.y) * 0.8)}ms` }} />}
+                {state === 'e-done' && <path d={e.d} pathLength={100} className="edge-light" style={{ animationDelay: `${Math.round(-n.y * 0.8)}ms` }} />}
               </g>
             )
           })}
-          {/* 圆心：你。中间是点亮了几个，外圈是总进度；悬停看下一步能点哪些，点开看我的进度 */}
+          {/* 最下面的“你”：中间是点亮了几个，外圈是总进度；悬停看下一步能点哪些，点开看我的进度 */}
           <g
             className={`start${lit.done ? ' lit' : ''}`}
             role="button"

@@ -1,19 +1,61 @@
-// 一个职业自己的天赋树：竖着长。最下面是“你”，往上一行一行，最上面是职业徽章。
+// 技能树的布局：竖着长。最下面是“你”，往上一行一行，最上面一行是职业徽章。
+// 整棵树和单个职业的天赋树都用它：职业天赋树只画这个职业要学的技能（含全部前置）和它自己的徽章。
 //
-//   - 只画这个职业要学的技能（含全部前置）。每个技能挂在主前置上，和大图一样，所以也是一条条往上的链。
+//   - 每个技能挂在它的主前置上（前置里的第一个），所以画出来是一条条往上的链，只在关键节点分叉。
+//     其余前置不画线，选中时只让那些节点保持清楚，面板里列出来。
 //   - 子树按每一行的左右轮廓紧挨着排，父节点在孩子正中间；只有一个孩子时在同一列，链是直的。
-//   - 徽章在最上面一行，挂的技能往上到徽章是一条单独的竖道，别的节点不压上去。
+//     兄弟的左右顺序按子树的领域重心（AREA_ORDER），同一个领域的挨在一起。
+//   - 徽章都在最上面一行，挂的技能往上到徽章是一条单独的竖道，别的节点不压上去。
 //   - 枝条：从父节点往上到两行中间，横着走过去，再往上停在孩子的名字下面。
 //
 // 纯函数，坐标单位是像素，“你”在 (0, 0)，往上是 y 变小。
 import type { Tree } from './tree.ts'
-import { AREA_ORDER, GAP, LABEL_BOTTOM, labelWidth, NODE_R, START_R, subNodeId, TIP_HALF, TIP_R, type Layout } from './webLayout.ts'
 
+export const NODE_R = 31
+/** 名字在节点下面多远（基线），和名字的底 */
+export const LABEL_Y = NODE_R + 21
+export const LABEL_BOTTOM = NODE_R + 28
+/** 同一排相邻两个节点的名字之间至少空多少 */
+const GAP = 26
+/** 职业徽章的外半径，和它在一排里占多宽的一半（名字比徽章宽） */
+export const TIP_R = 46
+const TIP_HALF = 78
+/** 最下面的“你” */
+export const START_R = 44
 /** 相邻两行隔多远；第一行离“你”多远 */
 const ROW = 124
 const FIRST = 170
 /** 徽章那根竖线占多宽的一半：别的节点离它至少这么远 */
 const LANE_HALF = 12
+
+/** 左右的顺序：AI 产品在左，AI Infra 在中间，底层系统和安全在右 */
+const AREA_ORDER: Record<string, number> = {
+  dev: 0, product: 1, quant: 2, llm: 2.6, infra: 3, base: 5, systems: 6, security: 7,
+}
+
+/** 画一棵树要的全部位置 */
+export interface Layout {
+  /** 技能 id，或职业的 'sub:<id>' → 位置 */
+  nodes: Map<string, { x: number; y: number }>
+  /** 树上画出来的枝：每个节点一根，没有前置的技能从“你”（'root'）连出来 */
+  edges: { from: string; to: string; d: string }[]
+  /** 整张图（含徽章上面的名字）都在这个框里 */
+  bounds: { minX: number; minY: number; maxX: number; maxY: number }
+}
+
+export const subNodeId = (subId: string) => `sub:${subId}`
+
+/** 六边形（编程语言）：尖朝上，外接圆半径 r，中心在原点 */
+export const hexPath = (r: number) =>
+  Array.from({ length: 6 }, (_, i) => {
+    const a = (Math.PI / 3) * i - Math.PI / 2
+    return `${i ? 'L' : 'M'}${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`
+  }).join(' ') + 'Z'
+
+/** 名字的显示宽度：中文 14px，英文数字约 8px */
+export function labelWidth(name: string): number {
+  return [...name].reduce((w, c) => w + (c.charCodeAt(0) > 0x2e80 ? 14 : 8), 0)
+}
 
 const rowY = (d: number) => -(FIRST + (d - 1) * ROW)
 const f = (n: number) => Math.round(n * 10) / 10
@@ -24,11 +66,13 @@ function elbow(x1: number, y1: number, x2: number, y2: number, ym: number): stri
   return `M${f(x1)},${f(y1)} L${f(x1)},${f(ym)} L${f(x2)},${f(ym)} L${f(x2)},${f(y2)}`
 }
 
-export function layoutCareer(tree: Tree, subId: string): Layout {
-  const ids = [...tree.closures.get(subId)!]
-  const tip = subNodeId(subId)
-  const anchor = tree.subs.get(subId)!.anchor
-  // 主前置一定也是要学的，所以每个技能的父亲都在这棵树里
+/** 排一棵树：不给 career 是整棵树和全部职业；给了就只排这个职业的天赋树 */
+export function layoutTree(tree: Tree, career?: string): Layout {
+  const ids = career ? [...tree.closures.get(career)!] : tree.roadmap.skills.map((s) => s.id)
+  const subs = career ? [tree.subs.get(career)!] : tree.roadmap.subs
+  /** 挂着徽章的技能 → 徽章 */
+  const tipOf = new Map(subs.map((s) => [s.anchor, subNodeId(s.id)]))
+  // 主前置一定也在要排的技能里，所以每个技能的父亲都在这棵树里
   const children = new Map<string, string[]>([['root', []]])
   for (const id of ids) children.set(id, [])
   for (const id of ids) children.get(tree.skill(id).parent ?? 'root')!.push(id)
@@ -41,7 +85,7 @@ export function layoutCareer(tree: Tree, subId: string): Layout {
   for (const k of children.get('root')!) setDepth(k, 1)
   const top = Math.max(...depth.values()) + 1
 
-  // 兄弟的左右顺序和大图一样：按子树的领域重心
+  // 兄弟的左右顺序：按子树的领域重心
   const rank = new Map<string, number>()
   const tally = (id: string): [sum: number, n: number] => {
     let sum = AREA_ORDER[tree.skill(id).areaId]
@@ -99,8 +143,8 @@ export function layoutCareer(tree: Tree, subId: string): Layout {
   const build = (id: string): Contour => {
     const d = depth.get(id)!
     const h = Math.max(NODE_R, labelWidth(tree.skill(id).name) / 2) + GAP / 2
-    const kids = children.get(id)!
-    const row = id === anchor ? [...kids, tip] : kids
+    const tip = tipOf.get(id)
+    const row = tip ? [...children.get(id)!, tip] : children.get(id)!
     const out = row.length ? lay(row, (k) => (k === tip ? tipColumn(d + 1) : build(k))) : new Map()
     merge(out, new Map([[d, [-h, h]]]), 0)
     return out
@@ -109,37 +153,39 @@ export function layoutCareer(tree: Tree, subId: string): Layout {
 
   const nodes: Layout['nodes'] = new Map()
   const place = (id: string, x: number) => {
-    nodes.set(id, { x: f(x), y: id === tip ? rowY(top) : rowY(depth.get(id)!) })
-    for (const k of children.get(id) ?? []) place(k, x + rel.get(k)!)
-    if (id === anchor) place(tip, x + rel.get(tip)!)
+    nodes.set(id, { x: f(x), y: rowY(depth.get(id)!) })
+    for (const k of children.get(id)!) place(k, x + rel.get(k)!)
+    const tip = tipOf.get(id)
+    if (tip) nodes.set(tip, { x: f(x + rel.get(tip)!), y: rowY(top) })
   }
   for (const k of children.get('root')!) place(k, rel.get(k)!)
 
   // ── 枝条：父节点头顶往上，到两行中间横过去，停在孩子的名字下面 ──
   const edges: Layout['edges'] = []
-  const link = (from: string, to: string) => {
+  const link = (from: string, to: string, isTip: boolean) => {
     const a = from === 'root' ? { x: 0, y: 0 } : nodes.get(from)!
     const b = nodes.get(to)!
     const y1 = a.y - (from === 'root' ? START_R + 22 : NODE_R + 4)
-    const y2 = b.y + (to === tip ? TIP_R + 10 : LABEL_BOTTOM + 4)
+    const y2 = b.y + (isTip ? TIP_R + 10 : LABEL_BOTTOM + 4)
     // 徽章那根竖线在挂的技能上面那一行就转过去
-    const ym = (y1 + (to === tip ? rowY(depth.get(from)! + 1) + LABEL_BOTTOM + 4 : y2)) / 2
+    const ym = (y1 + (isTip ? rowY(depth.get(from)! + 1) + LABEL_BOTTOM + 4 : y2)) / 2
     edges.push({ from, to, d: elbow(a.x, y1, b.x, y2, ym) })
   }
-  for (const id of ids) link(tree.skill(id).parent ?? 'root', id)
-  link(anchor, tip)
+  for (const id of ids) link(tree.skill(id).parent ?? 'root', id, false)
+  for (const [anchor, tip] of tipOf) link(anchor, tip, true)
 
-  // 整张图的框：左右是名字，上面是徽章的名字，下面是“你”
-  const xs = ids.map((id) => [nodes.get(id)!.x, Math.max(NODE_R, labelWidth(tree.skill(id).name) / 2)] as const)
-  const t = nodes.get(tip)!
+  // 整张图的框：左右是名字和徽章，上面是徽章的名字，下面是“你”
+  const xs = [
+    ...ids.map((id) => [nodes.get(id)!.x, Math.max(NODE_R, labelWidth(tree.skill(id).name) / 2)] as const),
+    ...[...tipOf.values()].map((t) => [nodes.get(t)!.x, TIP_HALF] as const),
+  ]
   return {
     nodes,
     edges,
-    rings: [],
     bounds: {
-      minX: Math.min(-START_R, t.x - TIP_HALF, ...xs.map(([x, w]) => x - w)) - 40,
-      maxX: Math.max(START_R, t.x + TIP_HALF, ...xs.map(([x, w]) => x + w)) + 40,
-      minY: t.y - TIP_R - 90,
+      minX: Math.min(-START_R, ...xs.map(([x, w]) => x - w)) - 40,
+      maxX: Math.max(START_R, ...xs.map(([x, w]) => x + w)) + 40,
+      minY: rowY(top) - TIP_R - 90,
       maxY: START_R + 50,
     },
   }
