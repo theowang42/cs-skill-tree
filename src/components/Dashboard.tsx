@@ -5,6 +5,7 @@ import { frontier, totals } from '../lib/tree'
 import { parseFile, toFile } from '../lib/progress'
 import { encodeShare } from '../lib/share'
 import { Meter } from './common'
+import { HOME } from './Hud'
 
 export function Dashboard() {
   const { tree, lit, steps, states, progressBySub, setFocus, readOnly, replace, reset, toast } = useApp()
@@ -63,9 +64,9 @@ export function Dashboard() {
           </li>
         ))}
         <li>
-          <button className="row-link" onClick={() => setFocus({ kind: 'careers' })}>
+          <a className="row-link" href={`${HOME}#careers`}>
             <span>全部职业 →</span>
-          </button>
+          </a>
         </li>
       </ul>
 

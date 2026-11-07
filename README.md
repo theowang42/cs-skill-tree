@@ -34,6 +34,6 @@ npm test           # 体检内容，跑全部测试
 
 ## 改内容
 
-内容都在 `content/`，一个技能、一个职业各一个 Markdown 文件。网站上每个技能页底部都能直接跳到对应的文件去改，写法见 [CONTRIBUTING.md](CONTRIBUTING.md)。改完跑 `npm test`，内容体检会指出哪里不对。
+内容都在 `content/`，一个技能、一个职业各一个 Markdown 文件。写法见 [CONTRIBUTING.md](CONTRIBUTING.md)。改完跑 `npm test`，内容体检会指出哪里不对。
 
 数据库和前端结构见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，美术规范见 [docs/ART.md](docs/ART.md)。课程主要参考 [csdiy.wiki](https://csdiy.wiki/)。

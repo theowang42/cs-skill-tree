@@ -1,4 +1,4 @@
-/* 技能树页面。颜色和字体在 site/tokens.css，和首页、技能页、职业页共用。 */
+/* 技能树页面。颜色和字体在 site/tokens.css，和首页共用。 */
 @import '../site/tokens.css';
 
 :root {
@@ -630,18 +630,19 @@ a {
   display: inline-flex;
   align-items: baseline;
   gap: 10px;
-  padding: 0;
-  border: 0;
-  background: none;
 }
 
 .brand-name {
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.1em;
+  text-decoration: none;
 }
 
 .brand-count {
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
@@ -663,6 +664,7 @@ a {
   background: none;
   font-size: 13.5px;
   color: var(--ink-2);
+  text-decoration: none;
   white-space: nowrap;
 }
 
@@ -1004,6 +1006,7 @@ button.danger {
   border: 0;
   background: none;
   text-align: left;
+  text-decoration: none;
   font-size: 14px;
 }
 
@@ -1121,13 +1124,6 @@ button.danger {
   }
 }
 
-/* ── 全部职业 ── */
-
-.row-link.is-reached span,
-.row-link.is-reached small {
-  color: var(--ink);
-  font-weight: 700;
-}
 
 .career-badge {
   flex: none;

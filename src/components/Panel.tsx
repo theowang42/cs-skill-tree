@@ -2,7 +2,6 @@ import { useApp } from '../state'
 import { Dashboard } from './Dashboard'
 import { SkillPanel } from './SkillPanel'
 import { SubPanel } from './SubPanel'
-import { CareersPanel } from './CareersPanel'
 
 export function Panel() {
   const { tree, focus, home, setFocus, readOnly, leaveShared, adoptShared } = useApp()
@@ -26,7 +25,6 @@ export function Panel() {
       {!focus && <Dashboard />}
       {focus?.kind === 'skill' && <SkillPanel id={focus.id} />}
       {focus?.kind === 'sub' && <SubPanel id={focus.id} />}
-      {focus?.kind === 'careers' && <CareersPanel />}
     </>
   )
 }

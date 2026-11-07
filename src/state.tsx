@@ -6,24 +6,25 @@ import { Tree, clean, cleanSteps, computeStates, plan, subProgress, type Lit } f
 import { EMPTY, load, onOtherTab, save, type Progress } from './lib/progress'
 import { decodeShare } from './lib/share'
 
-/** 选中了什么：一个技能、一个职业，或者全部职业的列表 */
-type Focus = { kind: 'skill' | 'sub'; id: string } | { kind: 'careers' } | null
+/** 选中了什么：一个技能，或者一个职业 */
+type Focus = { kind: 'skill' | 'sub'; id: string } | null
 
-const hashOf = (f: Focus) => (!f ? '' : f.kind === 'careers' ? '#/careers' : `#/${f.kind}/${f.id}`)
+const hashOf = (f: Focus) => (f ? `#/${f.kind}/${f.id}` : '')
 
-/** 地址栏里的 #/skill/docker、#/sub/backend、#/careers */
+/** 地址栏里的 #/skill/docker、#/sub/backend */
 function parseFocus(tree: Tree, hash: string): Focus {
-  if (hash === '#/careers') return { kind: 'careers' }
   const m = /^#\/(skill|sub)\/([a-z0-9-]+)$/.exec(hash)
   if (!m) return null
   const kind = m[1] as 'skill' | 'sub'
   return (kind === 'skill' ? tree.skills : tree.subs).has(m[2]) ? { kind, id: m[2] } : null
 }
 
-/** 职业页（/career/<id>/）打开的是这个职业自己的天赋树 */
-function parseCareer(tree: Tree, path: string): string | null {
-  const m = /\/career\/([a-z0-9-]+)\/?$/.exec(path)
-  return m && tree.subs.has(m[1]) ? m[1] : null
+/** 职业页（/career/<id>/）打开这个职业自己的天赋树；技能页（/skill/<id>/）打开大图，选中这个技能 */
+function parsePage(tree: Tree, path: string): Focus {
+  const m = /\/(career|skill)\/([a-z0-9-]+)\/?$/.exec(path)
+  if (!m) return null
+  const kind = m[1] === 'career' ? 'sub' : 'skill'
+  return (kind === 'sub' ? tree.subs : tree.skills).has(m[2]) ? { kind, id: m[2] } : null
 }
 
 interface Toast {
@@ -99,10 +100,11 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
   const states = useMemo(() => computeStates(tree, lit), [tree, lit])
   const progressBySub = useMemo(() => new Map(tree.roadmap.subs.map((s) => [s.id, subProgress(tree, s.id, lit)])), [tree, lit])
 
-  const [career] = useState(() => parseCareer(tree, location.pathname))
-  const home: Focus = useMemo(() => (career ? { kind: 'sub', id: career } : null), [career])
+  const [page] = useState(() => parsePage(tree, location.pathname))
+  const career = page?.kind === 'sub' ? page.id : null
+  const home: Focus = career ? page : null
   // 地址栏里的焦点要在第一次渲染前读出来：下面把焦点同步到地址栏时，空焦点会把它清掉
-  const [focus, setFocusState] = useState<Focus>(() => parseFocus(tree, location.hash) ?? home)
+  const [focus, setFocusState] = useState<Focus>(() => parseFocus(tree, location.hash) ?? page)
   const [flyRequest, setFlyRequest] = useState(0)
   const [pulse, setPulse] = useState<Set<string>>(new Set())
   const pulseTimer = useRef(0)

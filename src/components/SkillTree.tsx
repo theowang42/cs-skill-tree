@@ -159,7 +159,7 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
   // 屏幕尺寸还没量出来时先等着，量好了再飞
   const measured = cam.size.w > 0
   useEffect(() => {
-    if (!flyRequest || !measured || !focus || focus.kind === 'careers') return
+    if (!flyRequest || !measured || !focus) return
     // 职业天赋树上没有的技能和职业，就不飞
     if (focus.kind === 'skill') {
       const n = layout.nodes.get(focus.id)

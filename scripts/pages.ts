@@ -1,7 +1,8 @@
 // 静态页面：首页、每个技能一页、每个职业一页，加 sitemap。
 // 技能树本身是单页应用（在 /tree/），搜索引擎看不到里面的内容；这些页面是写死的 HTML，
 // 让人能搜到“Docker 怎么学”“大模型算法工程师要学什么”，也方便把单个技能、单个职业分享出去。
-// 职业页打开就是这个职业的天赋树：HTML 里写好职业的内容，技能树的脚本加载后接管整页。
+// 同一个意思只有一个页面：职业页打开就是这个职业的天赋树，技能页打开就是大图上这个技能的卡片。
+// HTML 里写好同样的内容给搜索引擎，技能树的脚本加载后接管整页。
 //
 // 用法：npm run build 在 vite 打包完技能树之后跑这个，写进 dist/。
 // renderSite() 只返回 { 路径: 内容 }，不碰磁盘，测试直接用它。
@@ -10,14 +11,11 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import type { Resource, Roadmap, Skill, Sub } from '../src/types.ts'
+import type { Roadmap, Skill, Sub } from '../src/types.ts'
 import { ICONS } from '../src/generated/icons.ts'
 
 export const SITE = 'https://theowang42.github.io/cs-skill-tree/'
 const REPO = 'https://github.com/theowang42/cs-skill-tree'
-/** 仓库的默认分支：“在 GitHub 上改这一页”打开这个分支上的文件 */
-const BRANCH = 'main'
-const editUrl = (file: string) => `${REPO}/edit/${BRANCH}/content/${file}`
 const NAME = 'CS 技能树'
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -29,26 +27,13 @@ function icon(name: string, size = 24): string {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true"><path d="${spec.path}" fill="currentColor"/></svg>`
 }
 
-/** 页面底部：内容就是仓库里的一个文件，谁都可以直接改 */
-const editBlock = (file: string) =>
-  `<p class="edit muted small">哪里写得不对、有更好的资源？<a href="${editUrl(file)}" rel="noopener">在 GitHub 上改这一页 ↗</a></p>`
-
-const resource = (l: Resource) =>
-  `<li><a href="${esc(l.url)}" rel="noopener">${esc(l.label)} ↗</a><small class="muted"> ${esc(l.kind)} · ${l.free ? '免费' : '付费'}</small></li>`
-
-/** 技能的图标槽：和树上一样，语言是六边形，其他是圆，都是白底黑框 */
-function slot(s: Skill, size = 44): string {
-  const hex = s.language ? '<svg class="hex-line" viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,2 92,26 92,74 50,98 8,74 8,26"/></svg>' : ''
-  return `<span class="slot${s.language ? ' hex' : ''}" style="--s:${size}px">${hex}${icon(s.icon, Math.round(size * 0.46))}</span>`
-}
-
 interface Page {
   /** 相对站点根的目录，'' 是首页 */
   path: string
   title: string
   description: string
   body: string
-  /** 面包屑：[名字, 相对根的路径] */
+  /** 面包屑（给搜索引擎）：[名字, 相对根的路径] */
   crumbs?: [string, string][]
   /** 技能树的脚本和样式：有它时 body 是技能树的挂载点，不要站点的页头页脚 */
   app?: string
@@ -57,9 +42,6 @@ interface Page {
 function layout(p: Page): string {
   const root = p.path ? '../'.repeat(p.path.split('/').filter(Boolean).length) : './'
   const url = SITE + p.path
-  const crumbs = p.crumbs
-    ? `<nav class="crumbs" aria-label="位置">${p.crumbs.map(([n, h], i) => (i === p.crumbs!.length - 1 ? `<span>${esc(n)}</span>` : `<a href="${root}${h}">${esc(n)}</a>`)).join('<i>›</i>')}</nav>`
-    : ''
   const ld = p.crumbs
     ? `<script type="application/ld+json">${JSON.stringify({
         '@context': 'https://schema.org',
@@ -93,14 +75,14 @@ ${p.app ?? `<link rel="stylesheet" href="${root}site.css">`}
 ${ld}
 </head>
 <body>
-${p.app === undefined ? site(root, crumbs, p.body) : `<div id="root">\n${p.body}\n</div>`}
+${p.app === undefined ? site(root, p.body) : `<div id="root">\n${p.body}\n</div>`}
 </body>
 </html>
 `
 }
 
 /** 站点的页头、正文、页脚 */
-const site = (root: string, crumbs: string, body: string) => `<header class="top">
+const site = (root: string, body: string) => `<header class="top">
   <a class="logo" href="${root}"><span class="mark"></span>${NAME}</a>
   <nav>
     <a href="${root}#careers">职业路线</a>
@@ -109,7 +91,6 @@ const site = (root: string, crumbs: string, body: string) => `<header class="top
   </nav>
 </header>
 <main>
-${crumbs}
 ${body}
 </main>
 <footer class="foot">
@@ -117,7 +98,7 @@ ${body}
   <p>内容开源在 <a href="${REPO}">GitHub</a>，哪里写得不对，欢迎直接改。课程主要参考 <a href="https://csdiy.wiki/">csdiy.wiki</a>。</p>
 </footer>`
 
-/** app：技能树打包出来的脚本和样式标签，职业页要用 */
+/** app：技能树打包出来的脚本和样式标签，职业页和技能页要用 */
 export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
   const skills = new Map(rm.skills.map((s) => [s.id, s]))
   const subs = new Map(rm.subs.map((s) => [s.id, s]))
@@ -181,11 +162,13 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
     })
   }
 
+  /** 职业页、技能页 HTML 里的一个小节 */
+  const list = (title: string, items: string[]) => (items.length ? `<h2>${title}</h2><ul>${items.map((x) => `<li>${x}</li>`).join('')}</ul>` : '')
+
   // ── 职业页：这个职业的天赋树。HTML 里是同样的内容，给搜索引擎和还没加载完的时候看 ──
   for (const c of rm.subs) {
     const root = '../../'
     const nSteps = Math.max(...c.plan.map((p) => p.step))
-    const list = (title: string, items: string[]) => (items.length ? `<h2>${title}</h2><ul>${items.map((x) => `<li>${x}</li>`).join('')}</ul>` : '')
     const skillLink = (id: string) => `<a href="${root}skill/${id}/">${esc(sk(id).name)}</a>`
     put({
       path: `career/${c.id}/`,
@@ -202,40 +185,23 @@ ${list('可以参考的开源项目', c.projects.map((l) => `<a href="${esc(l.ur
     })
   }
 
-  // ── 技能页：名字、一句话、学习流程、去哪学。前后关系和职业在树上看 ──
+  // ── 技能页：大图，这个技能的卡片已经打开。HTML 里是同样的内容 ──
   for (const s of rm.skills) {
-    const root = '../../'
-    const area = areas.get(s.areaId)!
     const pre = s.prerequisites.map(sk)
     const desc =
       `${s.intro}` +
       (s.steps.length ? `分 ${s.steps.length} 步学：${s.steps.join('、')}。` : '') +
       (pre.length ? `前置：${pre.map((x) => x.name).join('、')}。` : '不需要前置，可以直接开始。')
-    const flow = s.steps.length
-      ? `<section class="block"><h2>学习流程</h2><ol class="flow">${s.steps.map((t, i) => `<li><span class="dot">${i + 1}</span><span>${esc(t)}${i === s.steps.length - 1 ? ' <i>★</i>' : ''}</span></li>`).join('')}</ol></section>`
-      : ''
     put({
       path: `skill/${s.id}/`,
       title: `${s.name}怎么学：学习流程和公开课 | ${NAME}`,
       description: desc,
-      crumbs: [[NAME, ''], [area.name, '#skills'], [s.name, `skill/${s.id}/`]],
-      body: `
-<article class="head">
-  ${slot(s, 88)}
-  <div>
-    <p class="kicker">${s.language ? '编程语言' : '技能'} · ${esc(area.name)}</p>
-    <h1>${esc(s.name)}</h1>
-    <p class="lead">${esc(s.intro)}</p>
-    <div class="cta"><a class="btn" href="${root}tree/#/skill/${s.id}">在技能树里点亮它 →</a></div>
-  </div>
-</article>
-${flow}
-<section class="block">
-  <h2>去哪学</h2>
-  <ul class="list">${s.resources.map(resource).join('')}</ul>
-</section>
-${editBlock(`skills/${s.id}.md`)}
-`,
+      crumbs: [[NAME, ''], [areas.get(s.areaId)!.name, '#skills'], [s.name, `skill/${s.id}/`]],
+      app,
+      body: `<h1>${esc(s.name)}</h1>
+<p>${esc(s.intro)}</p>
+${list('学习流程', s.steps.map(esc))}
+${list('去哪学', s.resources.map((l) => `<a href="${esc(l.url)}" rel="noopener">${esc(l.label)}</a> ${esc(l.kind)} · ${l.free ? '免费' : '付费'}`))}`,
     })
   }
 
@@ -253,7 +219,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const rm = JSON.parse(readFileSync(join(ROOT, 'public', 'data', 'roadmap.json'), 'utf8')) as Roadmap
   // 除了技能树（dist/tree，vite 刚打包好的），其余全部重写
   for (const f of readdirSync(DIST)) if (f !== 'tree') rmSync(join(DIST, f), { recursive: true, force: true })
-  // 职业页要加载技能树：从 vite 打包好的 tree/index.html 里拿脚本和样式
+  // 职业页和技能页要加载技能树：从 vite 打包好的 tree/index.html 里拿脚本和样式
   const treeHtml = readFileSync(join(DIST, 'tree', 'index.html'), 'utf8')
   const site = renderSite(rm, (treeHtml.match(/<script type="module"[^>]*><\/script>|<link rel="(?:stylesheet|modulepreload)"[^>]*>/g) ?? []).join('\n'))
   for (const [path, html] of site) {
