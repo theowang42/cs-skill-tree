@@ -650,32 +650,6 @@ a {
   color: var(--ink);
 }
 
-.hud-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.hud-text {
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid transparent;
-  background: none;
-  font-size: 13.5px;
-  color: var(--ink-2);
-  white-space: nowrap;
-}
-
-.hud-text:hover {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
-}
-
-.hud-text b {
-  color: var(--ink);
-  font-weight: 600;
-}
-
 /* ═════════════ 右侧面板 ═════════════ */
 
 .panel {
@@ -1085,14 +1059,6 @@ button.danger {
   .hud {
     padding: 12px 16px;
     gap: 10px;
-  }
-
-  .hud-right {
-    gap: 12px;
-  }
-
-  .hud-text:not(.hud-goal) {
-    display: none;
   }
 
   .panel {
