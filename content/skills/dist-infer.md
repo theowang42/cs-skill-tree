@@ -13,4 +13,4 @@ requires: [vllm, distributed]
 - 把 70B 模型跑在多卡上
 
 ## 去哪学
-- [vLLM 分布式部署](https://docs.vllm.ai/en/latest/serving/distributed_serving.html) · 文档 · 免费
+- [vLLM 文档（并行与扩展一节）](https://docs.vllm.ai/en/latest/) · 文档 · 免费
