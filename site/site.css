@@ -54,7 +54,10 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .card .meta { margin-top: 6px; font-size: 12px; color: var(--ink-3); }
 
 .slot { flex: none; display: grid; place-items: center; width: var(--s); height: var(--s); border-radius: 50%; border: 1.5px solid var(--ink); background: #fff; }
-.slot.hex { border: none; background: var(--ink); color: #fff; clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); }
+.slot.hex { position: relative; border: none; background: none; }
+.slot.hex .hex-line { position: absolute; inset: 0; width: 100%; height: 100%; }
+.slot.hex .hex-line polygon { fill: #fff; stroke: var(--ink); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.slot.hex > svg:not(.hex-line) { position: relative; }
 .seal { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--ink); box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 5.5px var(--ink); }
 .seal.big { width: 88px; height: 88px; box-shadow: inset 0 0 0 7px #fff, inset 0 0 0 9px var(--ink); }
 
@@ -97,3 +100,9 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
   .grid { grid-template-columns: 1fr; }
 }
 .edit { margin: 40px 0 0; }
+/* 技能页的学习流程：圆点连成一条竖线 */
+.flow { list-style: none; margin: 8px 0 0; padding: 0; }
+.flow li { position: relative; display: flex; align-items: center; gap: 14px; padding: 7px 0; font-size: 16px; }
+.flow li + li::before { content: ''; position: absolute; left: 13px; top: -7px; width: 2px; height: 14px; background: var(--ink); }
+.flow .dot { display: grid; flex: none; place-items: center; width: 28px; height: 28px; border: 1.5px solid var(--ink); border-radius: 50%; background: #fff; font-size: 13px; font-weight: 700; }
+.flow i { font-style: normal; color: var(--ink-2); }

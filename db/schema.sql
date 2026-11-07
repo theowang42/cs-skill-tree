@@ -27,13 +27,11 @@ CREATE TABLE skills (
   parent_id    TEXT    REFERENCES skills (id),
   -- 编程语言：树上画成六边形
   is_language  INTEGER NOT NULL DEFAULT 0 CHECK (is_language IN (0, 1)),
-  -- 怎么算会了：一个自己能检验的标准。还没写讲解的技能是 NULL
-  verify       TEXT    CHECK (length(verify) > 0),
   UNIQUE (area_id, position)
 ) STRICT;
 
--- 学什么：要掌握的要点
-CREATE TABLE skill_learn (
+-- 学习流程：把一个技能拆成几步，按顺序学；最后一步是做出来就算会了的实战。每一步都能单独点亮
+CREATE TABLE skill_steps (
   skill_id  TEXT    NOT NULL REFERENCES skills (id),
   position  INTEGER NOT NULL,
   text      TEXT    NOT NULL CHECK (length(text) > 0),
@@ -54,7 +52,7 @@ CREATE TABLE skill_resources (
   position  INTEGER NOT NULL,
   label     TEXT    NOT NULL CHECK (length(label) > 0),
   url       TEXT    NOT NULL CHECK (url LIKE 'https://%'),
-  -- 课程、书、视频、文章、文档、练习；还没写讲解的技能可以不标
+  -- 课程、书、视频、文章、文档、论文、练习；还没写学习流程的技能可以不标
   kind      TEXT    CHECK (kind IN ('课程', '书', '视频', '文章', '文档', '论文', '练习')),
   is_free   INTEGER CHECK (is_free IN (0, 1)),
   PRIMARY KEY (skill_id, position)

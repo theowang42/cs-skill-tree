@@ -28,7 +28,7 @@ export function getRoadmap(db: DatabaseSync): Roadmap {
     kind: (r.kind as string | null) ?? null,
     free: r.is_free === null ? null : r.is_free === 1,
   }))
-  const learn = group('SELECT * FROM skill_learn ORDER BY skill_id, position', 'skill_id', text)
+  const steps = group('SELECT * FROM skill_steps ORDER BY skill_id, position', 'skill_id', text)
   const requiredBy = group(`SELECT x.skill_id, x.sub_id FROM sub_skill_closure x ${SUB_ORDER} ORDER BY x.skill_id, sc.position, sb.position`, 'skill_id', (r) => r.sub_id as string)
   const skills = all(`
     SELECT s.*, w.dependents AS weight
@@ -45,8 +45,7 @@ export function getRoadmap(db: DatabaseSync): Roadmap {
     weight: r.weight as number,
     prerequisites: prerequisites(id(r)),
     dependents: dependents(id(r)),
-    learn: learn(id(r)),
-    verify: (r.verify as string | null) ?? null,
+    steps: steps(id(r)),
     resources: resources(id(r)),
     requiredBy: requiredBy(id(r)),
   }))

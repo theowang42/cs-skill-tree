@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { build } from '../scripts/db.ts'
 import { getRoadmap } from '../scripts/roadmap.ts'
-import { Tree, clean, computeStates, frontier, plan, subProgress } from '../src/lib/tree.ts'
+import { Tree, clean, cleanSteps, computeStates, frontier, plan, subProgress } from '../src/lib/tree.ts'
 import { parseFile, toFile } from '../src/lib/progress.ts'
 import { decodeShare, encodeShare } from '../src/lib/share.ts'
 
@@ -48,13 +48,13 @@ test('职业要学的全部点亮，就是达成；加分项不算', () => {
 })
 
 test('进度文件：导出再导入一致；格式不对给出说明；旧版本的“在学”当作没点亮', () => {
-  const lit = new Set(['linux', 'docker'])
-  assert.deepEqual(parseFile(toFile(lit)), lit)
+  const p = { lit: new Set(['linux', 'docker']), steps: new Map([['sql', [1, 3]]]) }
+  assert.deepEqual(parseFile(toFile(p)), p)
   assert.throws(() => parseFile('nope'), /不是 JSON/)
   assert.throws(() => parseFile('{"format":"other"}'), /不是 cs-skill-tree/)
   assert.throws(() => parseFile('{"format":"cs-skill-tree-progress","version":9,"skills":{}}'), /版本/)
   const old = { format: 'cs-skill-tree-progress', version: 1, goalSubId: 'x', skills: { a: { status: 'done', updatedAt: 't' }, b: { status: 'learning' } } }
-  assert.deepEqual(parseFile(JSON.stringify(old)), new Set(['a']))
+  assert.deepEqual(parseFile(JSON.stringify(old)), { lit: new Set(['a']), steps: new Map() })
 })
 
 test('分享链接来回编码不丢东西，技能数对不上就拒绝，旧链接末尾的目标职业忽略', () => {
@@ -65,4 +65,15 @@ test('分享链接来回编码不丢东西，技能数对不上就拒绝，旧�
   assert.deepEqual(decodeShare(tree, hash + '.inference'), lit)
   assert.equal(decodeShare(tree, '#/skill/docker'), null)
   assert.equal(decodeShare(tree, '#share=3.AAAA'), null)
+})
+
+test('学习流程的进度：只留没点亮、步数对得上、还没做完的', () => {
+  const steps = new Map([
+    ['sql', [3, 1, 3, 9]], // 去重、排序，超过步数的去掉
+    ['docker', [1]], // 已经点亮：不记步骤
+    ['nope', [1]], // 技能不存在
+    ['cs61a', [1, 2, 3, 4, 5]], // 全做完却没点亮：内容改过步数
+    ['k8s', [1]], // 还没写学习流程
+  ])
+  assert.deepEqual(cleanSteps(tree, new Set(['docker']), steps), new Map([['sql', [1, 3]]]))
 })

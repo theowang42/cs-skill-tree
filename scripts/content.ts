@@ -23,8 +23,7 @@ export interface Content {
     requires: string[]
     language: boolean
     intro: string
-    learn: string[]
-    verify: string | null
+    steps: string[]
     resources: Resource[]
   }[]
   categories: { id: string; name: string; order: number; careers: string[]; intro: string }[]
@@ -101,8 +100,6 @@ function read(file: string, text: string, spec: { meta: Record<string, 'text' | 
     s.lines.forEach((l, i) => l.startsWith('- ') || fail(s.line + 1 + i, `“${name}”里每一行都要以 - 开头`))
     return s.lines.map((l) => l.slice(2).trim())
   }
-  /** 段落小节 */
-  const paragraph = (name: string) => sections.get(name)?.lines.join('') || null
   /** 链接小节：- [标题](https://…)，技能的资源后面再跟 · 类型 · 免费/付费 */
   const links = (name: string, tagged: boolean): Resource[] =>
     list(name).map((l, i) => {
@@ -119,7 +116,7 @@ function read(file: string, text: string, spec: { meta: Record<string, 'text' | 
       }
       return { label: m![1], url: m![2], kind, free }
     })
-  return { get, list, paragraph, links, intro }
+  return { get, list, links, intro }
 }
 
 const CONTENT = new URL('../content/', import.meta.url)
@@ -147,7 +144,7 @@ export function load(root: URL = CONTENT): Content {
     const f = read(file, text, {
       meta: { name: 'text', icon: 'text', requires: 'list', language: 'flag' },
       required: ['name', 'icon', 'requires'],
-      sections: ['学什么', '怎么算会了', '去哪学'],
+      sections: ['学习流程', '去哪学'],
     })
     return {
       id,
@@ -156,8 +153,7 @@ export function load(root: URL = CONTENT): Content {
       requires: f.get('requires') as string[],
       language: f.get('language') as boolean,
       intro: f.intro,
-      learn: f.list('学什么'),
-      verify: f.paragraph('怎么算会了'),
+      steps: f.list('学习流程'),
       resources: f.links('去哪学', true),
     }
   })

@@ -7,7 +7,7 @@ import { encodeShare } from '../lib/share'
 import { Meter } from './common'
 
 export function Dashboard() {
-  const { tree, lit, states, progressBySub, setFocus, readOnly, replace, reset, toast } = useApp()
+  const { tree, lit, steps, states, progressBySub, setFocus, readOnly, replace, reset, toast } = useApp()
   const t = totals(states)
   // 还差得最少的三个职业
   const closest = tree.roadmap.subs
@@ -20,7 +20,7 @@ export function Dashboard() {
 
   const exportFile = () => {
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([toFile(lit)], { type: 'application/json' }))
+    a.href = URL.createObjectURL(new Blob([toFile({ lit, steps })], { type: 'application/json' }))
     a.download = `cs-skill-tree-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(a.href)

@@ -1,9 +1,9 @@
 // 全局状态：树、点亮了哪些、推导出的状态、当前焦点，以及所有会改进度的动作。组件通过 useApp() 拿到它们。
-// 改进度一律走 setLit()：按规则算出新的点亮集合，存进浏览器，同时算出“新解锁了哪些”给树上做动画。
+// 改进度一律走 setLit() 或 setStep()：按规则算出新的点亮集合，存进浏览器，同时算出“新解锁了哪些”给树上做动画。
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { SkillState } from './types'
-import { Tree, clean, computeStates, plan, subProgress, type Lit } from './lib/tree'
-import { load, onOtherTab, save } from './lib/progress'
+import { Tree, clean, cleanSteps, computeStates, plan, subProgress, type Lit } from './lib/tree'
+import { EMPTY, load, onOtherTab, save, type Progress } from './lib/progress'
 import { decodeShare } from './lib/share'
 
 /** 选中了什么：一个技能、一个职业，或者全部职业的列表 */
@@ -30,6 +30,8 @@ interface AppState {
   tree: Tree
   /** 当前显示的：自己的，或者分享链接里别人的 */
   lit: Lit
+  /** 还没点亮的技能完成了学习流程的第几步 */
+  steps: ReadonlyMap<string, readonly number[]>
   states: Map<string, SkillState>
   /** 每个职业要学的技能点亮了几个 */
   progressBySub: Map<string, { done: number; total: number }>
@@ -47,7 +49,9 @@ interface AppState {
   pulse: Set<string>
 
   setLit: (id: string, on: boolean) => void
-  replace: (lit: Lit) => void
+  /** 点亮或熄灭学习流程的第 n 步（从 1 开始）。最后一步做完，技能自动点亮 */
+  setStep: (id: string, n: number, on: boolean) => void
+  replace: (p: Progress) => void
   reset: () => void
 
   toasts: Toast[]
@@ -65,14 +69,22 @@ export function useApp(): AppState {
 
 const clearHash = () => history.replaceState(null, '', location.pathname + location.search)
 
+const NO_STEPS: ReadonlyMap<string, readonly number[]> = new Map()
+
 export function AppProvider({ tree, children }: { tree: Tree; children: ReactNode }) {
-  const [own, setOwn] = useState<Lit>(() => clean(tree, load()).lit)
+  /** 去掉已经不存在的技能、前置没点亮的点亮、对不上的步骤 */
+  const tidy = useCallback((p: Progress) => {
+    const { lit, dropped } = clean(tree, p.lit)
+    return { progress: { lit, steps: cleanSteps(tree, lit, p.steps) }, dropped }
+  }, [tree])
+  const [own, setOwn] = useState<Progress>(() => tidy(load()).progress)
   const ownRef = useRef(own)
   const [shared, setShared] = useState<Lit | null>(() => {
     const s = decodeShare(tree, location.hash)
     return s && clean(tree, s).lit
   })
-  const lit = shared ?? own
+  const lit = shared ?? own.lit
+  const steps = shared ? NO_STEPS : own.steps
   const readOnly = shared !== null
   const states = useMemo(() => computeStates(tree, lit), [tree, lit])
   const progressBySub = useMemo(() => new Map(tree.roadmap.subs.map((s) => [s.id, subProgress(tree, s.id, lit)])), [tree, lit])
@@ -124,7 +136,7 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
     return () => window.removeEventListener('hashchange', onHash)
   }, [tree, setFocus])
 
-  const commit = useCallback((next: Lit) => {
+  const commit = useCallback((next: Progress) => {
     // 立刻更新 ref：同一帧里连续两次改动（快速点击）要基于最新的进度算
     ownRef.current = next
     setOwn(next)
@@ -132,11 +144,12 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
   }, [])
 
   // 别的标签页改了进度，这里跟着刷新
-  useEffect(() => onOtherTab(() => commit(clean(tree, load()).lit)), [tree, commit])
+  useEffect(() => onOtherTab(() => commit(tidy(load()).progress)), [tidy, commit])
 
-  const setLit = useCallback((id: string, on: boolean) => {
+  /** 点亮或熄灭一个技能。熄灭时 keep 是这个技能还留着的步骤（只熄灭了其中一步） */
+  const change = useCallback((id: string, on: boolean, keep: number[] = []) => {
     if (readOnly) return
-    const before = ownRef.current
+    const { lit: before, steps: beforeSteps } = ownRef.current
     const p = plan(tree, before, { [id]: on })
     if (p.blocked) {
       const { id: want, missing } = p.blocked
@@ -147,7 +160,10 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
     const after = p.next
     const changed = [...new Set([...before, ...after])].filter((x) => before.has(x) !== after.has(x))
     if (!changed.length) return
-    commit(after)
+    const afterSteps = new Map(beforeSteps)
+    afterSteps.delete(id)
+    if (!on && keep.length) afterSteps.set(id, keep)
+    commit({ lit: after, steps: afterSteps })
 
     // 新点亮的和新解锁的闪一下；新达成的职业放一次大的庆祝
     const was = computeStates(tree, before)
@@ -163,28 +179,49 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
     else if (p.cascaded.length) {
       // 熄灭会连带一串：给个撤销，只把这次改的换回来
       const undo = () => {
-        const next = new Set(ownRef.current)
-        for (const x of changed) if (before.has(x)) next.add(x)
-        else next.delete(x)
-        commit(next)
+        const next = new Set(ownRef.current.lit)
+        const nextSteps = new Map(ownRef.current.steps)
+        for (const x of changed) if (before.has(x)) {
+          next.add(x)
+          nextSteps.delete(x)
+        } else next.delete(x)
+        commit({ lit: next, steps: nextSteps })
       }
       toast(`依赖它的 ${p.cascaded.length} 个技能也一起熄灭了：${some(p.cascaded)}`, { label: '撤销', run: undo })
     } else if (unlocked.length) toast(`解锁了 ${unlocked.length} 个新技能：${some(unlocked)}`)
   }, [readOnly, tree, toast, setFocus, commit])
 
+  const setLit = useCallback((id: string, on: boolean) => change(id, on), [change])
+
+  const setStep = useCallback((id: string, n: number, on: boolean) => {
+    if (readOnly) return
+    const total = tree.skill(id).steps.length
+    const { lit: l, steps: s } = ownRef.current
+    const done = new Set(l.has(id) ? Array.from({ length: total }, (_, i) => i + 1) : s.get(id) ?? [])
+    if (on) done.add(n)
+    else done.delete(n)
+    const list = [...done].sort((a, b) => a - b)
+    if (list.length === total) return change(id, true)
+    if (l.has(id)) return change(id, false, list)
+    const nextSteps = new Map(s)
+    if (list.length) nextSteps.set(id, list)
+    else nextSteps.delete(id)
+    commit({ lit: l, steps: nextSteps })
+  }, [readOnly, tree, change, commit])
+
   /** 整体换掉进度，提示里可以撤销回原来的 */
-  const replaceWith = useCallback((next: Lit, message: string) => {
+  const replaceWith = useCallback((next: Progress, message: string) => {
     const backup = ownRef.current
     commit(next)
     toast(message, { label: '撤销', run: () => commit(backup) })
   }, [commit, toast])
 
-  const replace = useCallback((l: Lit) => {
-    const { lit: next, dropped } = clean(tree, l)
-    replaceWith(next, `已导入 ${next.size} 个技能的进度${dropped ? `，跳过了 ${dropped} 个（已不存在，或前置没点亮）` : ''}`)
-  }, [tree, replaceWith])
+  const replace = useCallback((p: Progress) => {
+    const { progress, dropped } = tidy(p)
+    replaceWith(progress, `已导入 ${progress.lit.size} 个技能的进度${dropped ? `，跳过了 ${dropped} 个（已不存在，或前置没点亮）` : ''}`)
+  }, [tidy, replaceWith])
 
-  const reset = useCallback(() => replaceWith(new Set(), '进度已清空'), [replaceWith])
+  const reset = useCallback(() => replaceWith(EMPTY, '进度已清空'), [replaceWith])
 
   const leaveShared = useCallback(() => {
     setShared(null)
@@ -194,13 +231,13 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
     if (!shared) return
     setShared(null)
     clearHash()
-    replace(shared)
+    replace({ lit: shared, steps: NO_STEPS })
   }, [shared, replace])
 
   const value: AppState = {
-    tree, lit, states, progressBySub, readOnly, leaveShared, adoptShared,
+    tree, lit, steps, states, progressBySub, readOnly, leaveShared, adoptShared,
     focus, setFocus, flyRequest, pulse,
-    setLit, replace, reset,
+    setLit, setStep, replace, reset,
     toasts, toast, dismissToast,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

@@ -28,16 +28,17 @@ function icon(name: string, size = 24): string {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true"><path d="${spec.path}" fill="currentColor"/></svg>`
 }
 
-/** 技能的图标槽：和树上一样，语言是六边形，其他是圆 */
 /** 页面底部：内容就是仓库里的一个文件，谁都可以直接改 */
 const editBlock = (file: string, missing = false) =>
-  `<p class="edit muted small">${missing ? '这个技能的详细讲解还没写，会的话欢迎补上：' : '哪里写得不对、有更好的资源？'}<a href="${editUrl(file)}" rel="noopener">在 GitHub 上改这一页 ↗</a></p>`
+  `<p class="edit muted small">${missing ? '这个技能的学习流程还没写，会的话欢迎补上：' : '哪里写得不对、有更好的资源？'}<a href="${editUrl(file)}" rel="noopener">在 GitHub 上改这一页 ↗</a></p>`
 
 const resource = (l: Resource) =>
   `<li><a href="${esc(l.url)}" rel="noopener">${esc(l.label)} ↗</a>${l.kind ? `<small class="muted"> ${esc(l.kind)} · ${l.free ? '免费' : '付费'}</small>` : ''}</li>`
 
+/** 技能的图标槽：和树上一样，语言是六边形，其他是圆，都是白底黑框 */
 function slot(s: Skill, size = 44): string {
-  return `<span class="slot${s.language ? ' hex' : ''}" style="--s:${size}px">${icon(s.icon, Math.round(size * 0.46))}</span>`
+  const hex = s.language ? '<svg class="hex-line" viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,2 92,26 92,74 50,98 8,74 8,26"/></svg>' : ''
+  return `<span class="slot${s.language ? ' hex' : ''}" style="--s:${size}px">${hex}${icon(s.icon, Math.round(size * 0.46))}</span>`
 }
 
 interface Page {
@@ -218,22 +219,21 @@ ${editBlock(`careers/${c.id}.md`)}
     })
   }
 
-  // ── 技能页 ──
+  // ── 技能页：名字、一句话、学习流程、去哪学。前后关系和职业在树上看 ──
   for (const s of rm.skills) {
     const root = '../../'
-    const area = areas.get(s.areaId!)!
+    const area = areas.get(s.areaId)!
     const pre = s.prerequisites.map(sk)
-    const next = s.dependents.map(sk)
-    const careers = s.requiredBy.map((id) => subs.get(id)!).filter(Boolean)
-    const siblings = area.skillIds.filter((id) => id !== s.id).map(sk)
     const desc =
       `${s.intro}` +
-      (pre.length ? `前置：${pre.map((x) => x.name).join('、')}。` : '不需要前置，可以直接开始。') +
-      (careers.length ? `${careers.length} 个职业要学它，包括${careers.slice(0, 3).map((x) => x.name).join('、')}。` : '') +
-      '附公开课。'
+      (s.steps.length ? `分 ${s.steps.length} 步学：${s.steps.join('、')}。` : '') +
+      (pre.length ? `前置：${pre.map((x) => x.name).join('、')}。` : '不需要前置，可以直接开始。')
+    const flow = s.steps.length
+      ? `<section class="block"><h2>学习流程</h2><ol class="flow">${s.steps.map((t, i) => `<li><span class="dot">${i + 1}</span><span>${esc(t)}${i === s.steps.length - 1 ? ' <i>★</i>' : ''}</span></li>`).join('')}</ol></section>`
+      : ''
     put({
       path: `skill/${s.id}/`,
-      title: `${s.name}怎么学：前置技能、公开课和哪些职业要用 | ${NAME}`,
+      title: `${s.name}怎么学：学习流程和公开课 | ${NAME}`,
       description: desc,
       crumbs: [[NAME, ''], [area.name, '#skills'], [s.name, `skill/${s.id}/`]],
       body: `
@@ -246,23 +246,12 @@ ${editBlock(`careers/${c.id}.md`)}
     <div class="cta"><a class="btn" href="${root}tree/#/skill/${s.id}">在技能树里点亮它 →</a></div>
   </div>
 </article>
-${s.learn.length ? `<section class="block"><h2>学什么</h2><ul class="list">${s.learn.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}
-${s.verify ? `<section class="block"><h2>怎么算会了</h2><p>${esc(s.verify)}</p></section>` : ''}
+${flow}
 <section class="block">
   <h2>去哪学</h2>
   <ul class="list">${s.resources.map(resource).join('')}</ul>
 </section>
-<section class="block">
-  <h2>先学这些</h2>
-  ${pre.length ? `<div class="grid">${pre.map((x) => skillCard(x, root)).join('')}</div>` : '<p class="muted">不需要前置，可以直接开始。</p>'}
-</section>
-${next.length ? `<section class="block"><h2>学会之后可以学</h2><div class="grid">${next.map((x) => skillCard(x, root)).join('')}</div></section>` : ''}
-${careers.length ? `<section class="block"><h2>哪些职业要学它</h2><div class="grid">${careers.map((c) => careerCard(c, root)).join('')}</div></section>` : ''}
-<section class="block">
-  <h2>${esc(area.name)}里的其他技能</h2>
-  <div class="chips">${siblings.map((x) => skillChip(x, root)).join('')}</div>
-</section>
-${editBlock(`skills/${s.id}.md`, !s.verify)}
+${editBlock(`skills/${s.id}.md`, !s.steps.length)}
 `,
     })
   }

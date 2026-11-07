@@ -120,6 +120,17 @@ export function clean(tree: Tree, lit: Lit): { lit: Set<string>; dropped: number
   return { lit: kept, dropped: lit.size - kept.size }
 }
 
+/** 学习流程的进度：只留还在的技能、没点亮的、不超过步数的；全部做完却没点亮的（内容改过步数）也去掉 */
+export function cleanSteps(tree: Tree, lit: Lit, steps: ReadonlyMap<string, readonly number[]>): Map<string, number[]> {
+  const out = new Map<string, number[]>()
+  for (const [id, s] of steps) {
+    const total = tree.skills.get(id)?.steps.length ?? 0
+    const kept = [...new Set(s)].filter((n) => n <= total).sort((a, b) => a - b)
+    if (!lit.has(id) && kept.length && kept.length < total) out.set(id, kept)
+  }
+  return out
+}
+
 /**
  * 徽章的星级：要点亮的技能越多越难拿。一星 ≤ 22 个，二星 23–29 个，三星 ≥ 30 个。
  * 像游戏里的稀有度：粒度一样的岗位，难度可以不一样。

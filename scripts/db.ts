@@ -28,10 +28,10 @@ export function build(content: Content = load()): DatabaseSync {
   insert('areas', areas.map((a) => ({ id: a.id, position: a.order, name: a.name, intro: a.intro })))
   insert('skills', skills.map((s) => ({
     id: s.id, area_id: areaOf.get(s.id)!.area, position: areaOf.get(s.id)!.position, icon: s.icon, name: s.name, intro: s.intro,
-    parent_id: s.requires[0] ?? null, is_language: Number(s.language), verify: s.verify,
+    parent_id: s.requires[0] ?? null, is_language: Number(s.language),
   })))
   insert('skill_prerequisites', skills.flatMap((s) => s.requires.map((p) => ({ skill_id: s.id, prerequisite_id: p }))))
-  insert('skill_learn', skills.flatMap((s) => s.learn.map((text, i) => ({ skill_id: s.id, position: i + 1, text }))))
+  insert('skill_steps', skills.flatMap((s) => s.steps.map((text, i) => ({ skill_id: s.id, position: i + 1, text }))))
   insert('skill_resources', skills.flatMap((s) => s.resources.map((r, i) => ({ skill_id: s.id, position: i + 1, label: r.label, url: r.url, kind: r.kind, is_free: flag(r.free) }))))
   insert('categories', categories.map((c) => ({ id: c.id, position: c.order, name: c.name, intro: c.intro })))
   insert('subs', careers.map((c) => ({
@@ -90,14 +90,15 @@ export function check(db: DatabaseSync): Finding[] {
   warning('SELECT id, length(intro) AS n FROM skills WHERE length(intro) > 50', (r) => `技能 ${r.id} 的一句话有 ${r.n} 个字，最好控制在 50 字以内`)
   // 技能的一句话写掌握到什么程度：会做什么，能做到什么
   warning("SELECT id FROM skills WHERE intro NOT LIKE '会%能%'", (r) => `技能 ${r.id} 的一句话要写成“会……，能……”，说清掌握到什么程度`)
-  // 讲解要写就写全：学什么、怎么算会了，资源都标上类型和是否免费
+  // 学习流程：4 到 6 步，每步一个短语；写了流程，资源也要标上类型和是否免费
   error(
-    'SELECT id FROM skills WHERE (verify IS NULL) <> (id NOT IN (SELECT skill_id FROM skill_learn))',
-    (r) => `技能 ${r.id} 的“学什么”和“怎么算会了”要一起写`,
+    'SELECT skill_id, COUNT(*) AS n FROM skill_steps GROUP BY skill_id HAVING n NOT BETWEEN 4 AND 6',
+    (r) => `技能 ${r.skill_id} 的学习流程有 ${r.n} 步，要 4 到 6 步`,
   )
+  warning('SELECT skill_id, text FROM skill_steps WHERE length(text) > 14', (r) => `技能 ${r.skill_id} 的一步“${r.text}”太长，14 个字以内`)
   error(
-    'SELECT DISTINCT skill_id FROM skill_resources WHERE (kind IS NULL OR is_free IS NULL) AND skill_id IN (SELECT skill_id FROM skill_learn)',
-    (r) => `技能 ${r.skill_id} 写了讲解，“去哪学”的每个链接也要标上类型和免费 / 付费`,
+    'SELECT DISTINCT skill_id FROM skill_resources WHERE (kind IS NULL OR is_free IS NULL) AND skill_id IN (SELECT skill_id FROM skill_steps)',
+    (r) => `技能 ${r.skill_id} 写了学习流程，“去哪学”的每个链接也要标上类型和免费 / 付费`,
   )
   // 名字的显示宽度：中文算 2，英文数字算 1。树上节点下面放得下 16
   for (const r of rows('SELECT id, name FROM skills')) {

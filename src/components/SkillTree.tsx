@@ -22,11 +22,13 @@ interface NodeProps {
   focused: boolean
   relation: Relation
   pulse: boolean
+  /** 学习流程完成了几成（0 到 1），没点亮时外圈画出这一段 */
+  part: number
   onClick: (id: string) => void
   onHover: (id: string | null) => void
 }
 
-const Node = memo(function Node({ id, language, x, y, name, icon, state, focused, relation, pulse, onClick, onHover }: NodeProps) {
+const Node = memo(function Node({ id, language, x, y, name, icon, state, focused, relation, pulse, part, onClick, onHover }: NodeProps) {
   const cls = ['node', `s-${state}`, focused && 'focused', relation !== 'none' && `r-${relation}`, pulse && 'pulse'].filter(Boolean).join(' ')
   return (
     <g
@@ -42,12 +44,14 @@ const Node = memo(function Node({ id, language, x, y, name, icon, state, focused
           <path className="ring" d={hexPath(NODE_R + 8)} />
           {pulse && <path className="ripple" d={hexPath(NODE_R + 2)} />}
           <path className="box" d={hexPath(NODE_R + 2)} />
+          {part > 0 && <path className="part" d={hexPath(NODE_R + 8)} pathLength={100} strokeDasharray={`${part * 100} 100`} />}
         </>
       ) : (
         <>
           <circle className="ring" r={NODE_R + 6} />
           {pulse && <circle className="ripple" r={NODE_R} />}
           <circle className="box" r={NODE_R} />
+          {part > 0 && <circle className="part" r={NODE_R + 6} pathLength={100} strokeDasharray={`${part * 100} 100`} transform="rotate(-90)" />}
         </>
       )}
       <foreignObject x={-14} y={-14} width="28" height="28">
@@ -132,7 +136,7 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
 })
 
 export function SkillTree({ onCenter }: { onCenter: () => void }) {
-  const { tree, states, focus, setFocus, pulse, flyRequest, progressBySub } = useApp()
+  const { tree, states, steps, focus, setFocus, pulse, flyRequest, progressBySub } = useApp()
   const layout = useMemo(() => layoutWeb(tree), [tree])
   const cam = useCamera(layout.radius)
   const [hover, setHover] = useState<string | null>(null)
@@ -278,6 +282,7 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
                 focused={focusedSkill === s.id}
                 relation={relation(s.id)}
                 pulse={pulse.has(s.id)}
+                part={(steps.get(s.id)?.length ?? 0) / (s.steps.length || 1)}
                 onClick={onNode}
                 onHover={setHover}
               />

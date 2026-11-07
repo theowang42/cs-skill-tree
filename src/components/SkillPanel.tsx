@@ -1,5 +1,4 @@
-// 一个技能：像游戏里的技能卡。技能槽、名字、状态、一句话、点亮按钮、要先点亮的、去哪学。
-// 卡片只放几句话；学什么、怎么算会了在技能页上（/skill/<id>/）。
+// 一个技能：像游戏里的技能卡。技能槽、名字、状态、一句话、点亮按钮、学习流程、要先点亮的、去哪学。
 import type { SkillState } from '../types'
 import { useApp } from '../state'
 import { SkillSlot } from './glyphs'
@@ -29,6 +28,7 @@ export function SkillPanel({ id }: { id: string }) {
 
       <p className="summary">{s.intro}</p>
       <StatusControl id={id} />
+      {s.steps.length > 0 && <Flow id={id} />}
 
       {s.prerequisites.length > 0 && (
         <section className="card-sec">
@@ -40,12 +40,42 @@ export function SkillPanel({ id }: { id: string }) {
       <section className="card-sec">
         <h4>去哪学</h4>
         <Links links={s.resources} />
-        {s.verify && (
-          <a className="more" href={`../skill/${id}/index.html`}>
-            学什么、怎么算会了 →
-          </a>
-        )}
       </section>
     </div>
+  )
+}
+
+/** 学习流程：几步连成一条竖线，每步点一下就点亮；最后一步是实战，全亮了技能就亮 */
+function Flow({ id }: { id: string }) {
+  const { tree, states, steps, setStep, readOnly } = useApp()
+  const all = tree.skill(id).steps
+  const lit = states.get(id) === 'done'
+  const locked = states.get(id) === 'locked'
+  const done = new Set(lit ? all.map((_, i) => i + 1) : steps.get(id) ?? [])
+  return (
+    <section className="card-sec">
+      <h4>
+        学习流程 <span className="count">{done.size} / {all.length}</span>
+      </h4>
+      <ol className={`flow${locked ? ' locked' : ''}`}>
+        {all.map((text, i) => {
+          const n = i + 1
+          const on = done.has(n)
+          return (
+            <li key={n} className={on ? 'done' : ''}>
+              <button
+                disabled={locked || readOnly}
+                aria-pressed={on}
+                title={locked ? '先点亮上一级' : on ? '再点一下取消' : '学完了就点亮这一步'}
+                onClick={() => setStep(id, n, !on)}
+              >
+                <span className="dot">{on ? '✓' : n}</span>
+                <span>{text}{n === all.length && <span className="boss"> ★</span>}</span>
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+    </section>
   )
 }

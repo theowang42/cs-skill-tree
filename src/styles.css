@@ -319,6 +319,13 @@ a {
   transition: stroke 0.3s var(--ease);
 }
 
+/* 学习流程做了一部分：外圈从正上方顺时针画出一段实线 */
+.node .part {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+
 /* 能点亮的：白底黑框，外面一圈虚线，像一个空着等你点的技能槽 */
 .node.s-available .box {
   fill: var(--paper);
@@ -709,12 +716,84 @@ a {
   margin-top: 4px;
 }
 
-.more {
-  display: inline-block;
-  margin-top: 12px;
-  font-size: 13px;
+/* 卡片里的学习流程：几个圆点连成一条竖线，点亮的是实心 */
+.flow {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flow li {
+  position: relative;
+}
+
+.flow li + li::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 11px;
+  width: 2px;
+  height: 10px;
+  background: var(--line);
+}
+
+.flow li.done + li.done::before {
+  background: var(--ink);
+}
+
+.flow button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 5px 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.flow .dot {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  background: var(--paper);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.flow button:hover:not(:disabled) .dot {
+  box-shadow: 0 0 0 3px var(--line-2);
+}
+
+.flow li.done .dot {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.flow.locked button {
+  color: var(--off-ink);
+  cursor: not-allowed;
+}
+
+.flow.locked .dot {
+  border-color: var(--off-line);
+}
+
+.flow .boss {
   color: var(--ink-2);
-  text-underline-offset: 3px;
+}
+
+.card-sec h4 .count {
+  margin-left: 6px;
+  letter-spacing: 0;
 }
 
 .note {
