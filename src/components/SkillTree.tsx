@@ -1,17 +1,18 @@
-// 技能树：竖着长，最下面是“你”，一行一行往上，最上面一行是职业徽章（lib/layout.ts）。白底黑线。
+// 技能树：从“你”往外一层一层长，最外面一层是职业徽章（lib/layout.ts）。白底黑线。
+// 往上长时名字在节点下面，往右长时名字在节点右边；用哪个方向由页面挑（App.tsx）。
 // 技能树页一次画一个领域（页签切换）；职业页只画这个职业要学的技能和它的徽章，画法一样。
 // 每个节点一个图标和名字。点亮了是实心黑加一圈光芒，能点是黑框，还够不着是浅灰。
 // 每个节点只画一根枝（连到主前置）；悬停或选中时，它的全部前置保持清楚，其余变淡。
 import { memo, useEffect, useMemo, useState } from 'react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
-import { fromText, hexPath, LABEL_Y, layoutTree, NODE_R, START_R, subNodeId, TIP_R } from '../lib/layout'
+import { fromText, hexPath, LABEL_Y, NODE_R, SIDE_X, START_R, subNodeId, TIP_R, type Layout } from '../lib/layout'
 import { frontier, totals } from '../lib/tree'
 import { Rays, SkillGlyph } from './glyphs'
 import { useCamera } from './useCamera'
 
-/** 打开时树从“你”往上一行行长出来：越往上，出现得越晚 */
-const growDelay = (y: number) => ({ animationDelay: `${Math.round(-y * 0.45)}ms` })
+/** 打开时树从“你”往外一层层长出来：离“你”越远，出现得越晚 */
+const growDelay = (x: number, y: number) => ({ animationDelay: `${Math.round(Math.hypot(x, y) * 0.45)}ms` })
 
 type Relation = 'none' | 'path' | 'dim'
 
@@ -28,17 +29,19 @@ interface NodeProps {
   pulse: boolean
   /** 学习流程完成了几成（0 到 1），没点亮时外圈画出这一段 */
   part: number
+  /** 名字写在节点右边（往右长的树），不是下面 */
+  side: boolean
   onClick: (id: string) => void
   onHover: (id: string | null) => void
 }
 
-const Node = memo(function Node({ id, language, x, y, name, icon, state, focused, relation, pulse, part, onClick, onHover }: NodeProps) {
+const Node = memo(function Node({ id, language, x, y, name, icon, state, focused, relation, pulse, part, side, onClick, onHover }: NodeProps) {
   const cls = ['node', `s-${state}`, focused && 'focused', relation !== 'none' && `r-${relation}`, pulse && 'pulse'].filter(Boolean).join(' ')
   return (
     <g
       className={cls}
       transform={`translate(${x},${y})`}
-      style={growDelay(y)}
+      style={growDelay(x, y)}
       data-node={id}
       onClick={(e) => { e.stopPropagation(); onClick(id) }}
       onPointerEnter={() => onHover(id)}
@@ -73,7 +76,7 @@ const Node = memo(function Node({ id, language, x, y, name, icon, state, focused
           ))}
         </g>
       )}
-      <text className="lbl" y={LABEL_Y}>{name}</text>
+      {side ? <text className="lbl side" x={SIDE_X} y={5}>{name}</text> : <text className="lbl" y={LABEL_Y}>{name}</text>}
     </g>
   )
 })
@@ -90,6 +93,8 @@ interface TipProps {
   focused: boolean
   dim: boolean
   pulse: boolean
+  /** 名字写在徽章右边（往右长的树），不是上面 */
+  side: boolean
   onClick: (id: string) => void
   onHover: (id: string | null) => void
 }
@@ -98,20 +103,20 @@ interface TipProps {
  * 职业：最上面一行的终极节点。一枚双圈的奖章，中间是职业图标，外面一圈进度环随着点亮慢慢填满。
  * 全部点亮就自动达成：徽章变黑，外面一大圈光芒转起来。
  */
-const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim, pulse, onClick, onHover }: TipProps) {
+const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim, pulse, side, onClick, onHover }: TipProps) {
   const reached = done === total
   const cls = ['tip', reached && 'reached', focused && 'focused', dim && 'dim', pulse && 'pulse'].filter(Boolean).join(' ')
   return (
     <g
       className={cls}
       transform={`translate(${x},${y})`}
-      style={growDelay(y)}
+      style={growDelay(x, y)}
       data-sub={id}
       onClick={(e) => { e.stopPropagation(); onClick(id) }}
       onPointerEnter={() => onHover(id)}
       onPointerLeave={() => onHover(null)}
     >
-      <rect className="hit" x={-80} y={-TIP_R - 68} width={160} height={2 * TIP_R + 78} />
+      {side ? <rect className="hit" x={-TIP_R - 8} y={-TIP_R - 8} width={2 * TIP_R + 170} height={2 * TIP_R + 16} /> : <rect className="hit" x={-80} y={-TIP_R - 68} width={160} height={2 * TIP_R + 78} />}
       {reached && <Rays r={TIP_R + 12} count={32} long={14} short={7} id={id} className="tip-rays" />}
       <circle className="tip-track" r={TIP_R + 5} />
       <circle className="tip-progress" r={TIP_R + 5} pathLength={100} strokeDasharray={`${Math.round((100 * done) / total)} 100`} transform="rotate(-90)" />
@@ -131,16 +136,16 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
         </g>
       )}
       {/* 名字和进度写在光芒外面，达成后转起来的光芒不会压到字 */}
-      <text className="tip-name" y={-TIP_R - 48}>{name}</text>
-      <text className="tip-pct" y={-TIP_R - 31}>{reached ? '已达成' : `${done} / ${total}`}</text>
+      <text className={`tip-name${side ? ' side' : ''}`} x={side ? TIP_R + 14 : 0} y={side ? -4 : -TIP_R - 48}>{name}</text>
+      <text className={`tip-pct${side ? ' side' : ''}`} x={side ? TIP_R + 14 : 0} y={side ? 14 : -TIP_R - 31}>{reached ? '已达成' : `${done} / ${total}`}</text>
     </g>
   )
 })
 
-export function SkillTree({ onCenter }: { onCenter: () => void }) {
-  const { tree, career, area, states, steps, focus, setFocus, pulse, flyRequest, progressBySub } = useApp()
-  const layout = useMemo(() => layoutTree(tree, career ? { career } : { area: area! }), [tree, career, area])
-  const cam = useCamera(layout.bounds)
+export function SkillTree({ layout, onCenter }: { layout: Layout; onCenter: () => void }) {
+  const { tree, career, states, steps, focus, setFocus, pulse, flyRequest, progressBySub } = useApp()
+  const side = layout.orient === 'right'
+  const cam = useCamera(layout.bounds, layout.orient)
   const [hover, setHover] = useState<string | null>(null)
   const [tipHover, setTipHover] = useState<string | null>(null)
   const [centerHover, setCenterHover] = useState(false)
@@ -234,9 +239,9 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
             const state = edgeState(e.from, e.to)
             return (
               <g key={`${e.from}>${e.to}`}>
-                <path d={e.d} pathLength={1} style={growDelay(n.y)} className={`edge ${state}${edgeLens(e.from, e.to)}`} />
+                <path d={e.d} pathLength={1} style={growDelay(n.x, n.y)} className={`edge ${state}${edgeLens(e.from, e.to)}`} />
                 {/* 两头都点亮了：一道光沿着枝条往外流 */}
-                {state === 'e-done' && <path d={e.d} pathLength={100} className="edge-light" style={{ animationDelay: `${Math.round(-n.y * 0.8)}ms` }} />}
+                {state === 'e-done' && <path d={e.d} pathLength={100} className="edge-light" style={{ animationDelay: `${Math.round(Math.hypot(n.x, n.y) * 0.8)}ms` }} />}
               </g>
             )
           })}
@@ -276,6 +281,7 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
                 done={p.done}
                 total={p.total}
                 pulse={pulse.has(`sub:${sub.id}`)}
+                side={side}
                 focused={focusedSub === sub.id}
                 dim={(subLens !== null && subLens !== sub.id) || (lens !== null && !tree.closures.get(sub.id)!.has(lens))}
                 onClick={onTip}
@@ -299,6 +305,7 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
                 relation={relation(s.id)}
                 pulse={pulse.has(s.id)}
                 part={(steps.get(s.id)?.length ?? 0) / (s.steps.length || 1)}
+                side={side}
                 onClick={onNode}
                 onHover={setHover}
               />
@@ -310,9 +317,9 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
             return (
               <text
                 key={id}
-                className="from"
-                x={n.x}
-                y={n.y + LABEL_Y + 18}
+                className={`from${side ? ' side' : ''}`}
+                x={side ? n.x + SIDE_X : n.x}
+                y={side ? n.y + 22 : n.y + LABEL_Y + 18}
                 onClick={(e) => {
                   e.stopPropagation()
                   if (!cam.dragged()) setFocus({ kind: 'skill', id: from }, { scroll: true })

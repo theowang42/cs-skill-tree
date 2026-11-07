@@ -1,10 +1,11 @@
 // 技能树的镜头：滚轮平移、缩放、拖动、双指缩放、飞到某处。不走 React，直接改 <g> 的 transform。
 // “你”在 (0, 0)，整张图在 bounds 这个框里。
-//   - 打开时宽度装满屏幕（最多原大小），停在最下面的“你”，往上滚着读；
+//   - 打开时：整棵装得下就整棵居中（最多原大小）；装不下就让横着的那一边装满（往上长的树装满宽度、往右长的装满高度），
+//     停在“你”那一头，往外滚着读；
 //   - 点“看全图”时整张图装进屏幕，这也是最小的缩放；
 //   - 任何缩放下都能拖，屏幕中心能到图上任何一点，图不会整个拖出屏幕。
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
-import type { Layout } from '../lib/layout'
+import type { Layout, Orient } from '../lib/layout'
 
 interface View {
   x: number
@@ -15,7 +16,7 @@ interface View {
 const MAX_K = 2.5
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 
-export function useCamera({ minX, minY, maxX, maxY }: Layout['bounds']) {
+export function useCamera({ minX, minY, maxX, maxY }: Layout['bounds'], orient: Orient) {
   const cx = (minX + maxX) / 2
   const cy = (minY + maxY) / 2
   const rx = (maxX - minX) / 2
@@ -26,8 +27,8 @@ export function useCamera({ minX, minY, maxX, maxY }: Layout['bounds']) {
   const view = useRef<View>({ x: 0, y: 0, k: 1 })
   const anim = useRef(0)
   const [size, setSize] = useState({ w: 0, h: 0 })
-  // 窗口还没量出尺寸时 min(w, h) 是 0，给个下限免得除以 0
-  const minK = Math.max(0.05, Math.min(size.w / (2 * rx), size.h / (2 * ry)))
+  // 最小缩放：整张图装进屏幕，但小图不放大过原大小。窗口还没量出尺寸时是 0，给个下限免得除以 0
+  const minK = Math.max(0.05, Math.min(1, size.w / (2 * rx), size.h / (2 * ry)))
   const limits = useRef({ minK, ...size })
   limits.current = { minK, ...size }
   /** 用户动过镜头之后，窗口大小变了就不再自动回到开头的位置 */
@@ -68,12 +69,15 @@ export function useCamera({ minX, minY, maxX, maxY }: Layout['bounds']) {
     return () => ro.disconnect()
   }, [])
 
-  // 开头：宽度装满屏幕，“你”贴着屏幕底下。窗口变了也重新来，除非用户已经动过
+  // 开头。窗口变了也重新来，除非用户已经动过
   useEffect(() => {
     if (!size.w || touched.current) return
-    const k = Math.max(limits.current.minK, Math.min(1, size.w / (2 * rx)))
-    flyTo(cx, maxY - size.h / 2 / k, k, { ms: 0 })
-  }, [size, flyTo, cx, rx, maxY])
+    const across = orient === 'up' ? size.w / (2 * rx) : size.h / (2 * ry)
+    const k = Math.max(limits.current.minK, Math.min(1, across))
+    if (k <= limits.current.minK) flyTo(cx, cy, k, { ms: 0 })
+    else if (orient === 'up') flyTo(cx, maxY - size.h / 2 / k, k, { ms: 0 })
+    else flyTo(minX + size.w / 2 / k, cy, k, { ms: 0 })
+  }, [size, flyTo, orient, cx, cy, rx, ry, minX, maxY])
 
   /** 以屏幕上的 (sx, sy) 为中心缩放到 k */
   const zoomAt = useCallback((sx: number, sy: number, k: number) => {

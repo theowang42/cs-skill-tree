@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { build } from '../scripts/db.ts'
 import { getRoadmap } from '../scripts/roadmap.ts'
 import { Tree } from '../src/lib/tree.ts'
-import { labelWidth, layoutTree, NODE_R, START_R, subNodeId, TIP_R, type Layout } from '../src/lib/layout.ts'
+import { labelWidth, layoutTree, NODE_R, SIDE_X, START_R, subNodeId, TIP_R, type Layout } from '../src/lib/layout.ts'
 
 const tree = new Tree(getRoadmap(build()))
 
@@ -35,14 +35,17 @@ function shapes(l: Layout, skills: string[], subs: string[]) {
     const n = at(id)
     const s = tree.skill(id)
     const w = labelWidth(s.name) / 2 + 3
-    labels.push({ l: n.x - w, r: n.x + w, t: n.y + NODE_R + 7, b: n.y + NODE_R + 25, who: `${s.name} 的名字` })
+    // 往上长名字在节点下面；往右长名字在节点右边
+    if (l.orient === 'right') labels.push({ l: n.x + SIDE_X - 2, r: n.x + SIDE_X + 3 + 2 * w, t: n.y - 9, b: n.y + 7, who: `${s.name} 的名字` })
+    else labels.push({ l: n.x - w, r: n.x + w, t: n.y + NODE_R + 7, b: n.y + NODE_R + 25, who: `${s.name} 的名字` })
     circles.push({ x: n.x, y: n.y, r: NODE_R + 2, who: s.name })
   }
   for (const id of subs) {
     const n = at(subNodeId(id))
     const name = tree.subs.get(id)!.name
     const w = Math.max((labelWidth(name) * 15) / 14, 100) / 2 + 3
-    labels.push({ l: n.x - w, r: n.x + w, t: n.y - TIP_R - 63, b: n.y - TIP_R - 27, who: `${name} 的名字和进度` })
+    if (l.orient === 'right') labels.push({ l: n.x + TIP_R + 12, r: n.x + TIP_R + 15 + 2 * w, t: n.y - 20, b: n.y + 18, who: `${name} 的名字和进度` })
+    else labels.push({ l: n.x - w, r: n.x + w, t: n.y - TIP_R - 63, b: n.y - TIP_R - 27, who: `${name} 的名字和进度` })
     circles.push({ x: n.x, y: n.y, r: TIP_R + 8, who: name })
   }
   circles.push({ x: 0, y: 0, r: START_R + 6, who: '“你”' })
@@ -80,16 +83,16 @@ function overlaps(l: Layout, skills: string[], subs: string[]): string[] {
   return hits
 }
 
-/** 要检查的每一张图：9 个领域的树，加 17 个职业的天赋树 */
+/** 要检查的每一张图：9 个领域的树，加 17 个职业的天赋树，往上长和往右长各一遍 */
 const views = [
   ...tree.roadmap.areas.map((a) => ({ name: a.name, view: { area: a.id }, skills: a.skillIds, subs: tree.roadmap.subs.filter((s) => a.skillIds.includes(s.anchor)).map((s) => s.id) })),
   ...tree.roadmap.subs.map((sub) => ({ name: sub.name, view: { career: sub.id }, skills: [...tree.closures.get(sub.id)!], subs: [sub.id] })),
-].map((v) => ({ ...v, l: layoutTree(tree, v.view) }))
+].flatMap((v) => (['up', 'right'] as const).map((orient) => ({ ...v, orient, name: `${v.name}（${orient === 'up' ? '往上' : '往右'}）`, l: layoutTree(tree, v.view, orient) })))
 
 test('结果每次一样；要画的技能和徽章都有位置，不多不少', () => {
-  for (const { name, view, l, skills, subs } of views) {
+  for (const { name, view, orient, l, skills, subs } of views) {
     assert.equal(l.nodes.size, skills.length + subs.length, name)
-    assert.deepEqual(layoutTree(tree, view), l, name)
+    assert.deepEqual(layoutTree(tree, view, orient), l, name)
   }
 })
 
@@ -114,22 +117,35 @@ test('大部分节点只有一个孩子：是一条条链，只在关键节点�
   assert.ok(forks <= tree.roadmap.skills.length * 0.13, `${forks} 个节点分出三根以上`)
 })
 
-test('一行一行往上：孩子正好在父亲上面一行，行距处处一样；徽章都在最上面一行', () => {
+test('一层一层往外：同一层的技能在同一行（往右长是同一列），孩子在父亲外面一层；徽章都在最外面一层', () => {
   for (const { name, l, skills, subs } of views) {
-    const y = (id: string) => l.nodes.get(id)!.y
-    const gaps = new Set(skills.filter((id) => tree.skill(id).parent && skills.includes(tree.skill(id).parent!)).map((id) => y(tree.skill(id).parent!) - y(id)))
-    assert.ok(gaps.size <= 1, `${name}: 行距不一样 ${[...gaps]}`)
+    // 往外是哪个方向：往上长是 y 变小，往右长是 x 变大
+    const out = (id: string) => (l.orient === 'right' ? l.nodes.get(id)!.x : -l.nodes.get(id)!.y)
+    const level = new Map<string, number>()
+    const lv = (id: string): number => {
+      const p = tree.skill(id).parent
+      if (!level.has(id)) level.set(id, p && skills.includes(p) ? lv(p) + 1 : 1)
+      return level.get(id)!
+    }
+    const at = new Map<number, Set<number>>()
+    for (const id of skills) at.set(lv(id), (at.get(lv(id)) ?? new Set()).add(out(id)))
+    for (const [d, xs] of at) assert.equal(xs.size, 1, `${name}: 第 ${d} 层不齐`)
+    for (const id of skills) {
+      const p = tree.skill(id).parent
+      if (p && skills.includes(p)) assert.ok(out(id) > out(p), `${name}: ${id} 没在 ${p} 外面`)
+    }
     if (!subs.length) continue
-    const tops = new Set(subs.map((id) => y(subNodeId(id))))
-    assert.equal(tops.size, 1, `${name}: 徽章不在同一行`)
-    assert.ok(skills.every((id) => y(id) > [...tops][0]), `${name}: 有技能比徽章还高`)
+    const tops = new Set(subs.map((id) => out(subNodeId(id))))
+    assert.equal(tops.size, 1, `${name}: 徽章不在同一层`)
+    assert.ok(skills.every((id) => out(id) < [...tops][0]), `${name}: 有技能比徽章还靠外`)
   }
 })
 
-test('一棵树不太大：宽不超过 1400 像素，按原大小差不多放得进屏幕', () => {
-  for (const { name, l } of views) {
+test('一棵领域的树不太大：往上长宽不超过 1400 像素，往右长高不超过 1400 像素', () => {
+  for (const { name, l } of views.filter((v) => 'area' in v.view)) {
     const { minX, minY, maxX, maxY } = l.bounds
-    assert.ok(maxX - minX <= 1400 && maxY - minY <= 2400, `${name}: ${Math.round(maxX - minX)} x ${Math.round(maxY - minY)}`)
+    const across = l.orient === 'right' ? maxY - minY : maxX - minX
+    assert.ok(across <= 1400, `${name}: ${Math.round(maxX - minX)} x ${Math.round(maxY - minY)}`)
   }
 })
 

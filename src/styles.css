@@ -265,6 +265,12 @@ a {
   text-anchor: middle;
 }
 
+.tip-name.side,
+.tip-pct.side,
+.from.side {
+  text-anchor: start;
+}
+
 .tip:hover .seal,
 .tip.focused .seal {
   stroke-width: 5;
@@ -376,6 +382,11 @@ a {
   stroke: var(--paper);
   stroke-width: 5px;
   stroke-linejoin: round;
+}
+
+/* 往右长的树：名字在节点右边 */
+.node .lbl.side {
+  text-anchor: start;
 }
 
 /* 外面那一圈：平时看不见 */
