@@ -221,7 +221,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   for (const f of readdirSync(DIST)) if (f !== 'tree') rmSync(join(DIST, f), { recursive: true, force: true })
   // 职业页和技能页要加载技能树：从 vite 打包好的 tree/index.html 里拿脚本和样式
   const treeHtml = readFileSync(join(DIST, 'tree', 'index.html'), 'utf8')
-  const site = renderSite(rm, (treeHtml.match(/<script type="module"[^>]*><\/script>|<link rel="(?:stylesheet|modulepreload)"[^>]*>/g) ?? []).join('\n'))
+  // 相对路径（./assets/…）换成从职业页、技能页出发的 ../../tree/assets/…
+  const app = (treeHtml.match(/<script type="module"[^>]*><\/script>|<link rel="(?:stylesheet|modulepreload)"[^>]*>/g) ?? []).join('\n').replaceAll('"./assets/', '"../../tree/assets/')
+  const site = renderSite(rm, app)
   for (const [path, html] of site) {
     mkdirSync(dirname(join(DIST, path)), { recursive: true })
     writeFileSync(join(DIST, path), html)

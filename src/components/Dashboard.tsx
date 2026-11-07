@@ -1,11 +1,10 @@
 // 我的进度：几个数、离得最近的职业、下一个可以学的、数据。
 import { useRef, useState } from 'react'
-import { useApp } from '../state'
+import { HOME_URL, useApp } from '../state'
 import { frontier, totals } from '../lib/tree'
 import { parseFile, toFile } from '../lib/progress'
 import { encodeShare } from '../lib/share'
 import { Meter } from './common'
-import { HOME } from './Hud'
 
 export function Dashboard() {
   const { tree, lit, steps, states, progressBySub, setFocus, readOnly, replace, reset, toast } = useApp()
@@ -64,7 +63,7 @@ export function Dashboard() {
           </li>
         ))}
         <li>
-          <a className="row-link" href={`${HOME}#careers`}>
+          <a className="row-link" href={`${HOME_URL}#careers`}>
             <span>全部职业 →</span>
           </a>
         </li>

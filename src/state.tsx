@@ -19,9 +19,17 @@ function parseFocus(tree: Tree, hash: string): Focus {
   return (kind === 'skill' ? tree.skills : tree.subs).has(m[2]) ? { kind, id: m[2] } : null
 }
 
-/** 职业页（/career/<id>/）打开这个职业自己的天赋树；技能页（/skill/<id>/）打开大图，选中这个技能 */
+/**
+ * 技能树的目录（tree/）和站点首页。职业页、技能页也加载同一份脚本，所以按脚本自己在哪找，不按页面地址：
+ * 打包后脚本在 tree/assets/ 里，开发时这个文件在 src/ 里，往上一级都是技能树的目录
+ */
+export const TREE_URL = import.meta.url.replace(/[^/]+\/[^/]+$/, '')
+/** 链接写全 index.html：有的托管（比如 claude.ai 的 artifact）不会把目录自动打开成 index.html */
+export const HOME_URL = `${TREE_URL}../index.html`
+
+/** 职业页（career/<id>/）打开这个职业自己的天赋树；技能页（skill/<id>/）打开大图，选中这个技能 */
 function parsePage(tree: Tree, path: string): Focus {
-  const m = /\/(career|skill)\/([a-z0-9-]+)\/?$/.exec(path)
+  const m = /\/(career|skill)\/([a-z0-9-]+)(?:\/|\/index\.html)?$/.exec(path)
   if (!m) return null
   const kind = m[1] === 'career' ? 'sub' : 'skill'
   return (kind === 'sub' ? tree.subs : tree.skills).has(m[2]) ? { kind, id: m[2] } : null

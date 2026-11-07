@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Roadmap } from './types'
 import { Tree } from './lib/tree'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { AppProvider, useApp } from './state'
+import { AppProvider, TREE_URL, useApp } from './state'
 import { SkillTree } from './components/SkillTree'
 import { Panel } from './components/Panel'
 import { Hud } from './components/Hud'
@@ -61,7 +61,7 @@ export default function App() {
   const [tree, setTree] = useState<Tree | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}data/roadmap.json`)
+    fetch(`${TREE_URL}data/roadmap.json`)
       .then((res) => {
         if (!res.ok) throw new Error(`读不到数据（${res.status}）`)
         return res.json() as Promise<Roadmap>

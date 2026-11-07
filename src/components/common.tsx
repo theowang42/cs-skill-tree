@@ -1,8 +1,15 @@
 // 面板里反复用到的小部件
+import type { CSSProperties } from 'react'
 import { Check, ChevronsUp, Lock } from 'lucide-react'
 import type { Link } from '../types'
+import { labelWidth } from '../lib/webLayout'
 import { useApp } from '../state'
 import { SkillSlot } from './glyphs'
+
+/** 卡片上的名字：一行放下，不在词中间断开；放不下就缩小（--len 是名字有几个字宽） */
+export function CardName({ name }: { name: string }) {
+  return <h2 className="card-name" style={{ '--len': labelWidth(name) / 14 } as CSSProperties}>{name}</h2>
+}
 
 /** 进度条 */
 export function Meter({ value, max }: { value: number; max: number }) {
