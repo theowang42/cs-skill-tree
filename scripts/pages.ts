@@ -130,20 +130,63 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
       return `<g class="n" data-s="${id}" transform="translate(${x},${y})"><g ${delay(y)}>${shape}<use href="#i-${id}" x="-15" y="-15" width="30" height="30"/></g></g>`
     }).join('')
     const t = at(subNodeId(c.id))
-    return `<svg viewBox="${minX} ${minY} ${maxX - minX} ${maxY - minY}" aria-hidden="true">${edges}${nodes}<g class="n tip" transform="translate(${t.x},${t.y})"><g ${delay(t.y)}><circle r="${TIP_R}"/><circle r="${TIP_R - 7}"/><g transform="translate(-20,-20) scale(1.67)">${icon(c.icon)}</g></g></g><circle class="you" r="${START_R}"/></svg>`
+    return `<svg viewBox="${minX} ${minY} ${maxX - minX} ${maxY - minY}" aria-hidden="true">${edges}${nodes}<g class="n tip" transform="translate(${t.x},${t.y})"><g ${delay(t.y)}><circle r="${TIP_R}"/><circle r="${TIP_R - 7}"/><g transform="translate(-20,-20) scale(1.67)">${icon(c.icon)}</g></g></g><g class="you"><circle r="${START_R}"/><text>你</text></g></svg>`
   }
 
   const skillChip = (s: Skill, root: string) => `<a class="chip" href="${root}skill/${s.id}/">${icon(s.icon, 16)}${esc(s.name)}</a>`
-  /** 岗位卡片：左边是树上那枚双圈徽章，外圈是进度环（首页的脚本按点亮了多少填黑） */
-  const careerCard = (c: Sub, root: string) =>
-    `<a class="card career" data-id="${c.id}" href="${root}career/${c.id}/"><svg class="badge" viewBox="-60 -60 120 120" aria-hidden="true"><circle class="track" r="54"/><circle class="ring" r="54" pathLength="100" stroke-dasharray="0 100" transform="rotate(-90)"/><circle r="45"/><circle r="38"/><g transform="translate(-18,-18) scale(1.5)">${icon(c.icon)}</g></svg><span class="txt"><b>${esc(c.name)}</b><small>${esc(c.intro)}</small><span class="meta">${c.plan.length} 个技能</span></span></a>`
+  /**
+   * 首页的岗位圆环：内圈是大方向，外圈是岗位徽章（和树上一样：双圈，外面一圈进度环），名字写在徽章外面。
+   * 同一个大方向的徽章挨着，大方向之间空出一点；从正上方开始顺时针。圆心显示正看着的岗位（首页的脚本填）。
+   */
+  const careerRing = () => {
+    const R = 300 // 徽章所在的圆
+    const [B1, B2] = [168, 222] // 大方向那一圈
+    const GAP = 0.8 // 大方向之间空出几个徽章的位置
+    const unit = (Math.PI * 2) / (rm.subs.length + rm.categories.length * GAP)
+    const r1 = (n: number) => Math.round(n * 10) / 10
+    const pt = (r: number, a: number) => [r1(r * Math.sin(a)), r1(-r * Math.cos(a))]
+    const bands: string[] = []
+    const jobs: { c: Sub; a: number; lx: number; ly: number }[] = []
+    let pos = GAP / 2
+    for (const cat of rm.categories) {
+      const a1 = pos * unit
+      const a2 = (pos + cat.subIds.length) * unit
+      const [x1, y1] = pt(B2, a1)
+      const [x2, y2] = pt(B2, a2)
+      const [x3, y3] = pt(B1, a2)
+      const [x4, y4] = pt(B1, a1)
+      const big = a2 - a1 > Math.PI ? 1 : 0
+      const [tx, ty] = pt((B1 + B2) / 2, (a1 + a2) / 2)
+      bands.push(`<g class="band"><path d="M${x1},${y1} A${B2},${B2} 0 ${big} 1 ${x2},${y2} L${x3},${y3} A${B1},${B1} 0 ${big} 0 ${x4},${y4}Z"><title>${esc(cat.intro)}</title></path><text x="${tx}" y="${ty}">${esc(cat.name)}</text></g>`)
+      cat.subIds.forEach((id, i) => {
+        const a = (pos + i + 0.5) * unit
+        // 越靠近正上方、正下方，名字（两行，横着写）越要离徽章远一点才不压到它
+        const [lx, ly] = pt(R + 58 + 40 * Math.cos(a) ** 2, a)
+        jobs.push({ c: subs.get(id)!, a, lx, ly: ly - 12 })
+      })
+      pos += cat.subIds.length + GAP
+    }
+    // 名字写在徽章外面：右半边朝右写、左半边朝左写；同一边上下挨得太近的往下错开，两行字不叠
+    for (const right of [true, false]) {
+      const half = jobs.filter((j) => Math.sin(j.a) > 0 === right).sort((p, q) => p.ly - q.ly)
+      for (let k = 1; k < half.length; k++) half[k].ly = Math.max(half[k].ly, half[k - 1].ly + 50)
+    }
+    const badges = jobs.map(({ c, a, lx, ly }, i) => {
+      const [x, y] = pt(R, a)
+      const [sx1, sy1] = pt(B2, a)
+      const [sx2, sy2] = pt(R - 46, a)
+      const anchor = Math.sin(a) > 0 ? 'start' : 'end'
+      return `<line class="spoke" x1="${sx1}" y1="${sy1}" x2="${sx2}" y2="${sy2}"/>` +
+        `<a class="job" href="career/${c.id}/" data-id="${c.id}" data-name="${esc(c.name)}" data-intro="${esc(c.intro)}" style="--i:${i}">` +
+        `<g transform="translate(${x},${y})"><g class="b"><circle class="hit" r="50"/><circle class="track" r="42"/><circle class="ring" r="42" pathLength="100" stroke-dasharray="0 100" transform="rotate(-90)"/><circle class="seal" r="35"/><circle class="seal-in" r="29"/><g transform="translate(-16,-16) scale(1.33)">${icon(c.icon)}</g></g></g>` +
+        `<text class="job-name" x="${lx}" y="${r1(ly)}" text-anchor="${anchor}">${esc(c.name)}</text><text class="job-meta" x="${lx}" y="${r1(ly + 27)}" text-anchor="${anchor}">${c.plan.length} 个技能</text></a>`
+    })
+    return `<div class="ring-wrap"><svg class="jobs" viewBox="-580 -440 1160 900"><circle class="orbit" r="${R}"/>${bands.join('')}${badges.join('')}</svg>` +
+      `<div class="ring-center"><b class="rc-name"></b><span class="rc-meta"></span><p class="rc-intro"></p><a class="rc-go" href="">看这条路线 →</a></div></div>`
+  }
 
   // ── 首页 ──
   {
-    // 一个网格：大方向的标题占一整行，点亮了东西之后标题收起，岗位按还差几个排
-    const careers = rm.categories
-      .map((cat) => `<div class="group-head"><h3>${esc(cat.name)}</h3><p class="muted">${esc(cat.intro)}</p></div>${cat.subIds.map((id) => careerCard(subs.get(id)!, '')).join('')}`)
-      .join('')
     // 首页的脚本要用的：每个岗位要学的技能，每个常见技能的全部前置（选它就算会这些）
     const data = {
       careers: Object.fromEntries(rm.subs.map((c) => [c.id, c.plan.map((p) => p.skillId)])),
@@ -172,7 +215,7 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
 <section id="careers" class="block">
   <h2>你想做哪个岗位？</h2>
   <p class="muted">点进去是这个岗位要学的全部技能，会的直接点亮。还没想好，就<a href="tree/">看整棵树</a>。</p>
-  <div class="careers">${careers}</div>
+  ${careerRing()}
 </section>
 </div>
 
@@ -192,33 +235,38 @@ try {
   if (Array.isArray(h?.picks) && Array.isArray(h?.added)) home = h
 } catch {}
 const lit = () => new Set(Object.keys(store.skills).filter((k) => store.skills[k].status === 'done'))
-const cards = [...document.querySelectorAll('.card.career')]
+const jobs = [...document.querySelectorAll('.job')]
 const minis = [...document.querySelectorAll('.mini')]
-/** 右边的小树换成这个岗位的，重新长一遍 */
-const show = (id) => minis.forEach((m) => m.classList.toggle('on', m.dataset.id === id))
+const center = document.querySelector('.ring-center')
+let current = jobs[0].dataset.id
+/** 看一个岗位：圆心写它，徽章放大，右边的小树换成它的、重新长一遍 */
+function select(id) {
+  current = id
+  const j = jobs.find((x) => x.dataset.id === id)
+  for (const x of jobs) x.classList.toggle('on', x === j)
+  for (const m of minis) m.classList.toggle('on', m.dataset.id === id)
+  const name = center.querySelector('.rc-name')
+  name.textContent = j.dataset.name
+  // 名字一行放下：中文按一个字宽，英文数字按半个多一点
+  name.style.setProperty('--len', [...j.dataset.name].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 1 : 0.6), 0))
+  center.querySelector('.rc-meta').textContent = j.querySelector('.job-meta').textContent
+  center.querySelector('.rc-intro').textContent = j.dataset.intro
+  center.querySelector('.rc-go').setAttribute('href', j.getAttribute('href'))
+}
 function render() {
   const l = lit()
   for (const b of document.querySelectorAll('.quick .chip')) b.setAttribute('aria-pressed', home.picks.includes(b.dataset.s))
   for (const n of document.querySelectorAll('.mini .n[data-s]')) n.classList.toggle('lit', l.has(n.dataset.s))
-  document.querySelector('.careers').classList.toggle('ranked', l.size > 0)
   let best = null
-  for (const c of cards) {
-    const meta = c.querySelector('.meta')
-    meta.dataset.base ??= meta.innerHTML
-    if (!l.size) {
-      meta.innerHTML = meta.dataset.base
-      c.style.order = ''
-      c.querySelector('.ring').setAttribute('stroke-dasharray', '0 100')
-      continue
-    }
-    const need = D.careers[c.dataset.id]
+  for (const j of jobs) {
+    const need = D.careers[j.dataset.id]
     const left = need.filter((s) => !l.has(s)).length
-    c.style.order = left
-    meta.innerHTML = left ? '还差 <strong>' + left + '</strong> 个 · 已点亮 ' + (need.length - left) + ' / ' + need.length : '<strong>已达成</strong>'
-    c.querySelector('.ring').setAttribute('stroke-dasharray', Math.round((100 * (need.length - left)) / need.length) + ' 100')
-    if (!best || left < best.left) best = { id: c.dataset.id, left }
+    j.querySelector('.job-meta').textContent = !l.size ? need.length + ' 个技能' : left ? '还差 ' + left + ' 个' : '已达成'
+    j.querySelector('.ring').setAttribute('stroke-dasharray', Math.round((100 * (need.length - left)) / need.length) + ' 100')
+    j.classList.toggle('done', left === 0)
+    if (l.size && (!best || left < best.left)) best = { id: j.dataset.id, left }
   }
-  return best?.id
+  select(best ? best.id : current)
 }
 function toggle(id) {
   const picks = new Set(home.picks)
@@ -242,13 +290,20 @@ function toggle(id) {
     localStorage.setItem(KEY, JSON.stringify(store))
     localStorage.setItem(HOME_KEY, JSON.stringify(home))
   } catch {}
-  const best = render()
-  if (best) show(best)
+  render()
 }
 for (const b of document.querySelectorAll('.quick .chip')) b.addEventListener('click', () => toggle(b.dataset.s))
-for (const c of cards) for (const ev of ['pointerenter', 'focus']) c.addEventListener(ev, () => show(c.dataset.id))
-const best = render()
-if (best) show(best)
+for (const j of jobs) {
+  for (const ev of ['pointerenter', 'focus']) j.addEventListener(ev, () => select(j.dataset.id))
+  // 手机上没有悬停：第一次点先在圆心看介绍，再点才进去
+  j.addEventListener('click', (e) => {
+    if (matchMedia('(hover: none)').matches && current !== j.dataset.id) {
+      e.preventDefault()
+      select(j.dataset.id)
+    }
+  })
+}
+render()
 </script>
 `,
     })
