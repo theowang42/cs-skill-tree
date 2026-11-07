@@ -1,4 +1,5 @@
-// 一个技能：像游戏里的技能卡。技能槽、名字、状态、一句话、点亮按钮、学什么、怎么算会了、要先点亮的、去哪学。
+// 一个技能：像游戏里的技能卡。技能槽、名字、状态、一句话、点亮按钮、要先点亮的、去哪学。
+// 卡片只放几句话；学什么、怎么算会了在技能页上（/skill/<id>/）。
 import type { SkillState } from '../types'
 import { useApp } from '../state'
 import { SkillSlot } from './glyphs'
@@ -29,19 +30,6 @@ export function SkillPanel({ id }: { id: string }) {
       <p className="summary">{s.intro}</p>
       <StatusControl id={id} />
 
-      {s.learn.length > 0 && (
-        <section className="card-sec">
-          <h4>学什么</h4>
-          <ul className="learn">{s.learn.map((x) => <li key={x}>{x}</li>)}</ul>
-        </section>
-      )}
-      {s.verify && (
-        <section className="card-sec">
-          <h4>怎么算会了</h4>
-          <p className="verify">{s.verify}</p>
-        </section>
-      )}
-
       {s.prerequisites.length > 0 && (
         <section className="card-sec">
           <h4>先点亮上一级</h4>
@@ -52,6 +40,11 @@ export function SkillPanel({ id }: { id: string }) {
       <section className="card-sec">
         <h4>去哪学</h4>
         <Links links={s.resources} />
+        {s.verify && (
+          <a className="more" href={`../skill/${id}/index.html`}>
+            学什么、怎么算会了 →
+          </a>
+        )}
       </section>
     </div>
   )

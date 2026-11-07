@@ -709,22 +709,12 @@ a {
   margin-top: 4px;
 }
 
-.links small {
+.more {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13px;
   color: var(--ink-2);
-  font-size: 12px;
-}
-
-.learn {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 14px;
-  line-height: 1.7;
-}
-
-.verify {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.7;
+  text-underline-offset: 3px;
 }
 
 .note {

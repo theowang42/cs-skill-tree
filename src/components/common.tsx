@@ -1,6 +1,6 @@
 // 面板里反复用到的小部件
 import { Check, ChevronsUp, Lock } from 'lucide-react'
-import type { Link, Resource } from '../types'
+import type { Link } from '../types'
 import { useApp } from '../state'
 import { SkillSlot } from './glyphs'
 
@@ -56,8 +56,7 @@ export function MiniSkill({ id, from }: { id: string; from: string }) {
   )
 }
 
-/** 链接列表；技能的资源后面标上类型和是否免费 */
-export function Links({ links }: { links: (Link | Resource)[] }) {
+export function Links({ links }: { links: Link[] }) {
   return (
     <ul className="links">
       {links.map((l) => (
@@ -65,7 +64,6 @@ export function Links({ links }: { links: (Link | Resource)[] }) {
           <a href={l.url} target="_blank" rel="noreferrer">
             {l.label} <span aria-hidden>↗</span>
           </a>
-          {'kind' in l && l.kind && <small> {l.kind} · {l.free ? '免费' : '付费'}</small>}
         </li>
       ))}
     </ul>
