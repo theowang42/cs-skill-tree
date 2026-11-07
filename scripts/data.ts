@@ -4,7 +4,13 @@ import { createRequire } from 'node:module'
 import { build, check } from './db.ts'
 import { getRoadmap } from './roadmap.ts'
 
-const db = build()
+let db
+try {
+  db = build()
+} catch (e) {
+  console.error(`✗ ${(e as Error).message}`)
+  process.exit(1)
+}
 const findings = check(db)
 for (const f of findings) console.log(`${f.level === 'error' ? '✗' : '!'} ${f.message}`)
 if (findings.some((f) => f.level === 'error')) process.exit(1)
@@ -14,7 +20,7 @@ const out = new URL('../public/data/', import.meta.url)
 mkdirSync(out, { recursive: true })
 writeFileSync(new URL('roadmap.json', out), JSON.stringify(roadmap, null, 2) + '\n')
 writeIcons([...roadmap.skills.map((s) => s.icon), ...roadmap.subs.map((s) => s.icon)])
-console.log(`已导出 ${roadmap.areas.length} 个领域、${roadmap.skills.length} 个技能、${roadmap.subs.length} 个职业`)
+console.log(`已导出 ${roadmap.areas.length} 个领域、${roadmap.skills.length} 个技能、${roadmap.subs.length} 个职业；${roadmap.skills.filter((s) => s.verify).length} 个技能写了讲解`)
 
 /**
  * 前端的图标表：只 import 用到的图标，打包时其余的都被摇掉。
@@ -32,7 +38,7 @@ function writeIcons(names: string[]) {
   if (bad.length) throw new Error(`这些图标不存在：${bad.join('、')}。Lucide 图标名见 https://lucide.dev/icons`)
   const dir = new URL('../src/generated/', import.meta.url)
   mkdirSync(dir, { recursive: true })
-  writeFileSync(new URL('icons.ts', dir), `// 由 npm run data 生成，别手改。改图标请改 db/seed 里的 icon。
+  writeFileSync(new URL('icons.ts', dir), `// 由 npm run data 生成，别手改。改图标请改 content/ 里的 icon。
 import type { LucideIcon } from 'lucide-react'
 import { ${lucide.map(pascal).join(', ')} } from 'lucide-react'
 import { ${brands.map(siName).join(', ')} } from 'simple-icons'

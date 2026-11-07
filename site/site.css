@@ -96,3 +96,4 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
   .head { flex-direction: column; gap: 16px; }
   .grid { grid-template-columns: 1fr; }
 }
+.edit { margin: 40px 0 0; }

@@ -9,11 +9,14 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import type { Roadmap, Skill, Sub } from '../src/types.ts'
+import type { Resource, Roadmap, Skill, Sub } from '../src/types.ts'
 import { ICONS } from '../src/generated/icons.ts'
 
 export const SITE = 'https://theowang42.github.io/cs-skill-tree/'
 const REPO = 'https://github.com/theowang42/cs-skill-tree'
+/** 仓库的默认分支：“在 GitHub 上改这一页”打开这个分支上的文件 */
+const BRANCH = 'claude/jolly-albattani-d6no7f'
+const editUrl = (file: string) => `${REPO}/edit/${BRANCH}/content/${file}`
 const NAME = 'CS 技能树'
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -26,6 +29,13 @@ function icon(name: string, size = 24): string {
 }
 
 /** 技能的图标槽：和树上一样，语言是六边形，其他是圆 */
+/** 页面底部：内容就是仓库里的一个文件，谁都可以直接改 */
+const editBlock = (file: string, missing = false) =>
+  `<p class="edit muted small">${missing ? '这个技能的详细讲解还没写，会的话欢迎补上：' : '哪里写得不对、有更好的资源？'}<a href="${editUrl(file)}" rel="noopener">在 GitHub 上改这一页 ↗</a></p>`
+
+const resource = (l: Resource) =>
+  `<li><a href="${esc(l.url)}" rel="noopener">${esc(l.label)} ↗</a>${l.kind ? `<small class="muted"> ${esc(l.kind)} · ${l.free ? '免费' : '付费'}</small>` : ''}</li>`
+
 function slot(s: Skill, size = 44): string {
   return `<span class="slot${s.language ? ' hex' : ''}" style="--s:${size}px">${icon(s.icon, Math.round(size * 0.46))}</span>`
 }
@@ -203,6 +213,7 @@ ${c.topics.length ? `<section class="block"><h2>平时做什么</h2><ul class="l
 ${c.bonus.length ? `<section class="block"><h2>加分项</h2><div class="grid">${c.bonus.map((id) => skillCard(sk(id), root)).join('')}</div></section>` : ''}
 ${c.projects.length ? `<section class="block"><h2>可以参考的开源项目</h2><ul class="list">${c.projects.map((l) => `<li><a href="${esc(l.url)}" rel="noopener">${esc(l.label)} ↗</a></li>`).join('')}</ul></section>` : ''}
 ${siblings ? `<section class="block"><h2>同类职业</h2><div class="grid">${siblings}</div></section>` : ''}
+${editBlock(`careers/${c.id}.md`)}
 `,
     })
   }
@@ -235,9 +246,11 @@ ${siblings ? `<section class="block"><h2>同类职业</h2><div class="grid">${si
     <div class="cta"><a class="btn" href="${root}tree/#/skill/${s.id}">在技能树里点亮它 →</a></div>
   </div>
 </article>
+${s.learn.length ? `<section class="block"><h2>学什么</h2><ul class="list">${s.learn.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}
+${s.verify ? `<section class="block"><h2>怎么算会了</h2><p>${esc(s.verify)}</p></section>` : ''}
 <section class="block">
   <h2>去哪学</h2>
-  <ul class="list">${s.resources.map((l) => `<li><a href="${esc(l.url)}" rel="noopener">${esc(l.label)} ↗</a></li>`).join('')}</ul>
+  <ul class="list">${s.resources.map(resource).join('')}</ul>
 </section>
 <section class="block">
   <h2>先学这些</h2>
@@ -249,6 +262,7 @@ ${careers.length ? `<section class="block"><h2>哪些职业要学它</h2><div cl
   <h2>${esc(area.name)}里的其他技能</h2>
   <div class="chips">${siblings.map((x) => skillChip(x, root)).join('')}</div>
 </section>
+${editBlock(`skills/${s.id}.md`, !s.verify)}
 `,
     })
   }

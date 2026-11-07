@@ -5,6 +5,12 @@ export interface Link {
   url: string
 }
 
+/** 技能的学习资源：类型和是否免费，还没写讲解的技能可以是 null */
+export interface Resource extends Link {
+  kind: string | null
+  free: boolean | null
+}
+
 export interface Skill {
   id: string
   areaId: string
@@ -21,7 +27,11 @@ export interface Skill {
   prerequisites: string[]
   /** 直接依赖它的技能 */
   dependents: string[]
-  resources: Link[]
+  /** 学什么：要掌握的要点。还没写讲解的技能是空的 */
+  learn: string[]
+  /** 怎么算会了：一个自己能检验的标准 */
+  verify: string | null
+  resources: Resource[]
   /** 必学它的职业（含间接） */
   requiredBy: string[]
 }

@@ -1,7 +1,12 @@
 // 内容：建库、体检、学习顺序、导出
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { build, check } from '../scripts/db.ts'
+import { load } from '../scripts/content.ts'
 import { getRoadmap } from '../scripts/roadmap.ts'
 
 const db = build()
@@ -55,10 +60,43 @@ test('表约束挡住不合法的内容', () => {
   assert.throws(() => bad.exec("INSERT INTO skills (id, area_id, position, icon, name, intro) VALUES ('Bad Id', 'base', 99, 'x', 'x', 'y')"), /CHECK/)
   assert.throws(() => bad.exec("UPDATE skills SET icon = 'si:python' WHERE id = 'javascript'"), /UNIQUE/)
   assert.throws(() => bad.exec("INSERT INTO skill_prerequisites VALUES ('linux', 'linux')"), /CHECK/)
-  assert.throws(() => bad.exec("INSERT INTO skill_resources VALUES ('linux', 9, 'x', 'http://example.com')"), /CHECK/)
+  assert.throws(() => bad.exec("INSERT INTO skill_resources (skill_id, position, label, url) VALUES ('linux', 9, 'x', 'http://example.com')"), /CHECK/)
+  assert.throws(() => bad.exec("INSERT INTO skill_resources (skill_id, position, label, url, kind) VALUES ('linux', 9, 'x', 'https://example.com', '播客')"), /CHECK/)
 })
 
 test('编程语言画成六边形：Python、C、Rust 这些，别的技能不是', () => {
   const langs = roadmap.skills.filter((s) => s.language).map((s) => s.id).sort()
   assert.deepEqual(langs, ['c', 'cpp', 'csharp', 'dart', 'go', 'java', 'javascript', 'kotlin', 'python', 'rust', 'shell', 'sql', 'swift', 'typescript'])
+})
+
+/** 复制一份 content/，改掉一个文件，看 load() 报什么 */
+function loadWith(file: string, edit: (text: string) => string): string {
+  const dir = mkdtempSync(join(tmpdir(), 'content-'))
+  cpSync('content', dir, { recursive: true })
+  writeFileSync(join(dir, file), edit(readFileSync(join(dir, file), 'utf8')))
+  try {
+    load(pathToFileURL(dir + '/'))
+    return ''
+  } catch (e) {
+    return (e as Error).message
+  }
+}
+
+test('内容文件写错时，指出是哪个文件哪一行', () => {
+  assert.match(loadWith('skills/docker.md', (t) => t.replace('requires: [linux]', 'requires: [linux, kubernetes]')), /content\/skills\/docker\.md：前置里的 kubernetes 不是一个技能/)
+  assert.match(loadWith('skills/docker.md', (t) => t.replace('icon:', 'icom:')), /content\/skills\/docker\.md:3：不认识的属性 icom/)
+  assert.match(loadWith('skills/docker.md', (t) => t.replace('## 学什么', '## 要学什么')), /docker\.md:\d+：不认识的小节“要学什么”/)
+  assert.match(loadWith('skills/docker.md', (t) => t.replace('· 文档 · 免费', '· 播客 · 免费')), /不认识的标签“播客”/)
+  assert.match(loadWith('areas/base.md', (t) => t.replace('docker, ', '')), /content\/skills\/docker\.md 没有列在任何一个/)
+  assert.match(loadWith('careers/backend.md', (t) => t.replace(/^requires: \[/m, 'requires: [nope, ')), /必学技能里的 nope 不是一个技能/)
+})
+
+test('写了讲解的技能要写全：学什么、怎么算会了、资源都标好', () => {
+  const content = load()
+  const docker = content.skills.find((s) => s.id === 'docker')!
+  docker.verify = null
+  docker.resources[0] = { ...docker.resources[0], kind: null }
+  const messages = check(build(content)).map((f) => f.message).join('\n')
+  assert.match(messages, /docker 的“学什么”和“怎么算会了”要一起写/)
+  assert.match(messages, /docker 写了讲解，“去哪学”的每个链接也要标上类型/)
 })

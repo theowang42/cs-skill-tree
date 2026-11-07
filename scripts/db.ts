@@ -1,29 +1,51 @@
-// 建库和体检：在内存里建一个空库，跑 db/schema.sql 和 db/seed/*.sql，再检查表约束管不到的事。
+// 建库和体检：在内存里建一个空库，跑 db/schema.sql，灌 content/ 里的内容，再检查表约束管不到的事。
 import { DatabaseSync } from 'node:sqlite'
-import { readdirSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
+import { load, type Content } from './content.ts'
 
-const DB = new URL('../db/', import.meta.url)
-
-/**
- * 建好并灌完内容的内存数据库。
- * 前置可以引用写在后面的技能，所以灌的时候不查外键，灌完再整体核对，指出是哪张表的哪一行对不上。
- */
-export function build(): DatabaseSync {
-  const seed = new URL('seed/', DB)
-  const db = new DatabaseSync(':memory:', { enableForeignKeyConstraints: false })
-  db.exec(readFileSync(new URL('schema.sql', DB), 'utf8'))
-  for (const name of readdirSync(seed).filter((f) => f.endsWith('.sql')).sort()) {
-    try {
-      db.exec(readFileSync(new URL(name, seed), 'utf8'))
-    } catch (e) {
-      throw new Error(`种子文件 ${name} 出错：${(e as Error).message}`)
+/** 建好并灌完内容的内存数据库。前置可以引用排在后面的技能，所以外键等整体灌完再核对 */
+export function build(content: Content = load()): DatabaseSync {
+  const db = new DatabaseSync(':memory:')
+  db.exec(readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8'))
+  const insert = (table: string, rows: Record<string, unknown>[]) => {
+    if (!rows.length) return
+    const cols = Object.keys(rows[0])
+    const stmt = db.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`)
+    for (const r of rows) {
+      try {
+        stmt.run(...(cols.map((c) => r[c]) as never[]))
+      } catch (e) {
+        throw new Error(`${table} 里的 ${r.id ?? r.skill_id ?? r.sub_id}：${(e as Error).message}`)
+      }
     }
   }
-  const broken = db.prepare('PRAGMA foreign_key_check').all() as { table: string; parent: string; rowid: number }[]
-  if (broken.length) {
-    const sample = broken.slice(0, 5).map((b) => `${b.table} 第 ${b.rowid} 行 → ${b.parent}`).join('；')
-    throw new Error(`种子里有 ${broken.length} 处引用对不上（多半是 id 拼错了）：${sample}`)
-  }
+  const flag = (b: boolean | null) => (b === null ? null : Number(b))
+  const { areas, skills, categories, careers } = content
+  const areaOf = new Map(areas.flatMap((a) => a.skills.map((id, i) => [id, { area: a.id, position: i + 1 }] as const)))
+  const categoryOf = new Map(categories.flatMap((c) => c.careers.map((id, i) => [id, { category: c.id, position: i + 1 }] as const)))
+
+  db.exec('BEGIN; PRAGMA defer_foreign_keys = ON')
+  insert('areas', areas.map((a) => ({ id: a.id, position: a.order, name: a.name, intro: a.intro })))
+  insert('skills', skills.map((s) => ({
+    id: s.id, area_id: areaOf.get(s.id)!.area, position: areaOf.get(s.id)!.position, icon: s.icon, name: s.name, intro: s.intro,
+    parent_id: s.requires[0] ?? null, is_language: Number(s.language), verify: s.verify,
+  })))
+  insert('skill_prerequisites', skills.flatMap((s) => s.requires.map((p) => ({ skill_id: s.id, prerequisite_id: p }))))
+  insert('skill_learn', skills.flatMap((s) => s.learn.map((text, i) => ({ skill_id: s.id, position: i + 1, text }))))
+  insert('skill_resources', skills.flatMap((s) => s.resources.map((r, i) => ({ skill_id: s.id, position: i + 1, label: r.label, url: r.url, kind: r.kind, is_free: flag(r.free) }))))
+  insert('categories', categories.map((c) => ({ id: c.id, position: c.order, name: c.name, intro: c.intro })))
+  insert('subs', careers.map((c) => ({
+    id: c.id, category_id: categoryOf.get(c.id)!.category, position: categoryOf.get(c.id)!.position, icon: c.icon, name: c.name, intro: c.intro,
+    is_hot: Number(c.hot), anchor_id: c.requires[0],
+  })))
+  insert('sub_items', careers.flatMap((c) => c.keywords.map((text, i) => ({ sub_id: c.id, position: i + 1, text }))))
+  insert('sub_topics', careers.flatMap((c) => c.topics.map((text, i) => ({ sub_id: c.id, position: i + 1, text }))))
+  insert('sub_projects', careers.flatMap((c) => c.projects.map((l, i) => ({ sub_id: c.id, position: i + 1, label: l.label, url: l.url }))))
+  insert('sub_requirements', careers.flatMap((c) => [
+    ...c.requires.map((id) => ({ sub_id: c.id, skill_id: id, is_bonus: 0 })),
+    ...c.bonus.map((id) => ({ sub_id: c.id, skill_id: id, is_bonus: 1 })),
+  ]))
+  db.exec('COMMIT')
   return db
 }
 
@@ -68,6 +90,15 @@ export function check(db: DatabaseSync): Finding[] {
   warning('SELECT id, length(intro) AS n FROM skills WHERE length(intro) > 50', (r) => `技能 ${r.id} 的一句话有 ${r.n} 个字，最好控制在 50 字以内`)
   // 技能的一句话写掌握到什么程度：会做什么，能做到什么
   warning("SELECT id FROM skills WHERE intro NOT LIKE '会%能%'", (r) => `技能 ${r.id} 的一句话要写成“会……，能……”，说清掌握到什么程度`)
+  // 讲解要写就写全：学什么、怎么算会了，资源都标上类型和是否免费
+  error(
+    'SELECT id FROM skills WHERE (verify IS NULL) <> (id NOT IN (SELECT skill_id FROM skill_learn))',
+    (r) => `技能 ${r.id} 的“学什么”和“怎么算会了”要一起写`,
+  )
+  error(
+    'SELECT DISTINCT skill_id FROM skill_resources WHERE (kind IS NULL OR is_free IS NULL) AND skill_id IN (SELECT skill_id FROM skill_learn)',
+    (r) => `技能 ${r.skill_id} 写了讲解，“去哪学”的每个链接也要标上类型和免费 / 付费`,
+  )
   // 名字的显示宽度：中文算 2，英文数字算 1。树上节点下面放得下 16
   for (const r of rows('SELECT id, name FROM skills')) {
     const width = [...String(r.name)].reduce((n, c) => n + (c.charCodeAt(0) > 0x2e80 ? 2 : 1), 0)

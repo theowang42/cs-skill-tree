@@ -34,6 +34,6 @@ npm test           # check the content, run all tests
 
 ## Change the content
 
-All content lives in `db/seed/*.sql`, one row per skill. `npm run data` rebuilds the database and checks it, reporting anything wrong.
+All content lives in `content/`, one Markdown file per skill and per career. Every page on the site links to its file for editing; the format is described in [CONTRIBUTING.md](../CONTRIBUTING.md) (Chinese). `npm test` checks the content and reports anything wrong.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the database and front end, and [ART.md](ART.md) for the visual rules.

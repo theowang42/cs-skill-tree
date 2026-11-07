@@ -1,4 +1,4 @@
--- 技能树的全部内容。每次构建都从空库开始：建表 → 灌 db/seed → 体检 → 导出 JSON。
+-- 技能树的全部内容。每次构建都从空库开始：建表 → 灌 content/ 里的 Markdown → 体检 → 导出 JSON。
 --
 --   areas（领域） ─< skills（技能） ─< skill_prerequisites >─ skills    前置关系，是一张有向无环图
 --   categories（大方向） ─< subs（职业） ─< sub_requirements >─ skills
@@ -27,8 +27,18 @@ CREATE TABLE skills (
   parent_id    TEXT    REFERENCES skills (id),
   -- 编程语言：树上画成六边形
   is_language  INTEGER NOT NULL DEFAULT 0 CHECK (is_language IN (0, 1)),
+  -- 怎么算会了：一个自己能检验的标准。还没写讲解的技能是 NULL
+  verify       TEXT    CHECK (length(verify) > 0),
   UNIQUE (area_id, position)
 ) STRICT;
+
+-- 学什么：要掌握的要点
+CREATE TABLE skill_learn (
+  skill_id  TEXT    NOT NULL REFERENCES skills (id),
+  position  INTEGER NOT NULL,
+  text      TEXT    NOT NULL CHECK (length(text) > 0),
+  PRIMARY KEY (skill_id, position)
+) STRICT, WITHOUT ROWID;
 
 -- 学 skill_id 之前要先会 prerequisite_id。只写直接前置，间接的由视图推导
 CREATE TABLE skill_prerequisites (
@@ -44,6 +54,9 @@ CREATE TABLE skill_resources (
   position  INTEGER NOT NULL,
   label     TEXT    NOT NULL CHECK (length(label) > 0),
   url       TEXT    NOT NULL CHECK (url LIKE 'https://%'),
+  -- 课程、书、视频、文章、文档、练习；还没写讲解的技能可以不标
+  kind      TEXT    CHECK (kind IN ('课程', '书', '视频', '文章', '文档', '论文', '练习')),
+  is_free   INTEGER CHECK (is_free IN (0, 1)),
   PRIMARY KEY (skill_id, position)
 ) STRICT, WITHOUT ROWID;
 
