@@ -1,6 +1,7 @@
 // 静态页面：首页、每个技能一页、每个职业一页，加 sitemap。
 // 技能树本身是单页应用（在 /tree/），搜索引擎看不到里面的内容；这些页面是写死的 HTML，
 // 让人能搜到“Docker 怎么学”“大模型算法工程师要学什么”，也方便把单个技能、单个职业分享出去。
+// 职业页打开就是这个职业的天赋树：HTML 里写好职业的内容，技能树的脚本加载后接管整页。
 //
 // 用法：npm run build 在 vite 打包完技能树之后跑这个，写进 dist/。
 // renderSite() 只返回 { 路径: 内容 }，不碰磁盘，测试直接用它。
@@ -49,6 +50,8 @@ interface Page {
   body: string
   /** 面包屑：[名字, 相对根的路径] */
   crumbs?: [string, string][]
+  /** 技能树的脚本和样式：有它时 body 是技能树的挂载点，不要站点的页头页脚 */
+  app?: string
 }
 
 function layout(p: Page): string {
@@ -86,11 +89,18 @@ function layout(p: Page): string {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="${root}site.css">
+${p.app ?? `<link rel="stylesheet" href="${root}site.css">`}
 ${ld}
 </head>
 <body>
-<header class="top">
+${p.app === undefined ? site(root, crumbs, p.body) : `<div id="root">\n${p.body}\n</div>`}
+</body>
+</html>
+`
+}
+
+/** 站点的页头、正文、页脚 */
+const site = (root: string, crumbs: string, body: string) => `<header class="top">
   <a class="logo" href="${root}"><span class="mark"></span>${NAME}</a>
   <nav>
     <a href="${root}#careers">职业路线</a>
@@ -100,18 +110,15 @@ ${ld}
 </header>
 <main>
 ${crumbs}
-${p.body}
+${body}
 </main>
 <footer class="foot">
   <p>免费，不用注册。进度只存在你自己的浏览器里，不收集任何数据。</p>
   <p>内容开源在 <a href="${REPO}">GitHub</a>，哪里写得不对，欢迎直接改。课程主要参考 <a href="https://csdiy.wiki/">csdiy.wiki</a>。</p>
-</footer>
-</body>
-</html>
-`
-}
+</footer>`
 
-export function renderSite(rm: Roadmap): Map<string, string> {
+/** app：技能树打包出来的脚本和样式标签，职业页要用 */
+export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
   const skills = new Map(rm.skills.map((s) => [s.id, s]))
   const subs = new Map(rm.subs.map((s) => [s.id, s]))
   const areas = new Map(rm.areas.map((a) => [a.id, a]))
@@ -119,9 +126,6 @@ export function renderSite(rm: Roadmap): Map<string, string> {
   const out = new Map<string, string>()
   const put = (p: Page) => out.set(p.path + 'index.html', layout(p))
 
-  /** 小卡片：图标、名字、一句话 */
-  const skillCard = (s: Skill, root: string, extra = '') =>
-    `<a class="card skill" href="${root}skill/${s.id}/">${slot(s)}<span class="txt"><b>${esc(s.name)}</b><small>${esc(s.intro)}</small>${extra}</span></a>`
   const skillChip = (s: Skill, root: string) => `<a class="chip" href="${root}skill/${s.id}/">${icon(s.icon, 16)}${esc(s.name)}</a>`
   const careerCard = (c: Sub, root: string) => {
     const steps = Math.max(...c.plan.map((p) => p.step))
@@ -177,45 +181,24 @@ export function renderSite(rm: Roadmap): Map<string, string> {
     })
   }
 
-  // ── 职业页 ──
+  // ── 职业页：这个职业的天赋树。HTML 里是同样的内容，给搜索引擎和还没加载完的时候看 ──
   for (const c of rm.subs) {
     const root = '../../'
-    const steps = new Map<number, string[]>()
-    for (const p of c.plan) steps.set(p.step, [...(steps.get(p.step) ?? []), p.skillId])
-    const nSteps = steps.size
-    const plan = [...steps.entries()]
-      .sort((a, b) => a[0] - b[0])
-      .map(([n, ids]) => `<li><span class="step">第 ${n} 步</span><div class="grid">${ids.map((id) => skillCard(sk(id), root)).join('')}</div></li>`)
-      .join('')
-    const cat = rm.categories.find((x) => x.id === c.categoryId)!
-    const siblings = cat.subIds.filter((id) => id !== c.id).map((id) => careerCard(subs.get(id)!, root)).join('')
+    const nSteps = Math.max(...c.plan.map((p) => p.step))
+    const list = (title: string, items: string[]) => (items.length ? `<h2>${title}</h2><ul>${items.map((x) => `<li>${x}</li>`).join('')}</ul>` : '')
+    const skillLink = (id: string) => `<a href="${root}skill/${id}/">${esc(sk(id).name)}</a>`
     put({
       path: `career/${c.id}/`,
       title: `${c.name}要学什么？${c.plan.length} 个技能的学习路线 | ${NAME}`,
       description: `${c.intro}从${sk(c.plan[0].skillId).name}开始，按顺序分 ${nSteps} 步列出要学的 ${c.plan.length} 个技能，每个技能附公开课。`,
       crumbs: [[NAME, ''], ['职业路线', '#careers'], [c.name, `career/${c.id}/`]],
-      body: `
-<article class="head career-head">
-  <span class="seal big">${icon(c.icon, 34)}</span>
-  <div>
-    <p class="kicker">职业 · ${esc(cat.name)}${c.isHot ? ' · 热门' : ''}</p>
-    <h1>${esc(c.name)}</h1>
-    <p class="lead">${esc(c.intro)}</p>
-    <p class="tags">${c.items.map((t) => `<span>${esc(t)}</span>`).join('')}</p>
-    <div class="cta"><a class="btn" href="${root}tree/#/sub/${c.id}">在技能树里看这条路线 →</a></div>
-  </div>
-</article>
-${c.topics.length ? `<section class="block"><h2>平时做什么</h2><ul class="list">${c.topics.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></section>` : ''}
-<section class="block">
-  <h2>学习路线：${c.plan.length} 个技能，${nSteps} 步</h2>
-  <p class="muted">同一步里的技能互不依赖，先学哪个都行；下一步的技能要用到上一步的。</p>
-  <ol class="plan">${plan}</ol>
-</section>
-${c.bonus.length ? `<section class="block"><h2>加分项</h2><div class="grid">${c.bonus.map((id) => skillCard(sk(id), root)).join('')}</div></section>` : ''}
-${c.projects.length ? `<section class="block"><h2>可以参考的开源项目</h2><ul class="list">${c.projects.map((l) => `<li><a href="${esc(l.url)}" rel="noopener">${esc(l.label)} ↗</a></li>`).join('')}</ul></section>` : ''}
-${siblings ? `<section class="block"><h2>同类职业</h2><div class="grid">${siblings}</div></section>` : ''}
-${editBlock(`careers/${c.id}.md`)}
-`,
+      app,
+      body: `<h1>${esc(c.name)}</h1>
+<p>${esc(c.intro)}</p>
+${list('平时做什么', c.topics.map(esc))}
+${list(`学习路线：${c.plan.length} 个技能`, c.plan.map((p) => skillLink(p.skillId)))}
+${list('加分项', c.bonus.map(skillLink))}
+${list('可以参考的开源项目', c.projects.map((l) => `<a href="${esc(l.url)}" rel="noopener">${esc(l.label)}</a>`))}`,
     })
   }
 
@@ -270,7 +253,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const rm = JSON.parse(readFileSync(join(ROOT, 'public', 'data', 'roadmap.json'), 'utf8')) as Roadmap
   // 除了技能树（dist/tree，vite 刚打包好的），其余全部重写
   for (const f of readdirSync(DIST)) if (f !== 'tree') rmSync(join(DIST, f), { recursive: true, force: true })
-  const site = renderSite(rm)
+  // 职业页要加载技能树：从 vite 打包好的 tree/index.html 里拿脚本和样式
+  const treeHtml = readFileSync(join(DIST, 'tree', 'index.html'), 'utf8')
+  const site = renderSite(rm, (treeHtml.match(/<script type="module"[^>]*><\/script>|<link rel="(?:stylesheet|modulepreload)"[^>]*>/g) ?? []).join('\n'))
   for (const [path, html] of site) {
     mkdirSync(dirname(join(DIST, path)), { recursive: true })
     writeFileSync(join(DIST, path), html)

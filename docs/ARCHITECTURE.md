@@ -95,9 +95,9 @@ GitHub 上有两条自动检查：`Deploy to GitHub Pages` 每次推送都跑测
 | --- | --- |
 | `/` | 首页：一句话、演示短片、三步用法、全部职业路线、全部技能目录 |
 | `/skill/<id>/` | 一个技能：一句话、学习流程、去哪学。前后关系和职业在树上看 |
-| `/career/<id>/` | 一个职业：做什么、按步骤排好的学习路线、加分项、参考项目、同类职业 |
+| `/career/<id>/` | 一个职业的天赋树：只画它要学的技能，竖着长，能直接点亮。HTML 里写好做什么、学习路线、加分项、参考项目，技能树的脚本加载后接管整页 |
 
-技能页和职业页底部都有“在 GitHub 上改这一页”，直接打开对应的 Markdown 文件。链接指向的分支是 `scripts/pages.ts` 里的 `BRANCH`。
+技能页底部有“在 GitHub 上改这一页”，直接打开对应的 Markdown 文件。链接指向的分支是 `scripts/pages.ts` 里的 `BRANCH`。
 | `/tree/` | 技能树本身；`#/skill/<id>`、`#/sub/<id>`、`#/careers` 直接打开对应的卡片 |
 | `/sitemap.xml` | 以上全部地址，提交给搜索引擎用 |
 
@@ -113,6 +113,7 @@ src/
   generated/icons.ts      由 npm run data 生成：只 import 用到的图标（不进 git）
   lib/tree.ts             索引、三种状态、点亮规则、职业进度
   lib/webLayout.ts        布局：一个圆，从圆心往外一圈一圈长（tests/webLayout.test.ts）
+  lib/careerLayout.ts     职业页的布局：只画一个职业要学的，竖着长，“你”在最下面、徽章在最上面
   lib/progress.ts         进度（点亮的技能 + 做了一部分的学习流程）存进浏览器、导出成文件、从文件导入
   lib/share.ts            分享链接：点亮的技能编成位图 → base64url
   state.tsx               全局状态和所有会改进度的动作（撤销、解锁动画、地址栏同步）

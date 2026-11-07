@@ -8,7 +8,7 @@
 - 像游戏的技能树：从正中心的起点出发，编程入门、Linux、微积分在第一圈，一条条链沿半径笔直往外长，越往外越深；前置都点亮了才能点亮下一个
 - 最外圈是 17 枚职业徽章，各在自己那条链的尽头，覆盖计算机毕业生的主要去处。要学的都点亮了，徽章自己就亮，不用先选
 - 点进任何一个技能，只有一句话和去哪学的链接
-- 每个技能、每个职业还有自己的页面，比如 [Docker 怎么学](https://theowang42.github.io/cs-skill-tree/skill/docker/)、[大模型算法工程师要学什么](https://theowang42.github.io/cs-skill-tree/career/llm-algo/)，方便搜索和分享
+- 每个技能、每个职业还有自己的页面，比如 [Docker 怎么学](https://theowang42.github.io/cs-skill-tree/skill/docker/)、[大模型算法工程师要学什么](https://theowang42.github.io/cs-skill-tree/career/llm-algo/)。职业页就是这个职业自己的天赋树，只画它要学的技能，方便搜索和分享
 
 👉 https://theowang42.github.io/cs-skill-tree/
 
@@ -34,6 +34,6 @@ npm test           # 体检内容，跑全部测试
 
 ## 改内容
 
-内容都在 `content/`，一个技能、一个职业各一个 Markdown 文件。网站上每一页底部都能直接跳到对应的文件去改，写法见 [CONTRIBUTING.md](CONTRIBUTING.md)。改完跑 `npm test`，内容体检会指出哪里不对。
+内容都在 `content/`，一个技能、一个职业各一个 Markdown 文件。网站上每个技能页底部都能直接跳到对应的文件去改，写法见 [CONTRIBUTING.md](CONTRIBUTING.md)。改完跑 `npm test`，内容体检会指出哪里不对。
 
 数据库和前端结构见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)，美术规范见 [docs/ART.md](docs/ART.md)。课程主要参考 [csdiy.wiki](https://csdiy.wiki/)。

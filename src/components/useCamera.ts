@@ -1,8 +1,9 @@
 // 技能树的镜头：缩放、拖动、双指缩放、飞到某处。不走 React，直接改 <g> 的 transform。
-// 圆心在 (0, 0)，整张图在半径 radius 的圆里。
-//   - 最小缩放刚好把整个圆装进屏幕，这时圆固定在正中；
+// “你”在 (0, 0)，整张图在 bounds 这个框里。
+//   - 最小缩放刚好把整张图装进屏幕，这时图固定在正中；
 //   - 越放大能拖得越远，放大到 1.5 倍以上时，屏幕中心能到图上任何一点（最外圈的徽章也能放到正中）。
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
+import type { Layout } from '../lib/webLayout'
 
 interface View {
   x: number
@@ -13,7 +14,11 @@ interface View {
 const MAX_K = 2.5
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 
-export function useCamera(radius: number) {
+export function useCamera({ minX, minY, maxX, maxY }: Layout['bounds']) {
+  const cx = (minX + maxX) / 2
+  const cy = (minY + maxY) / 2
+  const rx = (maxX - minX) / 2
+  const ry = (maxY - minY) / 2
   const wrap = useRef<HTMLDivElement>(null)
   const svg = useRef<SVGSVGElement>(null)
   const world = useRef<SVGGElement>(null)
@@ -21,7 +26,7 @@ export function useCamera(radius: number) {
   const anim = useRef(0)
   const [size, setSize] = useState({ w: 0, h: 0 })
   // 窗口还没量出尺寸时 min(w, h) 是 0，给个下限免得除以 0
-  const minK = Math.max(0.05, Math.min(size.w, size.h) / (2 * radius))
+  const minK = Math.max(0.05, Math.min(size.w / (2 * rx), size.h / (2 * ry)))
   const limits = useRef({ minK, ...size })
   limits.current = { minK, ...size }
   /** 用户动过镜头之后，窗口大小变了就不再自动回到开头的位置 */
@@ -30,13 +35,13 @@ export function useCamera(radius: number) {
   const apply = useCallback((raw: View) => {
     const { minK: lo, w, h } = limits.current
     const k = Math.min(MAX_K, Math.max(lo, raw.k))
-    const reach = radius * Math.min(1, Math.max(0, (k / lo - 1) / 0.5))
-    const clamp = (c: number) => Math.min(reach, Math.max(-reach, c))
-    const cx = clamp((w / 2 - raw.x) / raw.k)
-    const cy = clamp((h / 2 - raw.y) / raw.k)
-    view.current = { x: w / 2 - cx * k, y: h / 2 - cy * k, k }
+    const reach = Math.min(1, Math.max(0, (k / lo - 1) / 0.5))
+    const clamp = (v: number, c: number, r: number) => Math.min(c + r * reach, Math.max(c - r * reach, v))
+    const x = clamp((w / 2 - raw.x) / raw.k, cx, rx)
+    const y = clamp((h / 2 - raw.y) / raw.k, cy, ry)
+    view.current = { x: w / 2 - x * k, y: h / 2 - y * k, k }
     world.current?.setAttribute('transform', `translate(${view.current.x},${view.current.y}) scale(${k})`)
-  }, [radius])
+  }, [cx, cy, rx, ry])
 
   /** 让世界坐标 (cx, cy) 对着宽 width 的那块屏幕的正中，缩放 k；ms 是动画时长 */
   const flyTo = useCallback((cx: number, cy: number, k: number, { ms = 550, width = limits.current.w } = {}) => {
@@ -141,7 +146,7 @@ export function useCamera(radius: number) {
     },
     zoom: (factor: number) => zoomAt(limits.current.w / 2, limits.current.h / 2, view.current.k * factor),
     /** 看全图 */
-    fit: () => flyTo(0, 0, limits.current.minK),
+    fit: () => flyTo(cx, cy, limits.current.minK),
     /** 现在的缩放 */
     scale: () => view.current.k,
   }

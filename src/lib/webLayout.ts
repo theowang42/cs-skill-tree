@@ -15,27 +15,28 @@ import type { Tree } from './tree.ts'
 export const NODE_R = 31
 /** 名字在节点下面多远（基线），和名字的底 */
 export const LABEL_Y = NODE_R + 21
-const LABEL_BOTTOM = NODE_R + 28
+export const LABEL_BOTTOM = NODE_R + 28
 /** 同一排相邻两个节点的名字之间至少空多少 */
-const GAP = 26
+export const GAP = 26
 /** 职业（终极节点）徽章的外半径，和它在一排里占多宽的一半（名字比徽章宽） */
 export const TIP_R = 46
-const TIP_HALF = 78
+export const TIP_HALF = 78
 
 /** 左右的顺序：AI 产品在左，AI Infra 在中间，底层系统和安全在右 */
-const AREA_ORDER: Record<string, number> = {
+export const AREA_ORDER: Record<string, number> = {
   dev: 0, product: 1, quant: 2, llm: 2.6, infra: 3, base: 5, systems: 6, security: 7,
 }
 
-interface WebLayout {
+/** 画一棵树要的全部位置：大图和单个职业的天赋树都是这个形状 */
+export interface Layout {
   /** 技能 id，或职业的 'sub:<id>' → 位置 */
   nodes: Map<string, { x: number; y: number }>
   /** 树上画出来的枝：每个节点一根，没有前置的技能从圆心（'root'）连出来 */
   edges: { from: string; to: string; d: string }[]
   /** 每一圈的半径（不含圆心），画成很淡的同心圆，缩小时看得出一圈一圈 */
   rings: number[]
-  /** 整张图（含最外圈徽章上面的名字）都在这个半径里 */
-  radius: number
+  /** 整张图（含徽章上面的名字）都在这个框里 */
+  bounds: { minX: number; minY: number; maxX: number; maxY: number }
 }
 
 export const subNodeId = (subId: string) => `sub:${subId}`
@@ -112,7 +113,7 @@ function clearOfLabel(a: number, name: string): number {
   return d
 }
 
-export function layoutWeb(tree: Tree): WebLayout {
+export function layoutWeb(tree: Tree): Layout {
   const skills = tree.roadmap.skills
   const nameOf = new Map(skills.map((s) => [s.id, s.name]))
   const children = new Map<string, string[]>([['root', []]])
@@ -428,7 +429,7 @@ export function layoutWeb(tree: Tree): WebLayout {
   const radius = (d: number) => radii[d]
   const tipR = radii[top]
 
-  const nodes: WebLayout['nodes'] = new Map()
+  const nodes: Layout['nodes'] = new Map()
   const place = (id: string, r: number) => {
     const p = pt(r, angle.get(id)!)
     nodes.set(id, { x: f(p.x), y: f(p.y) })
@@ -437,7 +438,7 @@ export function layoutWeb(tree: Tree): WebLayout {
   for (const tip of tipOf.values()) place(tip, tipR)
 
   // ── 枝条：从父节点往外，到两圈中间沿圆弧转过去，再往外停在孩子前面；起点从圆心发出直的辐条 ──
-  const edges: WebLayout['edges'] = []
+  const edges: Layout['edges'] = []
   for (const s of skills) {
     const d = depth.get(s.id)!
     const a2 = angle.get(s.id)!
@@ -466,7 +467,8 @@ export function layoutWeb(tree: Tree): WebLayout {
   }
 
   // 最外圈的徽章，上面还有名字
-  return { nodes, edges, rings: radii.slice(1, top).map(f), radius: tipR + TIP_R + 90 }
+  const R = tipR + TIP_R + 90
+  return { nodes, edges, rings: radii.slice(1, top).map(f), bounds: { minX: -R, minY: -R, maxX: R, maxY: R } }
 }
 
 /** 从节点中心朝外走多远，线才不压到名字 */

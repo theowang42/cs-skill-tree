@@ -10,11 +10,11 @@ import { Toasts } from './components/Toasts'
 
 /** 全局快捷键：Esc 返回；选中技能时 D 点亮、X 熄灭 */
 function Shortcuts() {
-  const { focus, setFocus, setLit } = useApp()
+  const { focus, home, setFocus, setLit } = useApp()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return
-      if (e.key === 'Escape') setFocus(null)
+      if (e.key === 'Escape') setFocus(home)
       else if (focus?.kind === 'skill') {
         const k = e.key.toLowerCase()
         if (k === 'd') setLit(focus.id, true)
@@ -23,7 +23,7 @@ function Shortcuts() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [focus, setFocus, setLit])
+  }, [focus, home, setFocus, setLit])
   return null
 }
 

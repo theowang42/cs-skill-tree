@@ -8,8 +8,8 @@
     "data": "node --no-warnings=ExperimentalWarning scripts/data.ts",
     "test": "npm run data && node --no-warnings=ExperimentalWarning --test tests/*.test.ts",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json",
-    "build": "npm run data && npm run typecheck && vite build --base ./ --outDir dist/tree --emptyOutDir && node --no-warnings=ExperimentalWarning scripts/pages.ts",
-    "preview": "vite preview --outDir dist"
+    "build": "npm run data && npm run typecheck && vite build --base /cs-skill-tree/tree/ --outDir dist/tree --emptyOutDir && node --no-warnings=ExperimentalWarning scripts/pages.ts",
+    "preview": "vite preview --outDir dist --base /cs-skill-tree/"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

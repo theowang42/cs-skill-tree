@@ -1,10 +1,12 @@
 // 技能树：一个圆，圆心是“你”，一圈一圈往外长，最外圈是职业。白底黑线。
+// 职业页只画这个职业的天赋树：竖着长，“你”在最下面，徽章在最上面（lib/careerLayout.ts），画法一样。
 // 每个节点一个图标和名字。点亮了是实心黑加一圈光芒，能点是黑框，还够不着是浅灰。
 // 每个节点只画一根枝（连到主前置）；悬停或选中时，它的全部前置保持清楚，其余变淡。
 import { memo, useEffect, useMemo, useState } from 'react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
 import { LABEL_Y, layoutWeb, NODE_R, START_R, subNodeId, TIP_R } from '../lib/webLayout'
+import { layoutCareer } from '../lib/careerLayout'
 import { frontier, stars, totals } from '../lib/tree'
 import { hexPath, Rays, SkillGlyph } from './glyphs'
 import { useCamera } from './useCamera'
@@ -141,9 +143,9 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
 })
 
 export function SkillTree({ onCenter }: { onCenter: () => void }) {
-  const { tree, states, steps, focus, setFocus, pulse, flyRequest, progressBySub } = useApp()
-  const layout = useMemo(() => layoutWeb(tree), [tree])
-  const cam = useCamera(layout.radius)
+  const { tree, career, states, steps, focus, setFocus, pulse, flyRequest, progressBySub } = useApp()
+  const layout = useMemo(() => (career ? layoutCareer(tree, career) : layoutWeb(tree)), [tree, career])
+  const cam = useCamera(layout.bounds)
   const [hover, setHover] = useState<string | null>(null)
   const [tipHover, setTipHover] = useState<string | null>(null)
   const [centerHover, setCenterHover] = useState(false)
@@ -153,30 +155,36 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
   const focusedSkill = focus?.kind === 'skill' ? focus.id : null
   const focusedSub = focus?.kind === 'sub' ? focus.id : null
 
-  // 选中了技能或职业，并且要求飞过去：技能放到屏幕正中；职业把它要学的整条路线放进屏幕
+  // 选中了技能或职业，并且要求飞过去：技能放到屏幕正中；职业把它要学的整条路线放进屏幕。
+  // 屏幕尺寸还没量出来时先等着，量好了再飞
+  const measured = cam.size.w > 0
   useEffect(() => {
-    if (!flyRequest || !focus || focus.kind === 'careers') return
+    if (!flyRequest || !measured || !focus || focus.kind === 'careers') return
+    // 职业天赋树上没有的技能和职业，就不飞
     if (focus.kind === 'skill') {
-      const n = layout.nodes.get(focus.id)!
-      cam.fly(n.x, n.y, Math.max(cam.scale(), 1))
+      const n = layout.nodes.get(focus.id)
+      if (n) cam.fly(n.x, n.y, Math.max(cam.scale(), 1))
       return
     }
+    if (!layout.nodes.has(subNodeId(focus.id))) return
     const pts = [subNodeId(focus.id), ...tree.closures.get(focus.id)!].map((id) => layout.nodes.get(id)!)
     const pad = 90
     const minX = Math.min(...pts.map((p) => p.x)) - pad
     const maxX = Math.max(...pts.map((p) => p.x)) + pad
-    const minY = Math.min(...pts.map((p) => p.y)) - pad
+    // 徽章上面还有名字和星级
+    const minY = Math.min(...pts.map((p) => p.y)) - pad - TIP_R
     const maxY = Math.max(...pts.map((p) => p.y)) + pad
     // 面板正要打开时会占掉右边一块（已经开着的话，size.w 已经是让过之后的宽度）
     const { w: sw, h: sh } = cam.size
     const w = sw > 900 && window.innerWidth - sw < 100 ? sw - 360 : sw
     cam.fly((minX + maxX) / 2, (minY + maxY) / 2, Math.min(1.1, w / (maxX - minX), sh / (maxY - minY)), w)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flyRequest])
+  }, [flyRequest, measured])
 
   // ── 关系 ──
   // 看一个技能：它的全部前置画成黑的。看一个职业：它要学的全部技能。悬停圆心：下一步能点亮的
-  const subLens = tipHover ?? (hover ? null : focusedSub)
+  // 职业天赋树上画的全是这个职业要学的，看职业就不用再标出来
+  const subLens = career ? null : tipHover ?? (hover ? null : focusedSub)
   const lens = subLens ? null : hover ?? focusedSkill
   const anc = useMemo(() => (lens ? tree.ancestors(lens) : new Set<string>()), [tree, lens])
   const plan = subLens ? tree.closures.get(subLens)! : null
@@ -259,7 +267,7 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
             <text className="start-num" y={-7}>{lit.done}</text>
             <text className="start-lbl" y={15}>我的进度</text>
           </g>
-          {tree.roadmap.subs.map((sub) => {
+          {tree.roadmap.subs.filter((sub) => layout.nodes.has(subNodeId(sub.id))).map((sub) => {
             const n = layout.nodes.get(subNodeId(sub.id))!
             const p = progressBySub.get(sub.id)!
             return (
@@ -280,7 +288,7 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
               />
             )
           })}
-          {tree.roadmap.skills.map((s) => {
+          {tree.roadmap.skills.filter((s) => layout.nodes.has(s.id)).map((s) => {
             const n = layout.nodes.get(s.id)!
             return (
               <Node

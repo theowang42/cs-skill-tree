@@ -20,6 +20,12 @@ function parseFocus(tree: Tree, hash: string): Focus {
   return (kind === 'skill' ? tree.skills : tree.subs).has(m[2]) ? { kind, id: m[2] } : null
 }
 
+/** 职业页（/career/<id>/）打开的是这个职业自己的天赋树 */
+function parseCareer(tree: Tree, path: string): string | null {
+  const m = /\/career\/([a-z0-9-]+)\/?$/.exec(path)
+  return m && tree.subs.has(m[1]) ? m[1] : null
+}
+
 interface Toast {
   id: number
   text: string
@@ -28,6 +34,10 @@ interface Toast {
 
 interface AppState {
   tree: Tree
+  /** 只看一个职业的天赋树时是它的 id；看整棵大图时是 null */
+  career: string | null
+  /** 什么都不选时回到哪：大图是“我的进度”，职业天赋树是这个职业 */
+  home: Focus
   /** 当前显示的：自己的，或者分享链接里别人的 */
   lit: Lit
   /** 还没点亮的技能完成了学习流程的第几步 */
@@ -89,8 +99,10 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
   const states = useMemo(() => computeStates(tree, lit), [tree, lit])
   const progressBySub = useMemo(() => new Map(tree.roadmap.subs.map((s) => [s.id, subProgress(tree, s.id, lit)])), [tree, lit])
 
+  const [career] = useState(() => parseCareer(tree, location.pathname))
+  const home: Focus = useMemo(() => (career ? { kind: 'sub', id: career } : null), [career])
   // 地址栏里的焦点要在第一次渲染前读出来：下面把焦点同步到地址栏时，空焦点会把它清掉
-  const [focus, setFocusState] = useState<Focus>(() => parseFocus(tree, location.hash))
+  const [focus, setFocusState] = useState<Focus>(() => parseFocus(tree, location.hash) ?? home)
   const [flyRequest, setFlyRequest] = useState(0)
   const [pulse, setPulse] = useState<Set<string>>(new Set())
   const pulseTimer = useRef(0)
@@ -235,7 +247,7 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
   }, [shared, replace])
 
   const value: AppState = {
-    tree, lit, steps, states, progressBySub, readOnly, leaveShared, adoptShared,
+    tree, career, home, lit, steps, states, progressBySub, readOnly, leaveShared, adoptShared,
     focus, setFocus, flyRequest, pulse,
     setLit, setStep, replace, reset,
     toasts, toast, dismissToast,

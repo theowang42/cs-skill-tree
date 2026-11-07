@@ -1,10 +1,11 @@
-// 技能树布局：确定性、一棵从圆心往外长的树、同一圈不重叠、职业在最外圈
+// 技能树布局：确定性、一棵从圆心往外长的树、同一圈不重叠、职业在最外圈；每个职业自己的竖向天赋树
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { build } from '../scripts/db.ts'
 import { getRoadmap } from '../scripts/roadmap.ts'
 import { Tree } from '../src/lib/tree.ts'
-import { labelWidth, layoutWeb, NODE_R, RING, START_R, subNodeId, TIP_R } from '../src/lib/webLayout.ts'
+import { labelWidth, layoutWeb, NODE_R, RING, START_R, subNodeId, TIP_R, type Layout } from '../src/lib/webLayout.ts'
+import { layoutCareer } from '../src/lib/careerLayout.ts'
 
 const tree = new Tree(getRoadmap(build()))
 const layout = layoutWeb(tree)
@@ -125,49 +126,50 @@ function samplePath(d: string): { x: number; y: number }[] {
   return out
 }
 
-test('线不穿过任何名字、徽章和别的节点', () => {
-  const boxes: Box[] = []
+/** 一张图上的全部名字框和节点圆：技能、职业、“你” */
+function shapes(l: Layout, skills: string[], subs: string[]) {
+  const at = (id: string) => l.nodes.get(id)!
+  const labels: Box[] = []
   const circles: { x: number; y: number; r: number; who: string }[] = []
-  for (const s of tree.roadmap.skills) {
-    const n = node(s.id)
+  for (const id of skills) {
+    const n = at(id)
+    const s = tree.skill(id)
     const w = labelWidth(s.name) / 2 + 3
-    boxes.push({ l: n.x - w, r: n.x + w, t: n.y + NODE_R + 7, b: n.y + NODE_R + 25, who: `${s.name} 的名字` })
+    labels.push({ l: n.x - w, r: n.x + w, t: n.y + NODE_R + 7, b: n.y + NODE_R + 25, who: `${s.name} 的名字` })
     circles.push({ x: n.x, y: n.y, r: NODE_R + 2, who: s.name })
   }
-  for (const sub of tree.roadmap.subs) {
-    const n = node(subNodeId(sub.id))
-    const w = Math.max((labelWidth(sub.name) * 15) / 14, 100) / 2 + 3
-    boxes.push({ l: n.x - w, r: n.x + w, t: n.y - TIP_R - 63, b: n.y - TIP_R - 27, who: `${sub.name} 的名字和星级` })
-    circles.push({ x: n.x, y: n.y, r: TIP_R + 8, who: sub.name })
+  for (const id of subs) {
+    const n = at(subNodeId(id))
+    const name = tree.subs.get(id)!.name
+    const w = Math.max((labelWidth(name) * 15) / 14, 100) / 2 + 3
+    labels.push({ l: n.x - w, r: n.x + w, t: n.y - TIP_R - 63, b: n.y - TIP_R - 27, who: `${name} 的名字和星级` })
+    circles.push({ x: n.x, y: n.y, r: TIP_R + 8, who: name })
   }
-  circles.push({ x: 0, y: 0, r: START_R + 6, who: '圆心' })
+  circles.push({ x: 0, y: 0, r: START_R + 6, who: '“你”' })
+  return { labels, circles }
+}
+
+/** 线穿过的名字和节点 */
+function crossings(l: Layout, skills: string[], subs: string[]): string[] {
+  const { labels, circles } = shapes(l, skills, subs)
   const hits: string[] = []
-  for (const e of layout.edges) {
+  for (const e of l.edges) {
     const pts = samplePath(e.d)
-    const box = boxes.find((b) => pts.some((p) => p.x > b.l && p.x < b.r && p.y > b.t && p.y < b.b))
+    const box = labels.find((b) => pts.some((p) => p.x > b.l && p.x < b.r && p.y > b.t && p.y < b.b))
     if (box) hits.push(`${e.from} → ${e.to} 穿过 ${box.who}`)
     const c = circles.find((c) => pts.some((p) => Math.hypot(p.x - c.x, p.y - c.y) < c.r))
     if (c) hits.push(`${e.from} → ${e.to} 穿过 ${c.who}`)
   }
-  assert.deepEqual(hits, [])
-})
+  return hits
+}
 
-test('名字、徽章、节点、圆心互相不叠', () => {
-  type R = { l: number; r: number; t: number; b: number; who: string; owner: string }
-  const rs: R[] = []
-  for (const s of tree.roadmap.skills) {
-    const n = node(s.id)
-    const w = labelWidth(s.name) / 2 + 3
-    rs.push({ l: n.x - w, r: n.x + w, t: n.y + NODE_R + 7, b: n.y + NODE_R + 25, who: `${s.name} 的名字`, owner: s.id })
-    rs.push({ l: n.x - NODE_R - 2, r: n.x + NODE_R + 2, t: n.y - NODE_R - 2, b: n.y + NODE_R + 2, who: s.name, owner: s.id })
-  }
-  for (const sub of tree.roadmap.subs) {
-    const n = node(subNodeId(sub.id))
-    const w = Math.max((labelWidth(sub.name) * 15) / 14, 100) / 2 + 3
-    rs.push({ l: n.x - w, r: n.x + w, t: n.y - TIP_R - 63, b: n.y - TIP_R - 27, who: `${sub.name} 的名字`, owner: sub.id })
-    rs.push({ l: n.x - TIP_R - 8, r: n.x + TIP_R + 8, t: n.y - TIP_R - 8, b: n.y + TIP_R + 8, who: sub.name, owner: sub.id })
-  }
-  rs.push({ l: -START_R - 6, r: START_R + 6, t: -START_R - 6, b: START_R + 6, who: '圆心', owner: 'center' })
+/** 互相叠在一起的名字和节点（同一个技能自己的名字和节点不算） */
+function overlaps(l: Layout, skills: string[], subs: string[]): string[] {
+  const { labels, circles } = shapes(l, skills, subs)
+  const rs = [
+    ...labels.map((b, i) => ({ ...b, owner: i })),
+    ...circles.map((c, i) => ({ l: c.x - c.r, r: c.x + c.r, t: c.y - c.r, b: c.y + c.r, who: c.who, owner: i })),
+  ]
   const hits: string[] = []
   for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
     const a = rs[i]
@@ -175,5 +177,47 @@ test('名字、徽章、节点、圆心互相不叠', () => {
     if (a.owner === b.owner) continue
     if (a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b) hits.push(`${a.who} 和 ${b.who}`)
   }
-  assert.deepEqual(hits, [])
+  return hits
+}
+
+const allSkills = tree.roadmap.skills.map((s) => s.id)
+const allSubs = tree.roadmap.subs.map((s) => s.id)
+
+test('线不穿过任何名字、徽章和别的节点', () => {
+  assert.deepEqual(crossings(layout, allSkills, allSubs), [])
+})
+
+test('名字、徽章、节点、圆心互相不叠', () => {
+  assert.deepEqual(overlaps(layout, allSkills, allSubs), [])
+})
+
+// ── 单个职业的天赋树：竖着长，只画这个职业要学的 ──
+const careers = tree.roadmap.subs.map((sub) => ({ sub, l: layoutCareer(tree, sub.id), skills: [...tree.closures.get(sub.id)!] }))
+
+test('职业天赋树：只画要学的技能，每个一根枝连主前置，徽章挂在 anchor 上', () => {
+  for (const { sub, l, skills } of careers) {
+    assert.equal(l.nodes.size, skills.length + 1, sub.id)
+    const into = new Map(l.edges.map((e) => [e.to, e.from]))
+    for (const id of skills) assert.equal(into.get(id), tree.skill(id).parent ?? 'root', `${sub.id}: ${id}`)
+    assert.equal(into.get(subNodeId(sub.id)), sub.anchor)
+    assert.equal(l.edges.length, skills.length + 1)
+    assert.deepEqual(layoutCareer(tree, sub.id), l)
+  }
+})
+
+test('职业天赋树：一行一行往上，孩子正好在父亲上面一行，徽章在最上面', () => {
+  for (const { sub, l, skills } of careers) {
+    const y = (id: string) => l.nodes.get(id)!.y
+    const gaps = new Set(skills.filter((id) => tree.skill(id).parent).map((id) => y(tree.skill(id).parent!) - y(id)))
+    assert.equal(gaps.size, 1, `${sub.id}: 行距不一样 ${[...gaps]}`)
+    assert.ok([...gaps][0] > 0, `${sub.id}: 孩子没在父亲上面`)
+    assert.ok(skills.every((id) => y(subNodeId(sub.id)) < y(id)), sub.id)
+  }
+})
+
+test('职业天赋树：线不穿模，名字和节点不叠', () => {
+  for (const { sub, l, skills } of careers) {
+    assert.deepEqual(crossings(l, skills, [sub.id]), [], sub.id)
+    assert.deepEqual(overlaps(l, skills, [sub.id]), [], sub.id)
+  }
 })
