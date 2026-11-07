@@ -48,13 +48,21 @@ test('一圈一圈往外：孩子正好在父亲外面一圈，同一圈半径�
   for (let i = 1; i < layout.rings.length; i++) assert.ok(layout.rings[i] - layout.rings[i - 1] >= RING - 1)
 })
 
-test('只有一个孩子的节点和孩子同一个角度，链是直的', () => {
+test('单线的链大多是直的，挤的地方只稍微拐一点', () => {
   // 起点在第一圈平均摆开，不算
+  let chains = 0
+  let straight = 0
   for (const s of tree.roadmap.skills.filter((s) => s.parent)) {
     const kids = tree.roadmap.skills.filter((k) => k.parent === s.id)
     const hasTip = tree.roadmap.subs.some((x) => x.anchor === s.id)
-    if (kids.length === 1 && !hasTip) assert.ok(Math.abs(angle(kids[0].id) - angle(s.id)) < 1e-3, `${s.id} → ${kids[0].id} 歪了`)
+    if (kids.length !== 1 || hasTip) continue
+    chains++
+    let d = Math.abs(angle(kids[0].id) - angle(s.id))
+    d = Math.min(d, Math.PI * 2 - d)
+    if (d < 1e-3) straight++
+    assert.ok(d < (15 * Math.PI) / 180, `${s.id} → ${kids[0].id} 拐了 ${((d * 180) / Math.PI).toFixed(1)}°`)
   }
+  assert.ok(straight >= chains / 2, `${chains} 条单线的链只有 ${straight} 条是直的`)
 })
 
 test('任意两个技能不重叠（节点加名字）', () => {

@@ -1,13 +1,12 @@
 // 技能树的布局：一个圆，像竖着的技能树卷起来。圆心是“你”，三个基础技能（编程入门、Linux、微积分）
-// 在第一圈，各自正对着自己那一片；技能一圈一圈往外长，每条链沿半径笔直往外；职业在它那一列的最末端，最外一圈。
+// 在第一圈；技能一圈一圈往外长，链尽量沿半径笔直往外；职业在它那一列的最末端，最外一圈。
 //
-//   - 每个技能只挂在它的“主前置”上（种子里前置的第一个）。画出来是一条条往外的直链，只在关键节点分叉。
+//   - 每个技能只挂在它的“主前置”上（种子里前置的第一个）。画出来是一条条往外的链，只在关键节点分叉。
 //     其余前置不画线，选中时只让那些节点保持清楚，面板里列出来。
-//   - 先紧凑地排：子树按每一圈的左右轮廓紧挨着（宽度换算成弧度 = 像素宽 / 半径），父节点在孩子正中间，
-//     一个孩子时同一个角度，链是直的。职业那一列从挂的技能一直占到最外圈。
-//   - 再松弛：同一圈挨得太近的，连同子树（整条直链）往两边转开，不让某一对把整圈撑大。
-//   - 每一圈的半径：等距，每两圈之间一样宽。在同一圈相邻两个排得下、和里面一圈斜着也不叠、相邻两圈至少隔 RING 的前提下，
-//     让最外圈尽量小。
+//   - 先紧凑地排，定下每一圈的先后顺序：子树按每一圈的左右轮廓紧挨着（宽度换算成弧度 = 像素宽 / 半径），
+//     父节点在孩子正中间，一个孩子时同一个角度。职业那一列从挂的技能一直占到最外圈。
+//   - 再摊开：圈与圈等距，第一圈在 FIRST_RING。节点被父亲拉着，同一圈挨得太近的按顺序推开（挪得最少），
+//     最深最密的那几支就往两边空着的地方铺开，链只在挤的地方稍微拐一下。找排得下的最小圈距。
 //   - 枝条：从父节点沿半径往外，到两圈中间沿一小段圆弧转过去，再沿半径停在孩子前面。线绕开名字。
 //
 // 纯函数，坐标单位是像素，圆心是 (0, 0)。
@@ -262,135 +261,172 @@ export function layoutWeb(tree: Tree): WebLayout {
     for (const s of skills) half.set(s.id, halfAt(s.id, solved.angle.get(s.id)!))
     solved = solve()
   }
-  const lanes = (id: string): string[] => {
-    const tip = tipOf.get(id)
-    return tip ? [...children.get(id)!, tip] : children.get(id)!
-  }
+  const { angle: packed } = solved
 
-  const { angle: packed, radius: target } = solved
-
-  // 职业就在它那一列的最末端：线从技能沿半径笔直连出去，不绕弧
   const TAU = Math.PI * 2
   const norm = (a: number) => ((a % TAU) + TAU) % TAU
-  const tipIds = [...tipOf.values()]
-  const angle = new Map(packed)
-  const lane = new Map<string, number>()
-  for (const tip of tipIds) lane.set(tip, angle.get(tip)!)
-  // 大模型算法工程师朝正上方
-  const up = angle.get(subNodeId('llm-algo')) ?? 0
-  for (const [id, a] of angle) angle.set(id, a - up)
-  for (const [id, a] of lane) lane.set(id, a - up)
-  for (const [id, a] of angle) angle.set(id, norm(a))
-  for (const [id, a] of lane) lane.set(id, norm(a))
+  /** 两个角度差多少，落在 (-π, π] */
+  const wrap = (a: number) => a - TAU * Math.round(a / TAU)
 
-  // ── 松弛：同一圈挨得太近的两个节点，连同各自的子树往两边转开一点 ──
-  // 目标是每一圈都排在紧凑排法算出来的半径上，不让某一对把整圈撑大。链还是直的
-  const subtree = new Map<string, string[]>()
-  const collect = (id: string): string[] => {
-    const out = [id, ...children.get(id)!.flatMap(collect)]
-    subtree.set(id, out)
-    return out
-  }
-  for (const r of roots) collect(r)
+  // ── 摊开：圈与圈等距，每个节点在自己那一圈上找位置 ──
+  // 紧凑排法让每条链笔直往外，但最深最密的几支（AI）挤在一片，整个圆只好放大，别的方向的外圈却是空的。
+  // 这里放开一点：节点被父亲拉着（链尽量直），同一圈挨得太近的互相推开，外圈密的那片就往两边的空地铺开。
+  // 每一圈的先后顺序就是紧凑排出来的顺序，推的时候不会越过邻居，线不会交叉。
+  // 职业在最外圈，挂的技能外面到最外圈之间是一条窄道，别的节点不能压上去。
+  const tipIds = [...tipOf.values()]
+  const anchorOf = new Map([...tipOf].map(([anchor, tip]) => [tip, anchor]))
   const parentOf = new Map(skills.map((s) => [s.id, s.parent]))
-  const turnTree = (id: string, by: number) => {
-    // 一条直链要整条一起转，不然会折
-    let p = parentOf.get(id)
-    while (p && lanes(p).length === 1 && depth.get(p)! >= 2) {
-      id = p
-      p = parentOf.get(id)
-    }
-    for (const k of subtree.get(id)!) {
-      angle.set(k, angle.get(k)! + by)
-      const tip = tipOf.get(k)
-      if (tip) lane.set(tip, lane.get(tip)! + by)
-    }
+  const start = new Map(packed)
+  // 大模型算法工程师朝正上方
+  const up = start.get(subNodeId('llm-algo')) ?? 0
+  for (const [id, a] of start) start.set(id, norm(a - up))
+  const rings: string[][] = Array.from({ length: top + 1 }, () => [])
+  for (const s of skills) rings[depth.get(s.id)!].push(s.id)
+  for (const [anchor, tip] of tipOf) for (let d = depth.get(anchor)! + 1; d <= top; d++) rings[d].push(tip)
+  for (const ring of rings) ring.sort((x, y) => start.get(x)! - start.get(y)!)
+  // 最外圈的职业：徽章上面还有名字和星级，在上下两边占得比左右高
+  const tipHalfAt = (id: string, a: number) => {
+    const w = Math.max((labelWidth(subName.get(id)!) * 15) / 14, 2 * (TIP_R + 8)) / 2 + 3
+    const h = TIP_R + 36
+    return Math.abs(Math.cos(a)) * w + Math.abs(Math.sin(a)) * h + GAP / 2
   }
-  const byRing = new Map<number, string[]>()
-  for (const s of skills) {
-    const d = depth.get(s.id)!
-    if (!byRing.has(d)) byRing.set(d, [])
-    byRing.get(d)!.push(s.id)
-  }
-  // 职业那一列也算一个“占位”：从挂的技能外面一圈到最外圈，别的链不能转进来压在线上
-  for (const [anchor, tip] of tipOf) for (let d = depth.get(anchor)! + 1; d < top; d++) byRing.get(d)!.push(tip)
-  const isLane = (id: string) => id.startsWith('sub:')
-  const angR = (id: string) => (isLane(id) ? lane.get(id)! : angle.get(id)!)
-  const halfR = (id: string) => halfAt(id, angR(id))
-  const turnR = (id: string, by: number) => (isLane(id) ? lane.set(id, lane.get(id)! + by) : turnTree(id, by))
-  for (let pass = 0; pass < 60; pass++) {
-    let moved = false
-    for (let d = 2; d < top; d++) {
-      const ring = byRing.get(d)!.slice().sort((a, b) => norm(angR(a)) - norm(angR(b)))
-      for (let i = 0; i + 1 < ring.length; i++) {
-        const a = ring[i]
-        const b = ring[i + 1]
-        const gap = norm(angR(b)) - norm(angR(a))
-        const need = (halfR(a) + halfR(b)) / target(d)
-        if (gap < need - 1e-4) {
-          const push = Math.min(need - gap, 0.05) / 2
-          turnR(a, -push)
-          turnR(b, push)
-          moved = true
+  const halfIn = (id: string, d: number, a: number) => (id.startsWith('sub:') ? (d === top ? tipHalfAt(id, a) : LANE_HALF) : halfAt(id, a))
+
+  const settle = (radii: number[]) => {
+    const a = new Map(start)
+    const pulls: [child: string, parent: string][] = [
+      ...skills.filter((s) => s.parent).map((s) => [s.id, s.parent!] as [string, string]),
+      ...tipIds.map((t) => [t, anchorOf.get(t)!] as [string, string]),
+    ]
+    // 推开一圈：保持先后顺序，相邻两个至少隔 need，挪动尽量少（保序回归）。从最宽松的那个空隙处剪开，摊成一条线来算
+    const spread = (d: number) => {
+      const ring = rings[d]
+      const n = ring.length
+      if (n < 2) return 0
+      const x = ring.map((id) => a.get(id)!)
+      const need = ring.map((id, i) => (halfIn(id, d, x[i]) + halfIn(ring[(i + 1) % n], d, x[(i + 1) % n])) / radii[d])
+      const gap = (i: number) => x[(i + 1) % n] - x[i] + (i === n - 1 ? TAU : 0)
+      let cut = 0
+      for (let i = 1; i < n; i++) if (gap(i) - need[i] > gap(cut) - need[cut]) cut = i
+      const order = Array.from({ length: n }, (_, k) => (cut + 1 + k) % n)
+      // 展开：每个接着前一个，差多少就是多少（被拉得越过了邻居也照实算，回归会把它推回顺序里）
+      const line = [x[order[0]]]
+      for (let k = 1; k < n; k++) line.push(line[k - 1] + wrap(x[order[k]] - x[order[k - 1]]))
+      // y = x - 累计的 need，要求 y 不减
+      const offs: number[] = [0]
+      for (let k = 1; k < n; k++) offs.push(offs[k - 1] + need[order[k - 1]])
+      const blocks: { sum: number; cnt: number }[] = []
+      for (let k = 0; k < n; k++) {
+        blocks.push({ sum: line[k] - offs[k], cnt: 1 })
+        while (blocks.length > 1 && blocks[blocks.length - 2].sum / blocks[blocks.length - 2].cnt > blocks[blocks.length - 1].sum / blocks[blocks.length - 1].cnt) {
+          const top = blocks.pop()!
+          blocks[blocks.length - 1].sum += top.sum
+          blocks[blocks.length - 1].cnt += top.cnt
         }
       }
+      let k = 0
+      let moved = 0
+      for (const blk of blocks) for (let j = 0; j < blk.cnt; j++, k++) {
+        const v = blk.sum / blk.cnt + offs[k]
+        moved = Math.max(moved, Math.abs(v - line[k]))
+        a.set(ring[order[k]], v)
+      }
+      return moved
     }
-    if (!moved) break
+    let worst = 0
+    // 先边拉边推，拉力越来越弱；最后只推
+    for (let it = 0; it < 300; it++) {
+      const k = Math.max(0, 1 - it / 200)
+      // 拉：孩子朝父亲，父亲也朝孩子挪一点（停在孩子们中间）
+      for (const [c, p] of pulls) {
+        const diff = wrap(a.get(p)! - a.get(c)!)
+        a.set(c, a.get(c)! + diff * 0.3 * k)
+        a.set(p, a.get(p)! - diff * 0.08 * k)
+      }
+      worst = 0
+      for (let d = 1; d <= top; d++) worst = Math.max(worst, spread(d))
+      if (k === 0 && worst < 1e-5) break
+    }
+    // 再从里往外过一遍：单线链上的孩子先放回父亲的角度，再推开这一圈。推开挪得最少，所以只在挤的地方才歪
+    const single = (id: string) => {
+      const p = parentOf.get(id)
+      return p && children.get(p)!.length === 1 && !tipOf.has(p) ? p : null
+    }
+    for (let pass = 0; pass < 3; pass++) {
+      for (let d = 2; d <= top; d++) {
+        for (const id of rings[d]) {
+          const p = single(id)
+          if (p) a.set(id, a.get(id)! + wrap(a.get(p)! - a.get(id)!))
+        }
+        spread(d)
+      }
+      for (let it = 0; it < 100; it++) {
+        let m = 0
+        for (let d = 1; d <= top; d++) m = Math.max(m, spread(d))
+        if (m < 1e-5) break
+      }
+    }
+    // 拉直：只有一个孩子的节点，孩子摆回父亲的角度上，只要不碰到这一圈的左右邻居。从里往外，链能直就直
+    const fits = (d: number, id: string, v: number) => {
+      const ring = rings[d]
+      const i = ring.indexOf(id)
+      if (ring.length < 2) return true
+      const prev = ring[(i - 1 + ring.length) % ring.length]
+      const next = ring[(i + 1) % ring.length]
+      const h = halfIn(id, d, v)
+      return wrap(v - a.get(prev)!) >= (h + halfIn(prev, d, a.get(prev)!)) / radii[d] && wrap(a.get(next)! - v) >= (h + halfIn(next, d, a.get(next)!)) / radii[d]
+    }
+    // 孩子挪不过去，就试试把父亲挪到孩子那边（父亲那一圈有空的话）；来回几遍
+    for (let pass = 0; pass < 6; pass++) for (let d = 2; d < top; d++) for (const id of rings[d]) {
+      const p = parentOf.get(id)
+      if (!p || children.get(p)!.length !== 1 || tipOf.has(p) || a.get(p) === a.get(id)) continue
+      if (fits(d, id, a.get(p)!)) a.set(id, a.get(p)!)
+      else if (fits(d - 1, p, a.get(id)!)) a.set(p, a.get(id)!)
+    }
+    // 每一圈都还要真的排得下：相邻两个（包括首尾）不挨着
+    const tight = rings.some((ring, d) => ring.length > 1 && ring.some((id, i) => {
+      const next = ring[(i + 1) % ring.length]
+      const gap = norm(a.get(next)! - a.get(id)!)
+      return gap < (halfIn(id, d, a.get(id)!) + halfIn(next, d, a.get(next)!)) / radii[d] - 1e-4
+    }))
+    // 摊开的时候整体会转一点：转回去，大模型算法工程师还是朝正上方
+    const drift = a.get(subNodeId('llm-algo')) ?? 0
+    for (const [id, v] of a) a.set(id, norm(v - drift))
+    return tight ? null : a
   }
-  for (const tip of tipIds) angle.set(tip, lane.get(tip)!)
-  // 松弛完再转一下：大模型算法工程师正好朝上
-  const up2 = angle.get(subNodeId('llm-algo')) ?? 0
-  for (const [id, a] of angle) angle.set(id, norm(a - up2))
 
-  // ── 每一圈的半径：先算每圈至少要多大，再取一组等距的半径，每两圈之间一样宽 ──
-  const rings: string[][] = [[]]
-  const least = [0]
-  for (let d = 1; d < top; d++) {
-    // 这一圈的技能，加上从这一圈穿过去的职业连线
-    const ring = [
-      ...skills.filter((s) => depth.get(s.id) === d).map((s) => s.id),
-      ...[...tipOf].filter(([anchor]) => depth.get(anchor)! < d).map(([, tip]) => tip),
-    ].sort((a, b) => norm(angle.get(a)!) - norm(angle.get(b)!))
-    rings.push(ring)
-    // 同一圈相邻两个节点之间排得下
-    let r = FIRST_RING
-    for (let i = 0; i < ring.length && ring.length > 1; i++) {
-      const a = ring[i]
-      const b = ring[(i + 1) % ring.length]
-      let gap = norm(angle.get(b)!) - norm(angle.get(a)!)
-      if (gap <= 0) gap += Math.PI * 2
-      r = Math.max(r, (halfAt(a, angle.get(a)!) + halfAt(b, angle.get(b)!)) / gap)
-    }
-    least.push(r)
-  }
   // 斜着看，名字长的节点会和里面一圈的叠在一起
-  const boxAt = (id: string, rr: number) => {
-    const p = pt(rr, angle.get(id)!)
+  const boxAt = (id: string, rr: number, a: number) => {
+    const p = pt(rr, a)
     const w = Math.max(NODE_R, labelWidth(nameOf.get(id)!) / 2) + 4
     return { l: p.x - w, r: p.x + w, t: p.y - NODE_R - 4, b: p.y + LABEL_BOTTOM + 4 }
   }
-  const overlaps = (radii: number[]) => radii.some((r, d) => d > 1 && rings[d].filter((id) => !id.startsWith('sub:')).some((id) => {
-    const a = boxAt(id, r)
-    return rings[d - 1].filter((x) => !x.startsWith('sub:')).some((x) => {
-      const b = boxAt(x, radii[d - 1])
-      return a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b
-    })
-  }))
-  // 间距 g 时：第一圈尽量靠里，但每一圈都不小于它至少要的半径
-  const evenly = (g: number) => {
-    const first = Math.max(...least.slice(1).map((m, i) => m - g * i))
-    return [0, ...least.slice(1).map((_, i) => Math.ceil(first + g * i))]
+  const overlaps = (radii: number[], a: Map<string, number>) => {
+    for (let d = 2; d < top; d++) {
+      const outer = rings[d].filter((id) => !id.startsWith('sub:')).map((id) => boxAt(id, radii[d], a.get(id)!))
+      const inner = rings[d - 1].filter((id) => !id.startsWith('sub:')).map((id) => boxAt(id, radii[d - 1], a.get(id)!))
+      if (outer.some((o) => inner.some((i) => o.l < i.r && i.l < o.r && o.t < i.b && i.t < o.b))) return true
+    }
+    return false
   }
-  // 最外圈最小的那个间距；一样小时取间距大的，第一圈靠里，圆心不会空出一大片
-  let radii = evenly(RING)
-  for (let g = RING; g <= RING * 5; g++) {
-    const r = evenly(g)
-    if ((r[top - 1] <= radii[top - 1] || overlaps(radii)) && !overlaps(r)) radii = r
+
+  // 第一圈只有三个起点，放在 FIRST_RING；往外每圈隔 step。找排得下的最小 step
+  let step = RING
+  let radii: number[] = []
+  let angle = start
+  for (; step < RING * 6; step += 4) {
+    radii = [0, ...Array.from({ length: top - 1 }, (_, i) => FIRST_RING + step * i)]
+    radii.push(radii[top - 1] + Math.max(step, RING + 40))
+    // 一圈加起来都放不下，就不用试了
+    if (rings.some((ring, d) => d > 0 && ring.reduce((n, id) => n + 2 * halfIn(id, d, start.get(id)!), 0) > TAU * radii[d] * 0.97)) continue
+    const a = settle(radii)
+    if (a && !overlaps(radii, a)) {
+      angle = a
+      break
+    }
   }
-  const step = radii.length > 2 ? radii[2] - radii[1] : RING
   const radius = (d: number) => radii[d]
-  // 职业那一圈也隔同样宽，至少留出徽章的位置
-  const tipR = radius(top - 1) + Math.max(step, RING + 40)
+  const tipR = radii[top]
 
   const nodes: WebLayout['nodes'] = new Map()
   const place = (id: string, r: number) => {
@@ -430,7 +466,7 @@ export function layoutWeb(tree: Tree): WebLayout {
   }
 
   // 最外圈的徽章，上面还有名字
-  return { nodes, edges, rings: radii.slice(1).map(f), radius: tipR + TIP_R + 90 }
+  return { nodes, edges, rings: radii.slice(1, top).map(f), radius: tipR + TIP_R + 90 }
 }
 
 /** 从节点中心朝外走多远，线才不压到名字 */
