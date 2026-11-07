@@ -144,8 +144,8 @@ export function renderSite(rm: Roadmap): Map<string, string> {
 <script>/* 技能树以前在首页：旧的分享链接和技能链接（#share=… / #/skill/…）转到 tree/ */if (/^#(\\/|share=)/.test(location.hash)) location.replace('tree/' + location.hash)</script>
 <section class="hero">
   <div class="hero-text">
-    <h1><span>一棵计算机技能树</span><span>带 ${rm.subs.length} 条职业路线</span></h1>
-    <p class="lead">像游戏点天赋一样，把你会的计算机技能一个个点亮。它会告诉你下一步学什么、去哪学，离想去的岗位还差几个。</p>
+    <h1><span>一棵计算机技能树</span><span>解锁你的职业可能</span></h1>
+    <p class="lead">把你会的计算机技能点亮，马上知道三件事：下一步学什么、去哪免费学、离想去的岗位还差几个技能。</p>
     <div class="cta">
       <a class="btn big" href="tree/">开始点亮 →</a>
       <a class="btn ghost big" href="#careers">看 ${rm.subs.length} 条职业路线</a>
@@ -158,14 +158,14 @@ export function renderSite(rm: Roadmap): Map<string, string> {
 </section>
 
 <section class="how">
-  <div><span class="n">1</span><h3>点亮你会的</h3><p>会的就点一下。前置亮了，下一个技能才解锁。</p></div>
-  <div><span class="n">2</span><h3>知道下一步学什么</h3><p>能学的技能会亮起来，每个都拆成几小步，附免费课程。</p></div>
-  <div><span class="n">3</span><h3>看离岗位还差多少</h3><p>挑一个想去的岗位，要学的整条路线亮出来，还差几个一眼看清。</p></div>
+  <div><span class="n">1</span><h3>标出你会的</h3><p>会的点一下就亮。按前置关系，自动算出你现在能学什么。</p></div>
+  <div><span class="n">2</span><h3>下一步学什么</h3><p>直接列出你现在能学的技能，每个附上最好的免费课程。</p></div>
+  <div><span class="n">3</span><h3>离岗位还差多少</h3><p>选一个目标岗位，要学的技能按先后排好，还差几个直接算出来。</p></div>
 </section>
 
 <section id="careers" class="block">
   <h2>职业路线</h2>
-  <p class="muted">每条路线从编程入门开始，按顺序列出要学的全部技能。</p>
+  <p class="muted">每个岗位要学哪些技能、先学哪个，按步骤排好。</p>
   ${careers}
 </section>
 
