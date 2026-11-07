@@ -41,6 +41,13 @@ export interface Layout {
 
 export const subNodeId = (subId: string) => `sub:${subId}`
 
+/** 六边形（编程语言）：尖朝上，外接圆半径 r，中心在原点 */
+export const hexPath = (r: number) =>
+  Array.from({ length: 6 }, (_, i) => {
+    const a = (Math.PI / 3) * i - Math.PI / 2
+    return `${i ? 'L' : 'M'}${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`
+  }).join(' ') + 'Z'
+
 /** 名字的显示宽度：中文 14px，英文数字约 8px */
 export function labelWidth(name: string): number {
   return [...name].reduce((w, c) => w + (c.charCodeAt(0) > 0x2e80 ? 14 : 8), 0)
@@ -93,7 +100,7 @@ function exitBox(ux: number, uy: number, l: number, r: number, t: number, b: num
   return hi > Math.max(lo, 0) ? hi : 0
 }
 
-/** 职业徽章上面名字和星级的框，相对徽章中心 */
+/** 职业徽章上面名字和进度的框，相对徽章中心 */
 const tipLabelBox = (name: string) => {
   const w = Math.max((labelWidth(name) * 15) / 14, 100) / 2 + 3
   return { l: -w, r: w, t: -TIP_R - 63, b: -TIP_R - 27 }
@@ -285,7 +292,7 @@ export function layoutWeb(tree: Tree): Layout {
   for (const s of skills) rings[depth.get(s.id)!].push(s.id)
   for (const [anchor, tip] of tipOf) for (let d = depth.get(anchor)! + 1; d <= top; d++) rings[d].push(tip)
   for (const ring of rings) ring.sort((x, y) => start.get(x)! - start.get(y)!)
-  // 最外圈的职业：徽章上面还有名字和星级，在上下两边占得比左右高
+  // 最外圈的职业：徽章上面还有名字和进度，在上下两边占得比左右高
   const tipHalfAt = (id: string, a: number) => {
     const w = Math.max((labelWidth(subName.get(id)!) * 15) / 14, 2 * (TIP_R + 8)) / 2 + 3
     const h = TIP_R + 36

@@ -3,7 +3,6 @@
 import { useApp } from '../state'
 import { Rays, SkillGlyph } from './glyphs'
 import { CardName, Links, Meter, MiniSkill } from './common'
-import { stars } from '../lib/tree'
 
 export function SubPanel({ id }: { id: string }) {
   const { tree, career, progressBySub } = useApp()
@@ -26,7 +25,7 @@ export function SubPanel({ id }: { id: string }) {
           </foreignObject>
         </svg>
         <div className="card-title">
-          <p className="card-kind">职业 · {tree.categories.get(sub.categoryId)!.name} · <span className="tip-stars">{stars(total)}</span></p>
+          <p className="card-kind">职业 · {tree.categories.get(sub.categoryId)!.name}</p>
           <CardName name={sub.name} />
           <span className={`badge ${reached ? 'b-done' : 'b-available'}`}>{reached ? '已达成' : `${done} / ${total}`}</span>
         </div>

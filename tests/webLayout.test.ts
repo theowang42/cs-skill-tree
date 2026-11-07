@@ -142,7 +142,7 @@ function shapes(l: Layout, skills: string[], subs: string[]) {
     const n = at(subNodeId(id))
     const name = tree.subs.get(id)!.name
     const w = Math.max((labelWidth(name) * 15) / 14, 100) / 2 + 3
-    labels.push({ l: n.x - w, r: n.x + w, t: n.y - TIP_R - 63, b: n.y - TIP_R - 27, who: `${name} 的名字和星级` })
+    labels.push({ l: n.x - w, r: n.x + w, t: n.y - TIP_R - 63, b: n.y - TIP_R - 27, who: `${name} 的名字和进度` })
     circles.push({ x: n.x, y: n.y, r: TIP_R + 8, who: name })
   }
   circles.push({ x: 0, y: 0, r: START_R + 6, who: '“你”' })

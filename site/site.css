@@ -7,33 +7,20 @@ a { color: inherit; }
 main { max-width: 1120px; margin: 0 auto; padding: 0 24px 40px; }
 h1, h2, h3 { line-height: 1.25; margin: 0; }
 .muted { color: var(--ink-2); }
-.small { font-size: 13px; }
 
 /* 顶栏 */
 .top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 60px; padding: 0 24px; background: rgba(255,255,255,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line-2); }
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .06em; text-decoration: none; white-space: nowrap; }
 .logo .mark { width: 16px; height: 16px; border-radius: 3px; background: var(--ink); }
 .top nav { display: flex; align-items: center; gap: 22px; font-size: 14px; }
-.top nav a:not(.btn) { text-decoration: none; color: var(--ink-2); }
-.top nav a:not(.btn):hover { color: var(--ink); }
 
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--ink); color: #fff; font-weight: 700; text-decoration: none; white-space: nowrap; transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
 .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,.14); }
-.btn.ghost { background: transparent; color: var(--ink); }
-.btn.big { padding: 13px 26px; font-size: 16px; }
-.cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 22px 0 12px; }
 
 /* 首页 */
-.hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 48px; align-items: center; padding: 64px 0 56px; }
-.hero h1 { font-size: clamp(30px, 4.2vw, 48px); letter-spacing: .02em; }
-.hero h1 span { display: block; white-space: nowrap; }
+.hero { padding: 56px 0 8px; }
+.hero h1 { font-size: clamp(28px, 4.2vw, 44px); letter-spacing: .02em; }
 .lead { font-size: 17px; color: #333; margin: 18px 0 0; }
-.hero-media video { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 14px; border: 1px solid var(--line); background: var(--wash); box-shadow: 0 24px 60px rgba(0,0,0,.12); }
-.how { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 8px 0 24px; }
-.how > div { padding: 22px; border: 1px solid var(--line); border-radius: 14px; }
-.how .n { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; }
-.how h3 { margin: 12px 0 6px; font-size: 17px; }
-.how p { margin: 0; color: var(--ink-2); font-size: 14px; }
 
 .block { padding: 36px 0 4px; }
 .block > h2 { font-size: 24px; margin-bottom: 6px; }
@@ -45,6 +32,15 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 
 /* 卡片 */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.careers { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.group-head { grid-column: 1 / -1; margin-top: 14px; }
+.group-head h3 { font-size: 15px; margin-bottom: 2px; }
+.group-head .muted { margin: 0; font-size: 14px; }
+/* 点亮了东西：大方向收起，岗位按还差几个排，卡片底下一条进度 */
+.careers.ranked .group-head { display: none; }
+.careers.ranked .card .meta { position: relative; padding-bottom: 8px; color: var(--ink-2); }
+.careers.ranked .card .meta strong { color: var(--ink); }
+.careers.ranked .card .meta::after { content: ''; position: absolute; left: 0; bottom: 0; height: 3px; width: calc(var(--done, 0) * 100%); background: var(--ink); transition: width .4s var(--ease); }
 .card { display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; text-decoration: none; background: #fff; transition: border-color .2s var(--ease), transform .2s var(--ease), box-shadow .2s var(--ease); }
 .card:hover { border-color: var(--ink); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,.08); }
 .card .txt { display: flex; flex-direction: column; min-width: 0; }
@@ -60,16 +56,44 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .chip:hover { border-color: var(--ink); background: var(--wash); }
 .chip svg { color: var(--ink-2); }
 
+/* 首页：左边标题、常见技能、岗位；右边一棵跟着岗位换的小树 */
+.home { display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-template-areas: "hero preview" "careers preview"; column-gap: 48px; }
+.hero { grid-area: hero; }
+#careers { grid-area: careers; }
+.ask { margin: 22px 0 10px; font-weight: 700; }
+.quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.quick .chip { background: #fff; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
+.quick .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+.quick .chip[aria-pressed="true"] svg { color: #fff; }
+.preview { grid-area: preview; position: sticky; top: 76px; align-self: start; height: calc(100vh - 140px); margin-top: 56px; }
+.mini { display: none; height: 100%; flex-direction: column; align-items: center; gap: 8px; text-decoration: none; }
+.mini.on { display: flex; }
+.mini svg { flex: 1; min-height: 0; width: 100%; }
+.mini b { font-size: 14px; }
+.mini .e { fill: none; stroke: var(--off-line); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw .45s var(--ease) forwards; }
+.mini .n > g { opacity: 0; transform: scale(.3); animation: pop .4s var(--ease) forwards; }
+.mini .n > g > circle, .mini .n > g > path { fill: #fff; stroke: var(--off-line); stroke-width: 1.5; vector-effect: non-scaling-stroke; transition: fill .3s, stroke .3s; }
+.mini .n.lit > g > circle, .mini .n.lit > g > path { fill: var(--ink); stroke: var(--ink); }
+.mini .tip > g > circle { stroke: var(--ink); stroke-width: 2.5; }
+.mini .tip svg { color: var(--ink); }
+.mini .you { fill: var(--ink); }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes pop { to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .mini .e, .mini .n > g { animation: none; opacity: 1; transform: none; stroke-dashoffset: 0; }
+}
+
+#skills > summary { cursor: pointer; font-size: 24px; font-weight: 700; }
+
 .foot { max-width: 1120px; margin: 40px auto 0; padding: 28px 24px 48px; border-top: 1px solid var(--line-2); color: var(--ink-2); font-size: 13px; }
 .foot p { margin: 4px 0; }
 
 @media (max-width: 860px) {
-  .hero { grid-template-columns: 1fr; gap: 28px; padding: 36px 0 32px; }
-  .how { grid-template-columns: 1fr; }
+  .home { grid-template-columns: 1fr; grid-template-areas: "hero" "preview" "careers"; }
+  .preview { position: static; height: 300px; margin-top: 24px; }
 }
 @media (max-width: 560px) {
   main { padding: 0 16px 32px; }
   .top { padding: 0 16px; }
-  .top nav a:not(.btn) { display: none; }
   .grid { grid-template-columns: 1fr; }
 }

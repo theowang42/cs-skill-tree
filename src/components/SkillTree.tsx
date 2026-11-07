@@ -5,10 +5,10 @@
 import { memo, useEffect, useMemo, useState } from 'react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
-import { LABEL_Y, layoutWeb, NODE_R, START_R, subNodeId, TIP_R } from '../lib/webLayout'
+import { hexPath, LABEL_Y, layoutWeb, NODE_R, START_R, subNodeId, TIP_R } from '../lib/webLayout'
 import { layoutCareer } from '../lib/careerLayout'
-import { frontier, stars, totals } from '../lib/tree'
-import { hexPath, Rays, SkillGlyph } from './glyphs'
+import { frontier, totals } from '../lib/tree'
+import { Rays, SkillGlyph } from './glyphs'
 import { useCamera } from './useCamera'
 
 /** 打开时整棵树从圆心往外一圈圈长出来：离圆心越远，出现得越晚 */
@@ -133,11 +133,7 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
       )}
       {/* 名字和进度写在光芒外面，达成后转起来的光芒不会压到字 */}
       <text className="tip-name" y={-TIP_R - 48}>{name}</text>
-      <text className="tip-pct" y={-TIP_R - 31}>
-        <tspan className="tip-stars">{stars(total)}</tspan>
-        {'  '}
-        {reached ? '已达成' : `${done} / ${total}`}
-      </text>
+      <text className="tip-pct" y={-TIP_R - 31}>{reached ? '已达成' : `${done} / ${total}`}</text>
     </g>
   )
 })
@@ -171,7 +167,7 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
     const pad = 90
     const minX = Math.min(...pts.map((p) => p.x)) - pad
     const maxX = Math.max(...pts.map((p) => p.x)) + pad
-    // 徽章上面还有名字和星级
+    // 徽章上面还有名字和进度
     const minY = Math.min(...pts.map((p) => p.y)) - pad - TIP_R
     const maxY = Math.max(...pts.map((p) => p.y)) + pad
     // 面板正要打开时会占掉右边一块（已经开着的话，size.w 已经是让过之后的宽度）

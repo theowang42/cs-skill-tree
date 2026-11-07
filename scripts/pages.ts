@@ -13,10 +13,17 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { Roadmap, Skill, Sub } from '../src/types.ts'
 import { ICONS } from '../src/generated/icons.ts'
+import { Tree } from '../src/lib/tree.ts'
+import { layoutCareer } from '../src/lib/careerLayout.ts'
+import { hexPath, NODE_R, START_R, subNodeId, TIP_R } from '../src/lib/webLayout.ts'
 
 export const SITE = 'https://theowang42.github.io/cs-skill-tree/'
 const REPO = 'https://github.com/theowang42/cs-skill-tree'
 const NAME = 'CS 技能树'
+/** 首页第一屏让人先点的常见技能 */
+const QUICK = ['python', 'javascript', 'java', 'linux', 'git', 'sql', 'cs61b', 'networking', 'docker', 'react', 'ml', 'pytorch']
+/** 和技能树存进度用的是同一个地方，首页点亮的进了树里也在 */
+const PROGRESS_KEY = 'cs-skill-tree:progress:v1'
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
@@ -84,11 +91,7 @@ ${p.app === undefined ? site(root, p.body) : `<div id="root">\n${p.body}\n</div>
 /** 站点的页头、正文、页脚 */
 const site = (root: string, body: string) => `<header class="top">
   <a class="logo" href="${root}"><span class="mark"></span>${NAME}</a>
-  <nav>
-    <a href="${root}#careers">职业路线</a>
-    <a href="${root}#skills">全部技能</a>
-    <a class="btn" href="${root}tree/">打开技能树</a>
-  </nav>
+  <nav><a class="btn" href="${root}tree/">打开技能树</a></nav>
 </header>
 <main>
 ${body}
@@ -107,17 +110,47 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
   const out = new Map<string, string>()
   const put = (p: Page) => out.set(p.path + 'index.html', layout(p))
 
+  const tree = new Tree(rm)
+  /** 首页的小树：一个职业的天赋树，只画形状，从“你”往上一节一节长出来（离“你”越远越晚） */
+  const miniTree = (c: Sub) => {
+    const l = layoutCareer(tree, c.id)
+    const { minX, minY, maxX, maxY } = l.bounds
+    const at = (id: string) => l.nodes.get(id)!
+    const delay = (y: number) => `style="animation-delay:${Math.round(-y * 0.55)}ms"`
+    // 小树没有名字，枝条直接连到节点中心（节点是白底，盖住线头）：父节点往上一点横过去，再往上到孩子
+    const edges = l.edges.map((e) => {
+      const a = e.from === 'root' ? { x: 0, y: 0 } : at(e.from)
+      const b = at(e.to)
+      const d = a.x === b.x ? `M${a.x},${a.y} V${b.y}` : `M${a.x},${a.y} V${a.y - 50} H${b.x} V${b.y}`
+      return `<path class="e" pathLength="1" d="${d}" ${delay(b.y)}/>`
+    }).join('')
+    const nodes = [...tree.closures.get(c.id)!].map((id) => {
+      const { x, y } = at(id)
+      const shape = sk(id).language ? `<path d="${hexPath(NODE_R + 2)}"/>` : `<circle r="${NODE_R}"/>`
+      return `<g class="n" data-s="${id}" transform="translate(${x},${y})"><g ${delay(y)}>${shape}</g></g>`
+    }).join('')
+    const t = at(subNodeId(c.id))
+    return `<svg viewBox="${minX} ${minY} ${maxX - minX} ${maxY - minY}" aria-hidden="true">${edges}${nodes}<g class="n tip" transform="translate(${t.x},${t.y})"><g ${delay(t.y)}><circle r="${TIP_R}"/><circle r="${TIP_R - 7}"/><g transform="translate(-20,-20) scale(1.67)">${icon(c.icon)}</g></g></g><circle class="you" r="${START_R}"/></svg>`
+  }
+
   const skillChip = (s: Skill, root: string) => `<a class="chip" href="${root}skill/${s.id}/">${icon(s.icon, 16)}${esc(s.name)}</a>`
   const careerCard = (c: Sub, root: string) => {
     const steps = Math.max(...c.plan.map((p) => p.step))
-    return `<a class="card career" href="${root}career/${c.id}/"><span class="seal">${icon(c.icon, 22)}</span><span class="txt"><b>${esc(c.name)}${c.isHot ? '<em>热门</em>' : ''}</b><small>${esc(c.intro)}</small><span class="meta">${c.plan.length} 个技能 · ${steps} 步</span></span></a>`
+    return `<a class="card career" data-id="${c.id}" href="${root}career/${c.id}/"><span class="seal">${icon(c.icon, 22)}</span><span class="txt"><b>${esc(c.name)}${c.isHot ? '<em>热门</em>' : ''}</b><small>${esc(c.intro)}</small><span class="meta">${c.plan.length} 个技能 · ${steps} 步</span></span></a>`
   }
 
   // ── 首页 ──
   {
+    // 一个网格：大方向的标题占一整行，点亮了东西之后标题收起，岗位按还差几个排
     const careers = rm.categories
-      .map((cat) => `<section class="group"><h3>${esc(cat.name)}</h3><p class="muted">${esc(cat.intro)}</p><div class="grid">${cat.subIds.map((id) => careerCard(subs.get(id)!, '')).join('')}</div></section>`)
+      .map((cat) => `<div class="group-head"><h3>${esc(cat.name)}</h3><p class="muted">${esc(cat.intro)}</p></div>${cat.subIds.map((id) => careerCard(subs.get(id)!, '')).join('')}`)
       .join('')
+    // 首页的脚本要用的：每个岗位要学的技能；每个常见技能的前置（点亮时一起亮）和依赖它的（熄灭时一起灭）
+    const data = {
+      careers: Object.fromEntries(rm.subs.map((c) => [c.id, c.plan.map((p) => p.skillId)])),
+      up: Object.fromEntries(QUICK.map((id) => [id, [...tree.ancestors(id)]])),
+      down: Object.fromEntries(QUICK.map((id) => [id, rm.skills.filter((s) => tree.ancestors(s.id).has(id)).map((s) => s.id)])),
+    }
     const all = rm.areas
       .map((a) => `<section class="group"><h3>${esc(a.name)}<span>${a.skillIds.length}</span></h3><p class="muted">${esc(a.intro)}</p><div class="chips">${a.skillIds.map((id) => skillChip(sk(id), '')).join('')}</div></section>`)
       .join('')
@@ -127,37 +160,75 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
       description: `一棵 ${rm.skills.length} 个技能的计算机技能树：点亮你会的，看清自己的能力边界，按 ${rm.subs.length} 个职业倒推学习路线，每个技能附公开课。免费，不用注册。`,
       body: `
 <script>/* 技能树以前在首页：旧的分享链接和技能链接（#share=… / #/skill/…）转到 tree/ */if (/^#(\\/|share=)/.test(location.hash)) location.replace('tree/' + location.hash)</script>
+<div class="home">
 <section class="hero">
-  <div class="hero-text">
-    <h1><span>一棵计算机技能树</span><span>解锁你的职业可能</span></h1>
-    <p class="lead">把你会的计算机技能点亮，马上知道三件事：下一步学什么、去哪免费学、离想去的岗位还差几个技能。</p>
-    <div class="cta">
-      <a class="btn big" href="tree/">开始点亮 →</a>
-      <a class="btn ghost big" href="#careers">看 ${rm.subs.length} 条职业路线</a>
-    </div>
-    <p class="muted small">免费 · 不用注册 · 每个技能附公开课</p>
-  </div>
-  <div class="hero-media">
-    <video src="intro.mp4" poster="intro-poster.jpg" autoplay muted loop playsinline controls preload="metadata" aria-label="短片：标出你会的技能，看下一步学什么、离岗位还差多少"></video>
-  </div>
+  <h1>点亮你会的，<br>看你离岗位还差几个技能</h1>
+  <p class="lead">一棵 ${rm.skills.length} 个技能的计算机技能树。每个技能写清学到什么程度算会、分几步学、去哪免费学。不用注册，进度只存在你的浏览器里。</p>
+  <p class="ask">你会哪些？点一下，下面马上算出离每个岗位还差几个。</p>
+  <div class="quick">${QUICK.map((id) => `<button type="button" class="chip" data-s="${id}" aria-pressed="false">${icon(sk(id).icon, 16)}${esc(sk(id).name)}</button>`).join('')}</div>
 </section>
 
-<section class="how">
-  <div><span class="n">1</span><h3>标出你会的</h3><p>会的点一下就亮。按前置关系，自动算出你现在能学什么。</p></div>
-  <div><span class="n">2</span><h3>下一步学什么</h3><p>直接列出你现在能学的技能，每个附上最好的免费课程。</p></div>
-  <div><span class="n">3</span><h3>离岗位还差多少</h3><p>选一个目标岗位，要学的技能按先后排好，还差几个直接算出来。</p></div>
-</section>
+<aside class="preview">${rm.subs.map((c, i) => `<a class="mini${i ? '' : ' on'}" data-id="${c.id}" href="career/${c.id}/">${miniTree(c)}<b>${esc(c.name)}</b></a>`).join('')}</aside>
 
 <section id="careers" class="block">
-  <h2>职业路线</h2>
-  <p class="muted">每个岗位要学哪些技能、先学哪个，按步骤排好。</p>
-  ${careers}
+  <h2>你想做哪个岗位？</h2>
+  <p class="muted">点进去是这个岗位要学的全部技能，会的直接点亮。还没想好，就<a href="tree/">看整棵树</a>。</p>
+  <div class="careers">${careers}</div>
 </section>
+</div>
 
-<section id="skills" class="block">
-  <h2>全部 ${rm.skills.length} 个技能</h2>
+<details id="skills" class="block">
+  <summary>全部 ${rm.skills.length} 个技能</summary>
   ${all}
-</section>
+</details>
+<script>
+const KEY = ${JSON.stringify(PROGRESS_KEY)}, D = ${JSON.stringify(data)}
+let store = null
+try { store = JSON.parse(localStorage.getItem(KEY)) } catch {}
+if (store?.format !== 'cs-skill-tree-progress') store = { format: 'cs-skill-tree-progress', version: 1, skills: {} }
+const lit = () => new Set(Object.keys(store.skills).filter((k) => store.skills[k].status === 'done'))
+const cards = [...document.querySelectorAll('.card.career')]
+const minis = [...document.querySelectorAll('.mini')]
+/** 右边的小树换成这个岗位的，重新长一遍 */
+const show = (id) => minis.forEach((m) => m.classList.toggle('on', m.dataset.id === id))
+function render() {
+  const l = lit()
+  for (const b of document.querySelectorAll('.quick .chip')) b.setAttribute('aria-pressed', l.has(b.dataset.s))
+  for (const n of document.querySelectorAll('.mini .n[data-s]')) n.classList.toggle('lit', l.has(n.dataset.s))
+  document.querySelector('.careers').classList.toggle('ranked', l.size > 0)
+  let best = null
+  for (const c of cards) {
+    const meta = c.querySelector('.meta')
+    meta.dataset.base ??= meta.innerHTML
+    if (!l.size) {
+      meta.innerHTML = meta.dataset.base
+      c.style.order = ''
+      continue
+    }
+    const need = D.careers[c.dataset.id]
+    const left = need.filter((s) => !l.has(s)).length
+    c.style.order = left
+    meta.innerHTML = left ? '还差 <strong>' + left + '</strong> 个 · 已点亮 ' + (need.length - left) + ' / ' + need.length : '<strong>已达成</strong>'
+    c.style.setProperty('--done', (need.length - left) / need.length)
+    if (!best || left < best.left) best = { id: c.dataset.id, left }
+  }
+  return best?.id
+}
+function toggle(id) {
+  const on = !lit().has(id)
+  for (const s of on ? [...D.up[id], id] : [id, ...D.down[id]]) {
+    if (on) store.skills[s] = { status: 'done' }
+    else if (store.skills[s]?.status === 'done') delete store.skills[s]
+  }
+  try { localStorage.setItem(KEY, JSON.stringify(store)) } catch {}
+  const best = render()
+  if (best) show(best)
+}
+for (const b of document.querySelectorAll('.quick .chip')) b.addEventListener('click', () => toggle(b.dataset.s))
+for (const c of cards) for (const ev of ['pointerenter', 'focus']) c.addEventListener(ev, () => show(c.dataset.id))
+const best = render()
+if (best) show(best)
+</script>
 `,
     })
   }

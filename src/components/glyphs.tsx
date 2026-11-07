@@ -1,6 +1,7 @@
 // 树上和面板里共用的画法：图标、点亮后的光芒、六边形、技能槽。
 import type { SkillState } from '../types'
 import { ICONS } from '../generated/icons'
+import { hexPath } from '../lib/webLayout'
 
 export function SkillGlyph({ icon, size }: { icon: string; size: number }) {
   const spec = ICONS[icon]
@@ -38,13 +39,6 @@ export function Rays({ r, id, count = 24, long = 9, short = 5, className = '' }:
     </g>
   )
 }
-
-/** 六边形（编程语言）：尖朝上，外接圆半径 r */
-export const hexPath = (r: number) =>
-  Array.from({ length: 6 }, (_, i) => {
-    const a = (Math.PI / 3) * i - Math.PI / 2
-    return `${i ? 'L' : 'M'}${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`
-  }).join(' ') + 'Z'
 
 /** 面板里的技能槽：和树上的节点同一个形状、同一套状态画法。卡头用大的，列表里用小的 */
 export function SkillSlot({ uid, icon, language, state, size = 96 }: { uid: string; icon: string; language: boolean; state: SkillState; size?: number }) {

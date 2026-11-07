@@ -268,13 +268,6 @@ a {
   text-anchor: middle;
 }
 
-/* 徽章星级：黑星是难度，空星补齐三颗 */
-.tip-stars {
-  fill: var(--ink);
-  color: var(--ink);
-  letter-spacing: 0.05em;
-}
-
 .tip:hover .seal,
 .tip.focused .seal {
   stroke-width: 5;
