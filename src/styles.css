@@ -52,7 +52,7 @@ a {
 .boot.error {
   gap: 12px;
   align-content: center;
-  color: var(--goal);
+  color: var(--ink);
 }
 
 /* ═════════════ 页面：顶栏 / 技能网 / 右边面板 ═════════════ */
@@ -953,9 +953,11 @@ a {
   background: var(--wash);
 }
 
+/* 危险的操作：黑底白字，和普通按钮分开，不用颜色 */
 button.danger {
-  border-color: var(--goal) !important;
-  color: var(--goal);
+  border-color: var(--ink) !important;
+  background: var(--ink);
+  color: var(--paper);
 }
 
 .stats {
@@ -1277,7 +1279,7 @@ button.danger {
 
 .light-toggle.on:hover .lt-off {
   display: inline;
-  color: var(--goal);
+  color: var(--ink);
 }
 
 /* 前置还没点亮：灰的，按不了 */
@@ -1340,7 +1342,7 @@ button.danger {
 
 .mini.s-locked .mini-state,
 .mini.s-available .mini-state {
-  color: var(--goal);
+  color: var(--ink);
 }
 
 /* 同心圆：每一圈一层，很淡，只当参照 */
