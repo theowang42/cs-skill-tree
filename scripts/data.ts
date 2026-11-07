@@ -20,7 +20,7 @@ const out = new URL('../public/data/', import.meta.url)
 mkdirSync(out, { recursive: true })
 writeFileSync(new URL('roadmap.json', out), JSON.stringify(roadmap, null, 2) + '\n')
 writeIcons([...roadmap.skills.map((s) => s.icon), ...roadmap.subs.map((s) => s.icon)])
-console.log(`已导出 ${roadmap.areas.length} 个领域、${roadmap.skills.length} 个技能、${roadmap.subs.length} 个职业；${roadmap.skills.filter((s) => s.steps.length).length} 个技能写了学习流程`)
+console.log(`已导出 ${roadmap.areas.length} 个领域、${roadmap.skills.length} 个技能、${roadmap.subs.length} 个职业`)
 
 /**
  * 前端的图标表：只 import 用到的图标，打包时其余的都被摇掉。

@@ -73,7 +73,6 @@ test('学习流程的进度：只留没点亮、步数对得上、还没做完�
     ['docker', [1]], // 已经点亮：不记步骤
     ['nope', [1]], // 技能不存在
     ['cs61a', [1, 2, 3, 4, 5]], // 全做完却没点亮：内容改过步数
-    ['k8s', [1]], // 还没写学习流程
   ])
   assert.deepEqual(cleanSteps(tree, new Set(['docker']), steps), new Map([['sql', [1, 3]]]))
 })

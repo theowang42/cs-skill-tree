@@ -85,6 +85,8 @@ erDiagram
 | `npm test` | 导出数据，再跑全部测试 |
 | `npm run build` | 导出 → 类型检查 → 技能树打包到 `dist/tree/` → 生成首页、技能页、职业页到 `dist/` |
 
+GitHub 上有两条自动检查：`Deploy to GitHub Pages` 每次推送都跑测试，推到默认分支时再发布；`Check links` 在内容改动时和每周一用 lychee 检查所有链接还能不能打开，坏了只标红，不挡发布。
+
 ## 5. 静态页面：首页、技能页、职业页
 
 技能树是单页应用，搜索引擎看不到里面的内容。`scripts/pages.ts` 在打包时把同一份 `roadmap.json` 写成纯 HTML：

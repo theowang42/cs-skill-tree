@@ -5,5 +5,12 @@ requires: [pytorch, csapp]
 ---
 会从零写一个深度学习框架，能实现自动求导、算子和 GPU 后端。
 
+## 学习流程
+- 自动求导
+- 张量和算子
+- 优化器和训练
+- CPU 和 GPU 后端
+- 从零写一个小框架
+
 ## 去哪学
-- [CMU 10-414](https://dlsyscourse.org/)
+- [CMU 10-414](https://dlsyscourse.org/) · 课程 · 免费

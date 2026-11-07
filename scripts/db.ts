@@ -90,15 +90,16 @@ export function check(db: DatabaseSync): Finding[] {
   warning('SELECT id, length(intro) AS n FROM skills WHERE length(intro) > 50', (r) => `技能 ${r.id} 的一句话有 ${r.n} 个字，最好控制在 50 字以内`)
   // 技能的一句话写掌握到什么程度：会做什么，能做到什么
   warning("SELECT id FROM skills WHERE intro NOT LIKE '会%能%'", (r) => `技能 ${r.id} 的一句话要写成“会……，能……”，说清掌握到什么程度`)
-  // 学习流程：4 到 6 步，每步一个短语；写了流程，资源也要标上类型和是否免费
+  // 学习流程：每个技能都要有，4 到 6 步，每步一个短语；资源都要标上类型和是否免费
+  error('SELECT id FROM skills WHERE id NOT IN (SELECT skill_id FROM skill_steps)', (r) => `技能 ${r.id} 还没写学习流程`)
   error(
     'SELECT skill_id, COUNT(*) AS n FROM skill_steps GROUP BY skill_id HAVING n NOT BETWEEN 4 AND 6',
     (r) => `技能 ${r.skill_id} 的学习流程有 ${r.n} 步，要 4 到 6 步`,
   )
   warning('SELECT skill_id, text FROM skill_steps WHERE length(text) > 14', (r) => `技能 ${r.skill_id} 的一步“${r.text}”太长，14 个字以内`)
   error(
-    'SELECT DISTINCT skill_id FROM skill_resources WHERE (kind IS NULL OR is_free IS NULL) AND skill_id IN (SELECT skill_id FROM skill_steps)',
-    (r) => `技能 ${r.skill_id} 写了学习流程，“去哪学”的每个链接也要标上类型和免费 / 付费`,
+    'SELECT DISTINCT skill_id FROM skill_resources WHERE kind IS NULL OR is_free IS NULL',
+    (r) => `技能 ${r.skill_id} 的“去哪学”里，每个链接都要标上类型和免费 / 付费`,
   )
   // 名字的显示宽度：中文算 2，英文数字算 1。树上节点下面放得下 16
   for (const r of rows('SELECT id, name FROM skills')) {

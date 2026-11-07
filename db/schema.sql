@@ -52,8 +52,8 @@ CREATE TABLE skill_resources (
   position  INTEGER NOT NULL,
   label     TEXT    NOT NULL CHECK (length(label) > 0),
   url       TEXT    NOT NULL CHECK (url LIKE 'https://%'),
-  -- 课程、书、视频、文章、文档、论文、练习；还没写学习流程的技能可以不标
-  kind      TEXT    CHECK (kind IN ('课程', '书', '视频', '文章', '文档', '论文', '练习')),
+  -- 课程、书、视频、文章、文档、论文、练习、项目。没标的由体检报出来，指出是哪个技能
+  kind      TEXT    CHECK (kind IN ('课程', '书', '视频', '文章', '文档', '论文', '练习', '项目')),
   is_free   INTEGER CHECK (is_free IN (0, 1)),
   PRIMARY KEY (skill_id, position)
 ) STRICT, WITHOUT ROWID;

@@ -2,7 +2,7 @@
 // 这里只把文件读成对象，并核对文件之间的引用；格式不对时指出是哪个文件、哪一行。
 import { readdirSync, readFileSync } from 'node:fs'
 
-export const RESOURCE_KINDS = ['课程', '书', '视频', '文章', '文档', '论文', '练习'] as const
+export const RESOURCE_KINDS = ['课程', '书', '视频', '文章', '文档', '论文', '练习', '项目'] as const
 
 export interface Link {
   label: string

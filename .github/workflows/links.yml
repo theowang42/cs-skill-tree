@@ -1,0 +1,33 @@
+name: Check links
+
+# 内容里的链接坏了会让这条检查标红。和发布分开：链接失效不挡网站上线
+on:
+  push:
+    paths: ['content/**']
+  pull_request:
+    paths: ['content/**']
+  # 每周一早上再查一遍：别人的网站会改版、会下线
+  schedule:
+    - cron: '17 1 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --max-retries 3
+            --timeout 30
+            --accept 200,206,429
+            --exclude '^https://(x|twitter)\.com/'
+            --exclude '^https://www\.(coursera|oreilly)\.(org|com)/'
+            --exclude '^https://leetcode\.cn/'
+            'content/**/*.md'
+          fail: true

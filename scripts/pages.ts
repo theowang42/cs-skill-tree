@@ -29,11 +29,11 @@ function icon(name: string, size = 24): string {
 }
 
 /** 页面底部：内容就是仓库里的一个文件，谁都可以直接改 */
-const editBlock = (file: string, missing = false) =>
-  `<p class="edit muted small">${missing ? '这个技能的学习流程还没写，会的话欢迎补上：' : '哪里写得不对、有更好的资源？'}<a href="${editUrl(file)}" rel="noopener">在 GitHub 上改这一页 ↗</a></p>`
+const editBlock = (file: string) =>
+  `<p class="edit muted small">哪里写得不对、有更好的资源？<a href="${editUrl(file)}" rel="noopener">在 GitHub 上改这一页 ↗</a></p>`
 
 const resource = (l: Resource) =>
-  `<li><a href="${esc(l.url)}" rel="noopener">${esc(l.label)} ↗</a>${l.kind ? `<small class="muted"> ${esc(l.kind)} · ${l.free ? '免费' : '付费'}</small>` : ''}</li>`
+  `<li><a href="${esc(l.url)}" rel="noopener">${esc(l.label)} ↗</a><small class="muted"> ${esc(l.kind)} · ${l.free ? '免费' : '付费'}</small></li>`
 
 /** 技能的图标槽：和树上一样，语言是六边形，其他是圆，都是白底黑框 */
 function slot(s: Skill, size = 44): string {
@@ -251,7 +251,7 @@ ${flow}
   <h2>去哪学</h2>
   <ul class="list">${s.resources.map(resource).join('')}</ul>
 </section>
-${editBlock(`skills/${s.id}.md`, !s.steps.length)}
+${editBlock(`skills/${s.id}.md`)}
 `,
     })
   }

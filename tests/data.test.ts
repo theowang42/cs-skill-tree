@@ -91,12 +91,12 @@ test('内容文件写错时，指出是哪个文件哪一行', () => {
   assert.match(loadWith('careers/backend.md', (t) => t.replace(/^requires: \[/m, 'requires: [nope, ')), /必学技能里的 nope 不是一个技能/)
 })
 
-test('学习流程 4 到 6 步；写了流程，资源都要标好类型', () => {
+test('每个技能都有 4 到 6 步的学习流程，资源都标好类型', () => {
   const content = load()
   const docker = content.skills.find((s) => s.id === 'docker')!
   docker.steps = docker.steps.slice(0, 3)
   docker.resources[0] = { ...docker.resources[0], kind: null }
   const messages = check(build(content)).map((f) => f.message).join('\n')
   assert.match(messages, /docker 的学习流程有 3 步，要 4 到 6 步/)
-  assert.match(messages, /docker 写了学习流程，“去哪学”的每个链接也要标上类型/)
+  assert.match(messages, /docker 的“去哪学”里，每个链接都要标上类型/)
 })

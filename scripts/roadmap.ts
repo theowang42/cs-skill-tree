@@ -25,8 +25,8 @@ export function getRoadmap(db: DatabaseSync): Roadmap {
   const dependents = group(`SELECT x.prerequisite_id, s.id FROM skill_prerequisites x JOIN skills s ON s.id = x.skill_id ${ORDER} ORDER BY x.prerequisite_id, ${ORDER_BY}`, 'prerequisite_id', id)
   const resources = group('SELECT * FROM skill_resources ORDER BY skill_id, position', 'skill_id', (r): Resource => ({
     ...link(r),
-    kind: (r.kind as string | null) ?? null,
-    free: r.is_free === null ? null : r.is_free === 1,
+    kind: r.kind as string,
+    free: r.is_free === 1,
   }))
   const steps = group('SELECT * FROM skill_steps ORDER BY skill_id, position', 'skill_id', text)
   const requiredBy = group(`SELECT x.skill_id, x.sub_id FROM sub_skill_closure x ${SUB_ORDER} ORDER BY x.skill_id, sc.position, sb.position`, 'skill_id', (r) => r.sub_id as string)
