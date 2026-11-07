@@ -9,6 +9,9 @@ import { frontier, stars, totals } from '../lib/tree'
 import { hexPath, Rays, SkillGlyph } from './glyphs'
 import { useCamera } from './useCamera'
 
+/** 打开时整棵树从圆心往外一圈圈长出来：离圆心越远，出现得越晚 */
+const growDelay = (x: number, y: number) => ({ animationDelay: `${Math.round(Math.hypot(x, y) * 0.32)}ms` })
+
 type Relation = 'none' | 'path' | 'dim'
 
 interface NodeProps {
@@ -34,6 +37,7 @@ const Node = memo(function Node({ id, language, x, y, name, icon, state, focused
     <g
       className={cls}
       transform={`translate(${x},${y})`}
+      style={growDelay(x, y)}
       data-node={id}
       onClick={(e) => { e.stopPropagation(); onClick(id) }}
       onPointerEnter={() => onHover(id)}
@@ -100,6 +104,7 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
     <g
       className={cls}
       transform={`translate(${x},${y})`}
+      style={growDelay(x, y)}
       data-sub={id}
       onClick={(e) => { e.stopPropagation(); onClick(id) }}
       onPointerEnter={() => onHover(id)}
@@ -219,11 +224,19 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
       >
         <g ref={cam.world}>
           <g className="rings" aria-hidden>
-            {layout.rings.map((r) => <circle key={r} r={r} />)}
+            {layout.rings.map((r, i) => <circle key={r} r={r} style={{ animationDelay: `${i * 0.5}s` }} />)}
           </g>
-          {layout.edges.map((e) => (
-            <path key={`${e.from}>${e.to}`} d={e.d} className={`edge ${edgeState(e.from, e.to)}${edgeLens(e.from, e.to)}`} />
-          ))}
+          {layout.edges.map((e) => {
+            const n = layout.nodes.get(e.to)!
+            const state = edgeState(e.from, e.to)
+            return (
+              <g key={`${e.from}>${e.to}`}>
+                <path d={e.d} pathLength={1} style={growDelay(n.x, n.y)} className={`edge ${state}${edgeLens(e.from, e.to)}`} />
+                {/* 两头都点亮了：一道光沿着枝条往外流 */}
+                {state === 'e-done' && <path d={e.d} pathLength={100} className="edge-light" style={{ animationDelay: `${Math.round(Math.hypot(n.x, n.y) * 0.8)}ms` }} />}
+              </g>
+            )
+          })}
           {/* 圆心：你。中间是点亮了几个，外圈是总进度；悬停看下一步能点哪些，点开看我的进度 */}
           <g
             className={`start${lit.done ? ' lit' : ''}`}

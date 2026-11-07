@@ -128,6 +128,83 @@ a {
   opacity: 0.45;
 }
 
+/* ── 动起来 ── */
+
+/* 打开时：枝条从里往外画出来，节点和职业跟着浮现（延迟按离圆心多远，写在元素上） */
+.edge {
+  stroke-dasharray: 1;
+  animation: draw-in 0.7s var(--ease) backwards;
+}
+
+.node,
+.tip {
+  animation: fade-in 0.5s var(--ease) backwards;
+}
+
+@keyframes draw-in {
+  from {
+    stroke-dashoffset: 1;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* 点亮的枝条：一小段白光沿着线从里往外流，一圈接一圈 */
+.edge-light {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.9);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 8 92;
+  pointer-events: none;
+  animation: flow 2.6s linear infinite both;
+}
+
+@keyframes flow {
+  from {
+    stroke-dashoffset: 8;
+  }
+
+  to {
+    stroke-dashoffset: -92;
+  }
+}
+
+/* 同心圆：从圆心往外一圈一圈慢慢呼吸 */
+.rings circle {
+  animation: breathe 6s ease-in-out infinite both;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    stroke: #f2f2f2;
+  }
+
+  50% {
+    stroke: #d6d6d6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-light,
+  .rings circle {
+    animation: none;
+  }
+
+  .edge-light {
+    display: none;
+  }
+}
+
 /* ── 最上面一排：职业（终极节点） ── */
 
 .tip {
