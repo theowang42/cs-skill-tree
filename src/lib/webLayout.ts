@@ -6,7 +6,8 @@
 //   - 先紧凑地排：子树按每一圈的左右轮廓紧挨着（宽度换算成弧度 = 像素宽 / 半径），父节点在孩子正中间，
 //     一个孩子时同一个角度，链是直的。职业那一列从挂的技能一直占到最外圈。
 //   - 再松弛：同一圈挨得太近的，连同子树（整条直链）往两边转开，不让某一对把整圈撑大。
-//   - 每一圈的半径：同一圈相邻两个排得下、和里面一圈斜着也不叠，相邻两圈至少隔 RING。
+//   - 每一圈的半径：等距，每两圈之间一样宽。在同一圈相邻两个排得下、和里面一圈斜着也不叠、相邻两圈至少隔 RING 的前提下，
+//     让最外圈尽量小。
 //   - 枝条：从父节点沿半径往外，到两圈中间沿一小段圆弧转过去，再沿半径停在孩子前面。线绕开名字。
 //
 // 纯函数，坐标单位是像素，圆心是 (0, 0)。
@@ -341,15 +342,18 @@ export function layoutWeb(tree: Tree): WebLayout {
   const up2 = angle.get(subNodeId('llm-algo')) ?? 0
   for (const [id, a] of angle) angle.set(id, norm(a - up2))
 
-  // ── 每一圈的半径：同一圈相邻两个节点之间排得下 ──
-  const radii = [0]
+  // ── 每一圈的半径：先算每圈至少要多大，再取一组等距的半径，每两圈之间一样宽 ──
+  const rings: string[][] = [[]]
+  const least = [0]
   for (let d = 1; d < top; d++) {
     // 这一圈的技能，加上从这一圈穿过去的职业连线
     const ring = [
       ...skills.filter((s) => depth.get(s.id) === d).map((s) => s.id),
       ...[...tipOf].filter(([anchor]) => depth.get(anchor)! < d).map(([, tip]) => tip),
     ].sort((a, b) => norm(angle.get(a)!) - norm(angle.get(b)!))
-    let r = d === 1 ? FIRST_RING : radii[d - 1] + RING
+    rings.push(ring)
+    // 同一圈相邻两个节点之间排得下
+    let r = FIRST_RING
     for (let i = 0; i < ring.length && ring.length > 1; i++) {
       const a = ring[i]
       const b = ring[(i + 1) % ring.length]
@@ -357,22 +361,36 @@ export function layoutWeb(tree: Tree): WebLayout {
       if (gap <= 0) gap += Math.PI * 2
       r = Math.max(r, (halfAt(a, angle.get(a)!) + halfAt(b, angle.get(b)!)) / gap)
     }
-    // 斜着看，名字长的节点会和里面一圈的叠在一起：叠了就再往外推
-    const boxAt = (id: string, rr: number) => {
-      const p = pt(rr, angle.get(id)!)
-      const w = Math.max(NODE_R, labelWidth(nameOf.get(id)!) / 2) + 4
-      return { l: p.x - w, r: p.x + w, t: p.y - NODE_R - 4, b: p.y + LABEL_BOTTOM + 4 }
-    }
-    const inner = d > 1 ? skills.filter((s) => depth.get(s.id) === d - 1).map((s) => boxAt(s.id, radii[d - 1])) : []
-    const hits = (rr: number) => ring.filter((id) => !id.startsWith('sub:')).some((id) => {
-      const a = boxAt(id, rr)
-      return inner.some((b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b)
-    })
-    while (hits(r)) r += 8
-    radii.push(Math.ceil(r))
+    least.push(r)
   }
+  // 斜着看，名字长的节点会和里面一圈的叠在一起
+  const boxAt = (id: string, rr: number) => {
+    const p = pt(rr, angle.get(id)!)
+    const w = Math.max(NODE_R, labelWidth(nameOf.get(id)!) / 2) + 4
+    return { l: p.x - w, r: p.x + w, t: p.y - NODE_R - 4, b: p.y + LABEL_BOTTOM + 4 }
+  }
+  const overlaps = (radii: number[]) => radii.some((r, d) => d > 1 && rings[d].filter((id) => !id.startsWith('sub:')).some((id) => {
+    const a = boxAt(id, r)
+    return rings[d - 1].filter((x) => !x.startsWith('sub:')).some((x) => {
+      const b = boxAt(x, radii[d - 1])
+      return a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b
+    })
+  }))
+  // 间距 g 时：第一圈尽量靠里，但每一圈都不小于它至少要的半径
+  const evenly = (g: number) => {
+    const first = Math.max(...least.slice(1).map((m, i) => m - g * i))
+    return [0, ...least.slice(1).map((_, i) => Math.ceil(first + g * i))]
+  }
+  // 最外圈最小的那个间距；一样小时取间距大的，第一圈靠里，圆心不会空出一大片
+  let radii = evenly(RING)
+  for (let g = RING; g <= RING * 5; g++) {
+    const r = evenly(g)
+    if ((r[top - 1] <= radii[top - 1] || overlaps(radii)) && !overlaps(r)) radii = r
+  }
+  const step = radii.length > 2 ? radii[2] - radii[1] : RING
   const radius = (d: number) => radii[d]
-  const tipR = radius(top - 1) + RING + 40
+  // 职业那一圈也隔同样宽，至少留出徽章的位置
+  const tipR = radius(top - 1) + Math.max(step, RING + 40)
 
   const nodes: WebLayout['nodes'] = new Map()
   const place = (id: string, r: number) => {
