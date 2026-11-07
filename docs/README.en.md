@@ -2,25 +2,27 @@
 
 [简体中文](../README.md) | English
 
-**A circular computer science skill tree: light up what you know and see how far you are from each career.**
+**A CS skill tree like a game talent tree: light up what you know and see how many skills you are from 17 jobs.**
 
-- 169 skills you could put on a résumé, from intro programming, data structures and operating systems to PyTorch, CUDA and vLLM inference, each with its own icon
-- Like a game talent tree: from “you” at the bottom, intro programming, Linux and calculus sit on the first row and skills grow upward row by row, and a skill lights up only after everything below it is lit
-- The top row holds 17 career badges, each at the top of its own chain, covering where CS graduates usually end up. Light everything a career needs and its badge lights up on its own; there is nothing to pick first
-- Opening a skill shows one sentence and where to learn it
-- Every skill and every career also has its own page, such as [Docker](https://theowang42.github.io/cs-skill-tree/skill/docker/) or [LLM algorithm engineer](https://theowang42.github.io/cs-skill-tree/career/llm-algo/), for search and sharing
+👉 https://theowang42.github.io/cs-skill-tree/ (the site is in Chinese for now)
 
-👉 https://theowang42.github.io/cs-skill-tree/
+![Lighting up Python and PyTorch on the home page; the 17 jobs instantly show how many skills are left](demo.gif)
 
-![The skill tree growing upward from “you” at the bottom, lit skills in black with a ring of rays turning around them](screenshot.jpg)
+- **How far from a job**: pick a few skills you know on the home page and all 17 jobs show how many skills you still need; the closest one moves to the center
+- **169 skills in 9 areas**: foundations, web, client and games, systems, security, data and quant, machine learning, large models, AI infra, in learning order. Each area is one talent tree, and a skill lights up only after its prerequisites
+- **Every skill spelled out**: a one-line bar for “you know it”, a 4 to 6 step learning flow (each step can be lit), and resources tagged by type and whether they are free
+- **One tree per job**: only the skills that job needs, e.g. [backend engineer](https://theowang42.github.io/cs-skill-tree/career/backend/) or [LLM algorithm engineer](https://theowang42.github.io/cs-skill-tree/career/llm-algo/)
+- **No sign-up**: progress stays in your browser; export, import or share it as a link
+
+![The foundations area growing right from “you”, lit skills in black with rays around them](screenshot.jpg)
 
 ## How to use
 
-1. Start at the bottom, open a skill you know, press “点亮” (light up)
-2. Keep going up until you reach what you don't know. That is where you are
-3. Open a career badge on the top row to see every skill it needs on the tree
+1. On the home page, pick skills you know, or pick a job you want
+2. Open the tree and light up from “you” outward until you reach what you don't know. That is where you are
+3. Before lighting a skill, follow its learning flow and tick each step
 
-Scroll or drag to pan; hold Ctrl / ⌘ while scrolling, or pinch, to zoom. With a skill selected, `D` lights it, `X` clears it, `Esc` goes back.
+The tree picks its direction for your screen: usually rightward on a computer, upward on a phone. Scroll or drag to pan; hold Ctrl / ⌘ while scrolling, or pinch, to zoom. With a skill selected, `D` lights it, `X` clears it, `Esc` goes back.
 
 ## Run locally
 
@@ -37,3 +39,7 @@ npm test           # check the content, run all tests
 All content lives in `content/`, one Markdown file per skill and per career. The format is described in [CONTRIBUTING.md](../CONTRIBUTING.md) (Chinese). `npm test` checks the content and reports anything wrong.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the database and front end, and [ART.md](ART.md) for the visual rules.
+
+## License
+
+Code is [MIT](../LICENSE). The content in `content/` is [CC BY-SA 4.0](../content/LICENSE.md): reuse and adapt it freely with attribution, and share adaptations under the same license.
