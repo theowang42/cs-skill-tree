@@ -127,17 +127,16 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
     const nodes = [...tree.closures.get(c.id)!].map((id) => {
       const { x, y } = at(id)
       const shape = sk(id).language ? `<path d="${hexPath(NODE_R + 2)}"/>` : `<circle r="${NODE_R}"/>`
-      return `<g class="n" data-s="${id}" transform="translate(${x},${y})"><g ${delay(y)}>${shape}</g></g>`
+      return `<g class="n" data-s="${id}" transform="translate(${x},${y})"><g ${delay(y)}>${shape}<use href="#i-${id}" x="-15" y="-15" width="30" height="30"/></g></g>`
     }).join('')
     const t = at(subNodeId(c.id))
     return `<svg viewBox="${minX} ${minY} ${maxX - minX} ${maxY - minY}" aria-hidden="true">${edges}${nodes}<g class="n tip" transform="translate(${t.x},${t.y})"><g ${delay(t.y)}><circle r="${TIP_R}"/><circle r="${TIP_R - 7}"/><g transform="translate(-20,-20) scale(1.67)">${icon(c.icon)}</g></g></g><circle class="you" r="${START_R}"/></svg>`
   }
 
   const skillChip = (s: Skill, root: string) => `<a class="chip" href="${root}skill/${s.id}/">${icon(s.icon, 16)}${esc(s.name)}</a>`
-  const careerCard = (c: Sub, root: string) => {
-    const steps = Math.max(...c.plan.map((p) => p.step))
-    return `<a class="card career" data-id="${c.id}" href="${root}career/${c.id}/"><span class="seal">${icon(c.icon, 22)}</span><span class="txt"><b>${esc(c.name)}${c.isHot ? '<em>热门</em>' : ''}</b><small>${esc(c.intro)}</small><span class="meta">${c.plan.length} 个技能 · ${steps} 步</span></span></a>`
-  }
+  /** 岗位卡片：左边是树上那枚双圈徽章，外圈是进度环（首页的脚本按点亮了多少填黑） */
+  const careerCard = (c: Sub, root: string) =>
+    `<a class="card career" data-id="${c.id}" href="${root}career/${c.id}/"><svg class="badge" viewBox="-60 -60 120 120" aria-hidden="true"><circle class="track" r="54"/><circle class="ring" r="54" pathLength="100" stroke-dasharray="0 100" transform="rotate(-90)"/><circle r="45"/><circle r="38"/><g transform="translate(-18,-18) scale(1.5)">${icon(c.icon)}</g></svg><span class="txt"><b>${esc(c.name)}</b><small>${esc(c.intro)}</small><span class="meta">${c.plan.length} 个技能</span></span></a>`
 
   // ── 首页 ──
   {
@@ -145,11 +144,10 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
     const careers = rm.categories
       .map((cat) => `<div class="group-head"><h3>${esc(cat.name)}</h3><p class="muted">${esc(cat.intro)}</p></div>${cat.subIds.map((id) => careerCard(subs.get(id)!, '')).join('')}`)
       .join('')
-    // 首页的脚本要用的：每个岗位要学的技能；每个常见技能的前置（点亮时一起亮）和依赖它的（熄灭时一起灭）
+    // 首页的脚本要用的：每个岗位要学的技能，每个常见技能的全部前置（选它就算会这些）
     const data = {
       careers: Object.fromEntries(rm.subs.map((c) => [c.id, c.plan.map((p) => p.skillId)])),
       up: Object.fromEntries(QUICK.map((id) => [id, [...tree.ancestors(id)]])),
-      down: Object.fromEntries(QUICK.map((id) => [id, rm.skills.filter((s) => tree.ancestors(s.id).has(id)).map((s) => s.id)])),
     }
     const all = rm.areas
       .map((a) => `<section class="group"><h3>${esc(a.name)}<span>${a.skillIds.length}</span></h3><p class="muted">${esc(a.intro)}</p><div class="chips">${a.skillIds.map((id) => skillChip(sk(id), '')).join('')}</div></section>`)
@@ -168,6 +166,7 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
   <div class="quick">${QUICK.map((id) => `<button type="button" class="chip" data-s="${id}" aria-pressed="false">${icon(sk(id).icon, 16)}${esc(sk(id).name)}</button>`).join('')}</div>
 </section>
 
+<svg width="0" height="0" class="defs" aria-hidden="true">${[...new Set(rm.subs.flatMap((c) => [...tree.closures.get(c.id)!]))].map((id) => `<symbol id="i-${id}" viewBox="0 0 24 24">${icon(sk(id).icon)}</symbol>`).join('')}</svg>
 <aside class="preview">${rm.subs.map((c, i) => `<a class="mini${i ? '' : ' on'}" data-id="${c.id}" href="career/${c.id}/">${miniTree(c)}<b>${esc(c.name)}</b></a>`).join('')}</aside>
 
 <section id="careers" class="block">
@@ -182,10 +181,16 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
   ${all}
 </details>
 <script>
-const KEY = ${JSON.stringify(PROGRESS_KEY)}, D = ${JSON.stringify(data)}
+const KEY = ${JSON.stringify(PROGRESS_KEY)}, HOME_KEY = 'cs-skill-tree:home', D = ${JSON.stringify(data)}
 let store = null
 try { store = JSON.parse(localStorage.getItem(KEY)) } catch {}
 if (store?.format !== 'cs-skill-tree-progress') store = { format: 'cs-skill-tree-progress', version: 1, skills: {} }
+// 首页记两样：你亲手选了哪些（按钮只亮这些），以及为它们点亮了哪些原本没亮的（取消时只撤这些，树里点亮的不动）
+let home = { picks: [], added: [] }
+try {
+  const h = JSON.parse(localStorage.getItem(HOME_KEY))
+  if (Array.isArray(h?.picks) && Array.isArray(h?.added)) home = h
+} catch {}
 const lit = () => new Set(Object.keys(store.skills).filter((k) => store.skills[k].status === 'done'))
 const cards = [...document.querySelectorAll('.card.career')]
 const minis = [...document.querySelectorAll('.mini')]
@@ -193,7 +198,7 @@ const minis = [...document.querySelectorAll('.mini')]
 const show = (id) => minis.forEach((m) => m.classList.toggle('on', m.dataset.id === id))
 function render() {
   const l = lit()
-  for (const b of document.querySelectorAll('.quick .chip')) b.setAttribute('aria-pressed', l.has(b.dataset.s))
+  for (const b of document.querySelectorAll('.quick .chip')) b.setAttribute('aria-pressed', home.picks.includes(b.dataset.s))
   for (const n of document.querySelectorAll('.mini .n[data-s]')) n.classList.toggle('lit', l.has(n.dataset.s))
   document.querySelector('.careers').classList.toggle('ranked', l.size > 0)
   let best = null
@@ -203,24 +208,40 @@ function render() {
     if (!l.size) {
       meta.innerHTML = meta.dataset.base
       c.style.order = ''
+      c.querySelector('.ring').setAttribute('stroke-dasharray', '0 100')
       continue
     }
     const need = D.careers[c.dataset.id]
     const left = need.filter((s) => !l.has(s)).length
     c.style.order = left
     meta.innerHTML = left ? '还差 <strong>' + left + '</strong> 个 · 已点亮 ' + (need.length - left) + ' / ' + need.length : '<strong>已达成</strong>'
-    c.style.setProperty('--done', (need.length - left) / need.length)
+    c.querySelector('.ring').setAttribute('stroke-dasharray', Math.round((100 * (need.length - left)) / need.length) + ' 100')
     if (!best || left < best.left) best = { id: c.dataset.id, left }
   }
   return best?.id
 }
 function toggle(id) {
-  const on = !lit().has(id)
-  for (const s of on ? [...D.up[id], id] : [id, ...D.down[id]]) {
-    if (on) store.skills[s] = { status: 'done' }
-    else if (store.skills[s]?.status === 'done') delete store.skills[s]
+  const picks = new Set(home.picks)
+  const added = new Set(home.added)
+  if (picks.delete(id)) {
+    // 撤掉为它点亮的，除非还有别的选择要用到
+    const keep = new Set([...picks].flatMap((p) => [p, ...D.up[p]]))
+    for (const s of added) if (!keep.has(s)) {
+      delete store.skills[s]
+      added.delete(s)
+    }
+  } else {
+    picks.add(id)
+    for (const s of [...D.up[id], id]) if (store.skills[s]?.status !== 'done') {
+      store.skills[s] = { status: 'done' }
+      added.add(s)
+    }
   }
-  try { localStorage.setItem(KEY, JSON.stringify(store)) } catch {}
+  home = { picks: [...picks], added: [...added] }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(store))
+    localStorage.setItem(HOME_KEY, JSON.stringify(home))
+  } catch {}
   const best = render()
   if (best) show(best)
 }

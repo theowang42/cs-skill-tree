@@ -1,7 +1,6 @@
 ---
 name: 推理工程师
 icon: circle-gauge
-hot: true
 keywords: [vLLM, 分布式推理, 量化]
 requires: [dist-infer, bench, quantization, perf, english]
 bonus: [sglang, trt-llm, spec-decode, edge-infer, onnx, ci]

@@ -36,7 +36,7 @@ export function build(content: Content = load()): DatabaseSync {
   insert('categories', categories.map((c) => ({ id: c.id, position: c.order, name: c.name, intro: c.intro })))
   insert('subs', careers.map((c) => ({
     id: c.id, category_id: categoryOf.get(c.id)!.category, position: categoryOf.get(c.id)!.position, icon: c.icon, name: c.name, intro: c.intro,
-    is_hot: Number(c.hot), anchor_id: c.requires[0],
+    anchor_id: c.requires[0],
   })))
   insert('sub_items', careers.flatMap((c) => c.keywords.map((text, i) => ({ sub_id: c.id, position: i + 1, text }))))
   insert('sub_topics', careers.flatMap((c) => c.topics.map((text, i) => ({ sub_id: c.id, position: i + 1, text }))))

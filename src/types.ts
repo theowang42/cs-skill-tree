@@ -55,7 +55,6 @@ export interface Sub {
   name: string
   intro: string
   icon: string
-  isHot: boolean
   /** 徽章挂在哪个技能后面 */
   anchor: string
   /** 三个关键词 */

@@ -1,7 +1,6 @@
 ---
 name: 产品工程师
 icon: laptop
-hot: true
 keywords: [产品, 分发, 收入]
 requires: [indie, growth, rag]
 bonus: [analytics, data-eng, vllm, tailwind, react-native, nginx]

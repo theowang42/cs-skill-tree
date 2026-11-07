@@ -65,7 +65,6 @@ requires: [linux]
 ---
 name: 推理工程师
 icon: circle-gauge
-hot: true
 keywords: [vLLM, 分布式推理, 量化]
 requires: [dist-infer, bench, quantization, perf, english]
 bonus: [sglang, trt-llm]
@@ -83,7 +82,6 @@ bonus: [sglang, trt-llm]
 | 属性 | 写什么 |
 | --- | --- |
 | `name`、`icon` | 同技能。名字用招聘时最常写的岗位名 |
-| `hot` | 热门方向写 `hot: true`，不是就不写 |
 | `keywords` | 三个关键词 |
 | `requires` | 必学的技能，只写最高层的，前置会自动带上。第一个是徽章挂在树上的位置 |
 | `bonus` | 加分项：有更好，不算进达成条件 |

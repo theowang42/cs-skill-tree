@@ -72,7 +72,6 @@ CREATE TABLE subs (
   icon         TEXT    NOT NULL,
   name         TEXT    NOT NULL UNIQUE,
   intro        TEXT    NOT NULL CHECK (length(intro) > 0),
-  is_hot       INTEGER NOT NULL CHECK (is_hot IN (0, 1)),
   -- 徽章挂在树上哪个技能后面，必须是它必学的技能
   anchor_id    TEXT    NOT NULL REFERENCES skills (id),
   UNIQUE (category_id, position)

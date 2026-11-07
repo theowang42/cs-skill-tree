@@ -1,7 +1,6 @@
 ---
 name: 大模型算法工程师
 icon: atom
-hot: true
 keywords: [预训练, 后训练, 评测]
 requires: [reasoning-rl, pretrain-run]
 bonus: [distillation, train-framework]

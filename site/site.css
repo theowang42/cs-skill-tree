@@ -31,25 +31,28 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .group > .muted { margin: -4px 0 12px; font-size: 14px; }
 
 /* 卡片 */
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .careers { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .group-head { grid-column: 1 / -1; margin-top: 14px; }
 .group-head h3 { font-size: 15px; margin-bottom: 2px; }
 .group-head .muted { margin: 0; font-size: 14px; }
 /* 点亮了东西：大方向收起，岗位按还差几个排，卡片底下一条进度 */
 .careers.ranked .group-head { display: none; }
-.careers.ranked .card .meta { position: relative; padding-bottom: 8px; color: var(--ink-2); }
+.careers.ranked .card .meta { color: var(--ink-2); }
 .careers.ranked .card .meta strong { color: var(--ink); }
-.careers.ranked .card .meta::after { content: ''; position: absolute; left: 0; bottom: 0; height: 3px; width: calc(var(--done, 0) * 100%); background: var(--ink); transition: width .4s var(--ease); }
-.card { display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; text-decoration: none; background: #fff; transition: border-color .2s var(--ease), transform .2s var(--ease), box-shadow .2s var(--ease); }
-.card:hover { border-color: var(--ink); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,.08); }
+.card { display: flex; gap: 16px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); text-decoration: none; background: #fff; transition: border-color .2s var(--ease), box-shadow .2s var(--ease); }
+.card:hover, .card:focus-visible { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 .card .txt { display: flex; flex-direction: column; min-width: 0; }
-.card b { font-size: 15px; display: flex; align-items: center; gap: 8px; }
-.card b em { font-style: normal; font-size: 11px; font-weight: 700; padding: 0 7px; border-radius: 999px; background: var(--ink); color: #fff; line-height: 18px; }
+.card b { font-size: 15px; }
 .card small { color: var(--ink-2); font-size: 13px; line-height: 1.55; margin-top: 2px; }
 .card .meta { margin-top: 6px; font-size: 12px; color: var(--ink-3); }
-
-.seal { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--ink); box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 5.5px var(--ink); }
+/* 徽章：和树上一样，双圈，外面一圈进度环 */
+.badge { flex: none; width: 56px; height: 56px; }
+.badge > circle { fill: none; stroke: var(--ink); }
+.badge > circle:nth-of-type(3) { fill: #fff; stroke-width: 5; }
+.badge > circle:nth-of-type(4) { stroke-width: 1.5; }
+.badge .track { stroke: var(--line-2); stroke-width: 5; }
+.badge .ring { stroke-width: 5; transition: stroke-dasharray .5s var(--ease); }
+.badge svg { color: var(--ink); }
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 5px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; text-decoration: none; transition: border-color .2s var(--ease), background .2s var(--ease); }
@@ -74,6 +77,9 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .mini .n > g { opacity: 0; transform: scale(.3); animation: pop .4s var(--ease) forwards; }
 .mini .n > g > circle, .mini .n > g > path { fill: #fff; stroke: var(--off-line); stroke-width: 1.5; vector-effect: non-scaling-stroke; transition: fill .3s, stroke .3s; }
 .mini .n.lit > g > circle, .mini .n.lit > g > path { fill: var(--ink); stroke: var(--ink); }
+.mini .n use { color: var(--off-ink); }
+.mini .n.lit use { color: #fff; }
+.defs { position: absolute; }
 .mini .tip > g > circle { stroke: var(--ink); stroke-width: 2.5; }
 .mini .tip svg { color: var(--ink); }
 .mini .you { fill: var(--ink); }
@@ -95,5 +101,4 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 @media (max-width: 560px) {
   main { padding: 0 16px 32px; }
   .top { padding: 0 16px; }
-  .grid { grid-template-columns: 1fr; }
 }

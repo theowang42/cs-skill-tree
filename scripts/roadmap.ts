@@ -69,7 +69,6 @@ export function getRoadmap(db: DatabaseSync): Roadmap {
     name: r.name as string,
     intro: r.intro as string,
     icon: r.icon as string,
-    isHot: r.is_hot === 1,
     anchor: r.anchor_id as string,
     items: items(id(r)),
     topics: topics(id(r)),
