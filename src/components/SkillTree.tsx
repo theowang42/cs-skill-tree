@@ -1,16 +1,18 @@
-// 技能树：一个圆，圆心是“你”，一圈一圈往外长，最外圈是职业。白底黑线。
+// 技能树：从“你”往外一层一层长，最外面一层是职业徽章（lib/layout.ts）。白底黑线。
+// 往上长时名字在节点下面，往右长时名字在节点右边；用哪个方向由页面挑（App.tsx）。
+// 技能树页一次画一个领域（页签切换）；职业页只画这个职业要学的技能和它的徽章，画法一样。
 // 每个节点一个图标和名字。点亮了是实心黑加一圈光芒，能点是黑框，还够不着是浅灰。
 // 每个节点只画一根枝（连到主前置）；悬停或选中时，它的全部前置保持清楚，其余变淡。
 import { memo, useEffect, useMemo, useState } from 'react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
-import { LABEL_Y, layoutWeb, NODE_R, START_R, subNodeId, TIP_R } from '../lib/webLayout'
-import { frontier, stars, totals } from '../lib/tree'
-import { hexPath, Rays, SkillGlyph } from './glyphs'
+import { fromText, hexPath, LABEL_Y, NODE_R, SIDE_X, START_R, subNodeId, TIP_R, type Layout } from '../lib/layout'
+import { frontier, totals } from '../lib/tree'
+import { Rays, SkillGlyph } from './glyphs'
 import { useCamera } from './useCamera'
 
-/** 打开时整棵树从圆心往外一圈圈长出来：离圆心越远，出现得越晚 */
-const growDelay = (x: number, y: number) => ({ animationDelay: `${Math.round(Math.hypot(x, y) * 0.32)}ms` })
+/** 打开时树从“你”往外一层层长出来：离“你”越远，出现得越晚 */
+const growDelay = (x: number, y: number) => ({ animationDelay: `${Math.round(Math.hypot(x, y) * 0.45)}ms` })
 
 type Relation = 'none' | 'path' | 'dim'
 
@@ -27,11 +29,13 @@ interface NodeProps {
   pulse: boolean
   /** 学习流程完成了几成（0 到 1），没点亮时外圈画出这一段 */
   part: number
+  /** 名字写在节点右边（往右长的树），不是下面 */
+  side: boolean
   onClick: (id: string) => void
   onHover: (id: string | null) => void
 }
 
-const Node = memo(function Node({ id, language, x, y, name, icon, state, focused, relation, pulse, part, onClick, onHover }: NodeProps) {
+const Node = memo(function Node({ id, language, x, y, name, icon, state, focused, relation, pulse, part, side, onClick, onHover }: NodeProps) {
   const cls = ['node', `s-${state}`, focused && 'focused', relation !== 'none' && `r-${relation}`, pulse && 'pulse'].filter(Boolean).join(' ')
   return (
     <g
@@ -72,7 +76,7 @@ const Node = memo(function Node({ id, language, x, y, name, icon, state, focused
           ))}
         </g>
       )}
-      <text className="lbl" y={LABEL_Y}>{name}</text>
+      {side ? <text className="lbl side" x={SIDE_X} y={5}>{name}</text> : <text className="lbl" y={LABEL_Y}>{name}</text>}
     </g>
   )
 })
@@ -89,15 +93,17 @@ interface TipProps {
   focused: boolean
   dim: boolean
   pulse: boolean
+  /** 名字写在徽章右边（往右长的树），不是上面 */
+  side: boolean
   onClick: (id: string) => void
   onHover: (id: string | null) => void
 }
 
 /**
- * 职业：最外圈的终极节点。一枚双圈的奖章，中间是职业图标，外面一圈进度环随着点亮慢慢填满。
+ * 职业：最上面一行的终极节点。一枚双圈的奖章，中间是职业图标，外面一圈进度环随着点亮慢慢填满。
  * 全部点亮就自动达成：徽章变黑，外面一大圈光芒转起来。
  */
-const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim, pulse, onClick, onHover }: TipProps) {
+const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim, pulse, side, onClick, onHover }: TipProps) {
   const reached = done === total
   const cls = ['tip', reached && 'reached', focused && 'focused', dim && 'dim', pulse && 'pulse'].filter(Boolean).join(' ')
   return (
@@ -110,7 +116,7 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
       onPointerEnter={() => onHover(id)}
       onPointerLeave={() => onHover(null)}
     >
-      <rect className="hit" x={-80} y={-TIP_R - 68} width={160} height={2 * TIP_R + 78} />
+      {side ? <rect className="hit" x={-TIP_R - 8} y={-TIP_R - 8} width={2 * TIP_R + 170} height={2 * TIP_R + 16} /> : <rect className="hit" x={-80} y={-TIP_R - 68} width={160} height={2 * TIP_R + 78} />}
       {reached && <Rays r={TIP_R + 12} count={32} long={14} short={7} id={id} className="tip-rays" />}
       <circle className="tip-track" r={TIP_R + 5} />
       <circle className="tip-progress" r={TIP_R + 5} pathLength={100} strokeDasharray={`${Math.round((100 * done) / total)} 100`} transform="rotate(-90)" />
@@ -130,20 +136,16 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
         </g>
       )}
       {/* 名字和进度写在光芒外面，达成后转起来的光芒不会压到字 */}
-      <text className="tip-name" y={-TIP_R - 48}>{name}</text>
-      <text className="tip-pct" y={-TIP_R - 31}>
-        <tspan className="tip-stars">{stars(total)}</tspan>
-        {'  '}
-        {reached ? '已达成' : `${done} / ${total}`}
-      </text>
+      <text className={`tip-name${side ? ' side' : ''}`} x={side ? TIP_R + 14 : 0} y={side ? -4 : -TIP_R - 48}>{name}</text>
+      <text className={`tip-pct${side ? ' side' : ''}`} x={side ? TIP_R + 14 : 0} y={side ? 14 : -TIP_R - 31}>{reached ? '已达成' : `${done} / ${total}`}</text>
     </g>
   )
 })
 
-export function SkillTree({ onCenter }: { onCenter: () => void }) {
-  const { tree, states, steps, focus, setFocus, pulse, flyRequest, progressBySub } = useApp()
-  const layout = useMemo(() => layoutWeb(tree), [tree])
-  const cam = useCamera(layout.radius)
+export function SkillTree({ layout, onCenter }: { layout: Layout; onCenter: () => void }) {
+  const { tree, career, states, steps, focus, setFocus, pulse, flyRequest, progressBySub } = useApp()
+  const side = layout.orient === 'right'
+  const cam = useCamera(layout.bounds, layout.orient)
   const [hover, setHover] = useState<string | null>(null)
   const [tipHover, setTipHover] = useState<string | null>(null)
   const [centerHover, setCenterHover] = useState(false)
@@ -153,30 +155,39 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
   const focusedSkill = focus?.kind === 'skill' ? focus.id : null
   const focusedSub = focus?.kind === 'sub' ? focus.id : null
 
-  // 选中了技能或职业，并且要求飞过去：技能放到屏幕正中；职业把它要学的整条路线放进屏幕
-  useEffect(() => {
-    if (!flyRequest || !focus || focus.kind === 'careers') return
-    if (focus.kind === 'skill') {
-      const n = layout.nodes.get(focus.id)!
-      cam.fly(n.x, n.y, Math.max(cam.scale(), 1))
-      return
-    }
-    const pts = [subNodeId(focus.id), ...tree.closures.get(focus.id)!].map((id) => layout.nodes.get(id)!)
+  /** 把这些节点整片放进屏幕（徽章上面还有名字和进度，往上多留一点） */
+  const flyOver = (ids: string[]) => {
+    const pts = ids.flatMap((id) => layout.nodes.get(id) ?? [])
     const pad = 90
     const minX = Math.min(...pts.map((p) => p.x)) - pad
     const maxX = Math.max(...pts.map((p) => p.x)) + pad
-    const minY = Math.min(...pts.map((p) => p.y)) - pad
+    const minY = Math.min(...pts.map((p) => p.y)) - pad - TIP_R
     const maxY = Math.max(...pts.map((p) => p.y)) + pad
     // 面板正要打开时会占掉右边一块（已经开着的话，size.w 已经是让过之后的宽度）
     const { w: sw, h: sh } = cam.size
     const w = sw > 900 && window.innerWidth - sw < 100 ? sw - 360 : sw
     cam.fly((minX + maxX) / 2, (minY + maxY) / 2, Math.min(1.1, w / (maxX - minX), sh / (maxY - minY)), w)
+  }
+
+  // 选中了技能或职业，并且要求飞过去：技能放到屏幕正中；职业把它要学的整条路线放进屏幕。
+  // 屏幕尺寸还没量出来时先等着，量好了再飞
+  const measured = cam.size.w > 0
+  useEffect(() => {
+    if (!flyRequest || !measured || !focus) return
+    // 职业天赋树上没有的技能和职业，就不飞
+    if (focus.kind === 'skill') {
+      const n = layout.nodes.get(focus.id)
+      if (n) cam.fly(n.x, n.y, Math.max(cam.scale(), 1))
+      return
+    }
+    if (layout.nodes.has(subNodeId(focus.id))) flyOver([subNodeId(focus.id), ...tree.closures.get(focus.id)!])
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flyRequest])
+  }, [flyRequest, measured])
 
   // ── 关系 ──
-  // 看一个技能：它的全部前置画成黑的。看一个职业：它要学的全部技能。悬停圆心：下一步能点亮的
-  const subLens = tipHover ?? (hover ? null : focusedSub)
+  // 看一个技能：它的全部前置画成黑的。看一个职业：它要学的全部技能。悬停“你”：下一步能点亮的
+  // 职业天赋树上画的全是这个职业要学的，看职业就不用再标出来
+  const subLens = career ? null : tipHover ?? (hover ? null : focusedSub)
   const lens = subLens ? null : hover ?? focusedSkill
   const anc = useMemo(() => (lens ? tree.ancestors(lens) : new Set<string>()), [tree, lens])
   const plan = subLens ? tree.closures.get(subLens)! : null
@@ -223,9 +234,6 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
         aria-label="技能树"
       >
         <g ref={cam.world}>
-          <g className="rings" aria-hidden>
-            {layout.rings.map((r, i) => <circle key={r} r={r} style={{ animationDelay: `${i * 0.5}s` }} />)}
-          </g>
           {layout.edges.map((e) => {
             const n = layout.nodes.get(e.to)!
             const state = edgeState(e.from, e.to)
@@ -237,7 +245,7 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
               </g>
             )
           })}
-          {/* 圆心：你。中间是点亮了几个，外圈是总进度；悬停看下一步能点哪些，点开看我的进度 */}
+          {/* 最下面的“你”：中间是点亮了几个，外圈是总进度；悬停看下一步能点哪些，点开看我的进度 */}
           <g
             className={`start${lit.done ? ' lit' : ''}`}
             role="button"
@@ -259,7 +267,7 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
             <text className="start-num" y={-7}>{lit.done}</text>
             <text className="start-lbl" y={15}>我的进度</text>
           </g>
-          {tree.roadmap.subs.map((sub) => {
+          {tree.roadmap.subs.filter((sub) => layout.nodes.has(subNodeId(sub.id))).map((sub) => {
             const n = layout.nodes.get(subNodeId(sub.id))!
             const p = progressBySub.get(sub.id)!
             return (
@@ -273,6 +281,7 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
                 done={p.done}
                 total={p.total}
                 pulse={pulse.has(`sub:${sub.id}`)}
+                side={side}
                 focused={focusedSub === sub.id}
                 dim={(subLens !== null && subLens !== sub.id) || (lens !== null && !tree.closures.get(sub.id)!.has(lens))}
                 onClick={onTip}
@@ -280,7 +289,7 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
               />
             )
           })}
-          {tree.roadmap.skills.map((s) => {
+          {tree.roadmap.skills.filter((s) => layout.nodes.has(s.id)).map((s) => {
             const n = layout.nodes.get(s.id)!
             return (
               <Node
@@ -296,9 +305,29 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
                 relation={relation(s.id)}
                 pulse={pulse.has(s.id)}
                 part={(steps.get(s.id)?.length ?? 0) / (s.steps.length || 1)}
+                side={side}
                 onClick={onNode}
                 onHover={setHover}
               />
+            )
+          })}
+          {/* 主前置在别的领域：名字下面写“先会 某某”，点它跳到那个领域 */}
+          {[...layout.outside].map(([id, from]) => {
+            const n = layout.nodes.get(id)!
+            return (
+              <text
+                key={id}
+                className={`from${side ? ' side' : ''}`}
+                x={side ? n.x + SIDE_X : n.x}
+                y={side ? n.y + 22 : n.y + LABEL_Y + 18}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (!cam.dragged()) setFocus({ kind: 'skill', id: from }, { scroll: true })
+                }}
+              >
+                <title>{`在「${tree.areas.get(tree.skill(from).areaId)!.name}」里，点它过去`}</title>
+                {fromText(tree.skill(from).name)}
+              </text>
             )
           })}
         </g>

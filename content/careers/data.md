@@ -1,11 +1,11 @@
 ---
-name: 数据工程师
+name: 数据开发工程师
 icon: database
-keywords: [ETL, Spark, 分析]
-requires: [spark, analytics, viz, cloud]
-bonus: [timeseries]
+keywords: [ETL, Spark, 数仓]
+requires: [spark, kafka, cloud]
+bonus: [analytics, viz, timeseries]
 ---
-搭数据管道和数仓，用 Spark 处理大数据，再把数据分析清楚。
+搭数据管道和数仓，用 Spark 处理大数据。
 
 ## 平时做什么
 - 搭数据管道

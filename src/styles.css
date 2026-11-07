@@ -1,4 +1,4 @@
-/* 技能树页面。颜色和字体在 site/tokens.css，和首页、技能页、职业页共用。 */
+/* 技能树页面。颜色和字体在 site/tokens.css，和首页共用。 */
 @import '../site/tokens.css';
 
 :root {
@@ -77,7 +77,8 @@ a {
 }
 
 @media (min-width: 761px) {
-  .page.panel-open .web-wrap {
+  .page.panel-open .web-wrap,
+  .page.panel-open .tabs {
     margin-right: var(--panel-w);
   }
 }
@@ -130,7 +131,7 @@ a {
 
 /* ── 动起来 ── */
 
-/* 打开时：枝条从里往外画出来，节点和职业跟着浮现（延迟按离圆心多远，写在元素上） */
+/* 打开时：枝条从下往上画出来，节点和职业跟着浮现（延迟按离“你”多远，写在元素上） */
 .edge {
   stroke-dasharray: 1;
   animation: draw-in 0.7s var(--ease) backwards;
@@ -157,7 +158,7 @@ a {
   }
 }
 
-/* 点亮的枝条：一小段白光沿着线从里往外流，一圈接一圈 */
+/* 点亮的枝条：一小段白光沿着线从下往上流，一趟接一趟 */
 .edge-light {
   fill: none;
   stroke: rgb(255 255 255 / 0.9);
@@ -178,34 +179,30 @@ a {
   }
 }
 
-/* 同心圆：从圆心往外一圈一圈慢慢呼吸 */
-.rings circle {
-  animation: breathe 6s ease-in-out infinite both;
-}
-
-@keyframes breathe {
-  0%,
-  100% {
-    stroke: #f2f2f2;
-  }
-
-  50% {
-    stroke: #d6d6d6;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .edge-light,
-  .rings circle {
-    animation: none;
-  }
-
   .edge-light {
     display: none;
   }
 }
 
-/* ── 最上面一排：职业（终极节点） ── */
+/* 主前置在别的领域：名字下面一行小字，点它跳过去 */
+.from {
+  font-size: 11px;
+  fill: var(--ink-3);
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+  cursor: pointer;
+}
+
+.from:hover {
+  fill: var(--ink);
+  text-decoration: underline;
+}
+
+/* ── 最上面一行：职业徽章 ── */
 
 .tip {
   cursor: pointer;
@@ -268,11 +265,10 @@ a {
   text-anchor: middle;
 }
 
-/* 徽章星级：黑星是难度，空星补齐三颗 */
-.tip-stars {
-  fill: var(--ink);
-  color: var(--ink);
-  letter-spacing: 0.05em;
+.tip-name.side,
+.tip-pct.side,
+.from.side {
+  text-anchor: start;
 }
 
 .tip:hover .seal,
@@ -386,6 +382,11 @@ a {
   stroke: var(--paper);
   stroke-width: 5px;
   stroke-linejoin: round;
+}
+
+/* 往右长的树：名字在节点右边 */
+.node .lbl.side {
+  text-anchor: start;
 }
 
 /* 外面那一圈：平时看不见 */
@@ -630,30 +631,25 @@ a {
   display: inline-flex;
   align-items: baseline;
   gap: 10px;
-  padding: 0;
-  border: 0;
-  background: none;
 }
 
 .brand-name {
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.1em;
+  text-decoration: none;
 }
 
 .brand-count {
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 
 .brand-count b {
   color: var(--ink);
-}
-
-.hud-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
 }
 
 .hud-text {
@@ -663,6 +659,7 @@ a {
   background: none;
   font-size: 13.5px;
   color: var(--ink-2);
+  text-decoration: none;
   white-space: nowrap;
 }
 
@@ -671,9 +668,44 @@ a {
   border-bottom-color: var(--ink);
 }
 
-.hud-text b {
+/* 领域页签：一个领域一棵树，从左到右是学的先后 */
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 20px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line-2);
+  scrollbar-width: none;
+  transition: margin-right 0.35s var(--ease);
+}
+
+.tabs button {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 10px 10px 9px;
+  border: 0;
+  border-bottom: 2.5px solid transparent;
+  background: none;
+  font-size: 14px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.tabs button small {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabs button:hover {
   color: var(--ink);
-  font-weight: 600;
+}
+
+.tabs button.on {
+  color: var(--ink);
+  font-weight: 700;
+  border-bottom-color: var(--ink);
 }
 
 /* ═════════════ 右侧面板 ═════════════ */
@@ -748,14 +780,6 @@ a {
   font-size: 12px;
   color: var(--ink-2);
   letter-spacing: 0.08em;
-}
-
-.detail h2 {
-  margin: 4px 24px 8px 0;
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.3;
-  text-wrap: balance;
 }
 
 .summary {
@@ -1004,6 +1028,7 @@ button.danger {
   border: 0;
   background: none;
   text-align: left;
+  text-decoration: none;
   font-size: 14px;
 }
 
@@ -1087,14 +1112,6 @@ button.danger {
     gap: 10px;
   }
 
-  .hud-right {
-    gap: 12px;
-  }
-
-  .hud-text:not(.hud-goal) {
-    display: none;
-  }
-
   .panel {
     top: auto;
     left: 0;
@@ -1121,13 +1138,6 @@ button.danger {
   }
 }
 
-/* ── 全部职业 ── */
-
-.row-link.is-reached span,
-.row-link.is-reached small {
-  color: var(--ink);
-  font-weight: 700;
-}
 
 .career-badge {
   flex: none;
@@ -1185,7 +1195,9 @@ button.danger {
 }
 
 .card-title {
+  flex: 1;
   min-width: 0;
+  container-type: inline-size;
 }
 
 .card-kind {
@@ -1195,10 +1207,12 @@ button.danger {
   letter-spacing: 0.06em;
 }
 
-.card-title h2 {
+.card-name {
   margin: 2px 0 8px;
-  font-size: 24px;
+  font-size: min(24px, 100cqi / var(--len));
+  font-weight: 700;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .badge {
@@ -1345,9 +1359,7 @@ button.danger {
   color: var(--ink);
 }
 
-/* 同心圆：每一圈一层，很淡，只当参照 */
-.rings circle { fill: none; stroke: #f0f0f0; stroke-width: 1.5; }
-/* 圆心：你。中间是点亮了几个，外圈进度环；点亮过东西后外面一圈光芒在转 */
+/* 最下面的“你”：中间是点亮了几个，外圈进度环；点亮过东西后外面一圈光芒在转 */
 .start { cursor: pointer; outline: none; }
 .start-track { fill: none; stroke: var(--line-2); stroke-width: 4; }
 .start-progress { fill: none; stroke: var(--ink); stroke-width: 4; transition: stroke-dasharray 0.6s var(--ease); }

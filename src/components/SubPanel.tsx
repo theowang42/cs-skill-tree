@@ -1,12 +1,11 @@
-// 一个职业：最外圈的徽章。卡片和技能卡一个样子：徽章、名字、进度、要点亮哪些、真实项目。
+// 一个职业：最上面一行的徽章。卡片和技能卡一个样子：徽章、名字、进度、加分项、真实项目。要学的技能在树上看，卡片里不再列一遍。
 // 不用“设为目标”：要学的都点亮了，它自己就亮。
 import { useApp } from '../state'
 import { Rays, SkillGlyph } from './glyphs'
-import { Links, Meter, MiniSkill } from './common'
-import { stars } from '../lib/tree'
+import { CardName, Links, Meter, MiniSkill } from './common'
 
 export function SubPanel({ id }: { id: string }) {
-  const { tree, progressBySub } = useApp()
+  const { tree, career, progressBySub } = useApp()
   const sub = tree.subs.get(id)!
   const { done, total } = progressBySub.get(id)!
   const reached = done === total
@@ -26,8 +25,8 @@ export function SubPanel({ id }: { id: string }) {
           </foreignObject>
         </svg>
         <div className="card-title">
-          <p className="card-kind">职业 · {tree.categories.get(sub.categoryId)!.name} · <span className="tip-stars">{stars(total)}</span></p>
-          <h2>{sub.name}</h2>
+          <p className="card-kind">职业 · {tree.categories.get(sub.categoryId)!.name}</p>
+          <CardName name={sub.name} />
           <span className={`badge ${reached ? 'b-done' : 'b-available'}`}>{reached ? '已达成' : `${done} / ${total}`}</span>
         </div>
       </div>
@@ -37,12 +36,8 @@ export function SubPanel({ id }: { id: string }) {
         <Meter value={done} max={total} />
         <b>{pct}%</b>
       </div>
-      <p className="note">{reached ? '要学的技能都点亮了。' : '把下面这些点亮就达成，路线上的技能在树上已经亮出来了。'}</p>
-
-      <section className="card-sec">
-        <h4>要点亮</h4>
-        <div className="mini-row">{sub.requirements.map((s) => <MiniSkill key={s} id={s} from={`sub-${id}`} />)}</div>
-      </section>
+      {/* 职业天赋树上画的全是要学的，不用再说 */}
+      {(reached || !career) && <p className="note">{reached ? '要学的技能都点亮了。' : '要学的技能在树上已经亮出来了。'}</p>}
 
       {sub.bonus.length > 0 && (
         <section className="card-sec">

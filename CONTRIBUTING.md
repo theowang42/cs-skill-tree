@@ -2,12 +2,12 @@
 
 技能树的全部内容都在 `content/` 里，一个技能、一个职业各一个 Markdown 文件，文件名就是它的 id。改内容不用懂代码：
 
-- **改一处小地方**：网站上每个技能页、职业页底部都有“在 GitHub 上改这一页”，点进去直接改，提交一个 Pull Request。
+- **改一处小地方**：在 GitHub 上打开 `content/` 里对应的文件，点铅笔图标直接改，提交一个 Pull Request。
 - **改得多、或者加新技能**：把仓库克隆下来，改完跑 `npm test`，内容体检会指出哪里不对。
 
 ```
 content/
-  areas/       领域：技能树上的一支，列出它的技能和顺序
+  areas/       领域：技能树的一页，列出它的技能和顺序
   skills/      技能：一个文件一个
   categories/  大方向：列出它下面的职业和顺序
   careers/     职业：一个文件一个
@@ -59,33 +59,31 @@ requires: [linux]
 
 ## 职业
 
-`content/careers/inference.md`：
+`content/careers/backend.md`：
 
 ```markdown
 ---
-name: 推理工程师
-icon: circle-gauge
-hot: true
-keywords: [vLLM, 分布式推理, 量化]
-requires: [dist-infer, bench, quantization, perf, english]
-bonus: [sglang, trt-llm]
+name: 后端开发工程师
+icon: server
+keywords: [接口, 数据库, 缓存]
+requires: [postgres, system-design, ci]
+bonus: [go, java]
 ---
-部署和改进推理引擎，在服务器和端侧设备上让模型跑得更快更省。
+写业务接口和数据库，让一个产品的服务稳定地跑起来。
 
 ## 平时做什么
-- 部署推理服务
-- 优化吞吐和延迟
+- 写接口和业务逻辑
+- 设计数据库表
 
 ## 代表项目
-- [vLLM](https://github.com/vllm-project/vllm)
+- [ByteByteGo](https://github.com/ByteByteGoHq/system-design-101)
 ```
 
 | 属性 | 写什么 |
 | --- | --- |
 | `name`、`icon` | 同技能。名字用招聘时最常写的岗位名 |
-| `hot` | 热门方向写 `hot: true`，不是就不写 |
 | `keywords` | 三个关键词 |
-| `requires` | 必学的技能，只写最高层的，前置会自动带上。第一个是徽章挂在树上的位置 |
+| `requires` | 必学的技能，只写最高层的，前置会自动带上。第一个是徽章挂在树上的位置，徽章出现在这个技能所在领域的那一页 |
 | `bonus` | 加分项：有更好，不算进达成条件 |
 
 新职业要加进它所在大方向 `content/categories/*.md` 的 `careers` 列表。
@@ -103,7 +101,7 @@ skills: [cs61a, python, testing]
 CS 核心课、数学和每天都用的工具。
 ```
 
-`order` 是绕圆一圈的顺序。大方向（`content/categories/`）的写法一样，列表叫 `careers`。
+`order` 是领域页签和首页技能目录里的先后顺序，按学的先后排。大方向（`content/categories/`）的写法一样，列表叫 `careers`。
 
 ## 提交之前
 

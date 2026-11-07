@@ -48,14 +48,13 @@ export interface Category {
   subIds: string[]
 }
 
-/** 职业：技能树最外圈的徽章 */
+/** 职业：技能树最上面一行的徽章 */
 export interface Sub {
   id: string
   categoryId: string
   name: string
   intro: string
   icon: string
-  isHot: boolean
   /** 徽章挂在哪个技能后面 */
   anchor: string
   /** 三个关键词 */

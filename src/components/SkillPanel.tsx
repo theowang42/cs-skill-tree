@@ -2,7 +2,7 @@
 import type { SkillState } from '../types'
 import { useApp } from '../state'
 import { SkillSlot } from './glyphs'
-import { Links, MiniSkill, StatusControl } from './common'
+import { CardName, Links, MiniSkill, StatusControl } from './common'
 
 const BADGE: Record<SkillState, string> = { locked: '未解锁', available: '可点亮', done: '已点亮' }
 
@@ -21,7 +21,7 @@ export function SkillPanel({ id }: { id: string }) {
           <p className="card-kind">
             {s.language ? '语言天赋' : '技能'} · {tree.areas.get(s.areaId)!.name} · 第 {row} 层
           </p>
-          <h2>{s.name}</h2>
+          <CardName name={s.name} />
           <span className={`badge b-${state}`}>{BADGE[state]}</span>
         </div>
       </div>

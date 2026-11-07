@@ -1,6 +1,6 @@
 ---
-name: AI 算法
-order: 3
-skills: [llm-data, scaling, pretrain-run, sft, llm-eval, reasoning-rl, recsys, feature, gbdt, ranking, detection, ab-test]
+name: 大模型
+order: 8
+skills: [nlp, gpt, hf, finetune, sft, rlhf, reasoning-rl, llm-data, scaling, pretrain-run, llm-eval, distillation, llm-app, prompt, eval, voice, vector-db, rag, agent, mcp]
 ---
-训练模型本身：大模型的预训练和对齐，推荐、视觉这些机器学习算法。
+读懂、训练和微调大模型，再用它做应用：RAG、Agent。

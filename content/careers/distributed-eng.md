@@ -1,11 +1,11 @@
 ---
-name: 分布式系统工程师
+name: 基础架构工程师
 icon: earth
 keywords: [共识, 存储, 数据库]
 requires: [kafka, system-design, db-internals, go]
 bonus: [leetcode, java, cloud]
 ---
-做复制、分片、消息队列和数据库这些让很多台机器协同工作的基础设施。
+做别的团队用的底座：存储、消息队列、数据库。
 
 ## 平时做什么
 - 做复制和分片

@@ -2,10 +2,10 @@ import { useApp } from '../state'
 import { Dashboard } from './Dashboard'
 import { SkillPanel } from './SkillPanel'
 import { SubPanel } from './SubPanel'
-import { CareersPanel } from './CareersPanel'
 
 export function Panel() {
-  const { focus, setFocus, readOnly, leaveShared, adoptShared } = useApp()
+  const { tree, focus, home, setFocus, readOnly, leaveShared, adoptShared } = useApp()
+  const atHome = JSON.stringify(focus) === JSON.stringify(home)
   return (
     <>
       {readOnly && (
@@ -17,15 +17,14 @@ export function Panel() {
           </div>
         </div>
       )}
-      {focus && (
-        <button className="back-link" onClick={() => setFocus(null)}>
-          ← 我的进度
+      {!atHome && (
+        <button className="back-link" onClick={() => setFocus(home)}>
+          ← {home?.kind === 'sub' ? tree.subs.get(home.id)!.name : '我的进度'}
         </button>
       )}
       {!focus && <Dashboard />}
       {focus?.kind === 'skill' && <SkillPanel id={focus.id} />}
       {focus?.kind === 'sub' && <SubPanel id={focus.id} />}
-      {focus?.kind === 'careers' && <CareersPanel />}
     </>
   )
 }

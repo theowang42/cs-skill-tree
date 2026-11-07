@@ -6,18 +6,33 @@ import { Tree, clean, cleanSteps, computeStates, plan, subProgress, type Lit } f
 import { EMPTY, load, onOtherTab, save, type Progress } from './lib/progress'
 import { decodeShare } from './lib/share'
 
-/** 选中了什么：一个技能、一个职业，或者全部职业的列表 */
-type Focus = { kind: 'skill' | 'sub'; id: string } | { kind: 'careers' } | null
+/** 选中了什么：一个技能，或者一个职业 */
+type Focus = { kind: 'skill' | 'sub'; id: string } | null
 
-const hashOf = (f: Focus) => (!f ? '' : f.kind === 'careers' ? '#/careers' : `#/${f.kind}/${f.id}`)
+const hashOf = (f: Focus) => (f ? `#/${f.kind}/${f.id}` : '')
 
-/** 地址栏里的 #/skill/docker、#/sub/backend、#/careers */
+/** 地址栏里的 #/skill/docker、#/sub/backend */
 function parseFocus(tree: Tree, hash: string): Focus {
-  if (hash === '#/careers') return { kind: 'careers' }
   const m = /^#\/(skill|sub)\/([a-z0-9-]+)$/.exec(hash)
   if (!m) return null
   const kind = m[1] as 'skill' | 'sub'
   return (kind === 'skill' ? tree.skills : tree.subs).has(m[2]) ? { kind, id: m[2] } : null
+}
+
+/**
+ * 技能树的目录（tree/）和站点首页。职业页、技能页也加载同一份脚本，所以按脚本自己在哪找，不按页面地址：
+ * 打包后脚本在 tree/assets/ 里，开发时这个文件在 src/ 里，往上一级都是技能树的目录
+ */
+export const TREE_URL = import.meta.url.replace(/[^/]+\/[^/]+$/, '')
+/** 链接写全 index.html：有的托管（比如 claude.ai 的 artifact）不会把目录自动打开成 index.html */
+export const HOME_URL = `${TREE_URL}../index.html`
+
+/** 职业页（career/<id>/）打开这个职业自己的天赋树；技能页（skill/<id>/）打开技能树页，切到这个技能的领域并选中它 */
+function parsePage(tree: Tree, path: string): Focus {
+  const m = /\/(career|skill)\/([a-z0-9-]+)(?:\/|\/index\.html)?$/.exec(path)
+  if (!m) return null
+  const kind = m[1] === 'career' ? 'sub' : 'skill'
+  return (kind === 'sub' ? tree.subs : tree.skills).has(m[2]) ? { kind, id: m[2] } : null
 }
 
 interface Toast {
@@ -28,6 +43,14 @@ interface Toast {
 
 interface AppState {
   tree: Tree
+  /** 只看一个职业的天赋树时是它的 id；在技能树页（按领域看）时是 null */
+  career: string | null
+  /** 什么都不选时回到哪：技能树页是“我的进度”，职业天赋树是这个职业 */
+  home: Focus
+  /** 技能树页正在看哪个领域的树（选中一个技能或职业，就跳到它所在的领域）；职业天赋树里是 null */
+  area: string | null
+  /** 点页签：看这个领域的树，取消选中 */
+  openArea: (id: string) => void
   /** 当前显示的：自己的，或者分享链接里别人的 */
   lit: Lit
   /** 还没点亮的技能完成了学习流程的第几步 */
@@ -89,8 +112,11 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
   const states = useMemo(() => computeStates(tree, lit), [tree, lit])
   const progressBySub = useMemo(() => new Map(tree.roadmap.subs.map((s) => [s.id, subProgress(tree, s.id, lit)])), [tree, lit])
 
+  const [page] = useState(() => parsePage(tree, location.pathname))
+  const career = page?.kind === 'sub' ? page.id : null
+  const home: Focus = career ? page : null
   // 地址栏里的焦点要在第一次渲染前读出来：下面把焦点同步到地址栏时，空焦点会把它清掉
-  const [focus, setFocusState] = useState<Focus>(() => parseFocus(tree, location.hash))
+  const [focus, setFocusState] = useState<Focus>(() => parseFocus(tree, location.hash) ?? page)
   const [flyRequest, setFlyRequest] = useState(0)
   const [pulse, setPulse] = useState<Set<string>>(new Set())
   const pulseTimer = useRef(0)
@@ -116,10 +142,22 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
     if (location.hash !== hash) history.replaceState(null, '', hash || location.pathname + location.search)
   }, [focus, readOnly])
 
-  // 打开时地址栏里带着焦点：等树量好了尺寸再飞过去
+  // 技能树页的页签：选中了技能或职业就是它所在的领域，否则是最后看的那个
+  const areaOf = (f: Focus) => (!f ? null : tree.skill(f.kind === 'skill' ? f.id : tree.subs.get(f.id)!.anchor).areaId)
+  const [tab, setTab] = useState(() => areaOf(focus) ?? tree.roadmap.areas[0].id)
+  const area = career ? null : areaOf(focus) ?? tab
+  useEffect(() => {
+    if (area) setTab(area)
+  }, [area])
+  const openArea = useCallback((id: string) => {
+    setFocusState(null)
+    setTab(id)
+  }, [])
+
+  // 打开时地址栏里带着焦点：等树量好了尺寸再飞过去（职业页打开时的焦点就是这个职业，不用飞）
   const focusAtStart = useRef(focus)
   useEffect(() => {
-    if (!focusAtStart.current) return
+    if (!focusAtStart.current || focusAtStart.current === home) return
     const t = window.setTimeout(() => setFlyRequest((n) => n + 1), 50)
     return () => window.clearTimeout(t)
   }, [])
@@ -235,7 +273,7 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
   }, [shared, replace])
 
   const value: AppState = {
-    tree, lit, steps, states, progressBySub, readOnly, leaveShared, adoptShared,
+    tree, career, home, area, openArea, lit, steps, states, progressBySub, readOnly, leaveShared, adoptShared,
     focus, setFocus, flyRequest, pulse,
     setLit, setStep, replace, reset,
     toasts, toast, dismissToast,

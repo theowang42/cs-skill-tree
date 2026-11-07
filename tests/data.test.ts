@@ -66,7 +66,7 @@ test('表约束挡住不合法的内容', () => {
 
 test('编程语言画成六边形：Python、C、Rust 这些，别的技能不是', () => {
   const langs = roadmap.skills.filter((s) => s.language).map((s) => s.id).sort()
-  assert.deepEqual(langs, ['c', 'cpp', 'csharp', 'dart', 'go', 'java', 'javascript', 'kotlin', 'python', 'rust', 'shell', 'sql', 'swift', 'typescript'])
+  assert.deepEqual(langs, ['c', 'cpp', 'csharp', 'cuda', 'dart', 'go', 'java', 'javascript', 'kotlin', 'python', 'rust', 'shell', 'sql', 'swift', 'typescript'])
 })
 
 /** 复制一份 content/，改掉一个文件，看 load() 报什么 */
