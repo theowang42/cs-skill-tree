@@ -1,16 +1,16 @@
 // 技能树：竖着长，最下面是“你”，一行一行往上，最上面一行是职业徽章（lib/layout.ts）。白底黑线。
-// 职业页只画这个职业要学的技能和它的徽章，画法一样。
+// 技能树页一次画一个领域（页签切换）；职业页只画这个职业要学的技能和它的徽章，画法一样。
 // 每个节点一个图标和名字。点亮了是实心黑加一圈光芒，能点是黑框，还够不着是浅灰。
 // 每个节点只画一根枝（连到主前置）；悬停或选中时，它的全部前置保持清楚，其余变淡。
 import { memo, useEffect, useMemo, useState } from 'react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
-import { hexPath, LABEL_Y, layoutTree, NODE_R, START_R, subNodeId, TIP_R } from '../lib/layout'
+import { fromText, hexPath, LABEL_Y, layoutTree, NODE_R, START_R, subNodeId, TIP_R } from '../lib/layout'
 import { frontier, totals } from '../lib/tree'
 import { Rays, SkillGlyph } from './glyphs'
 import { useCamera } from './useCamera'
 
-/** 打开时整棵树从“你”往上一行行长出来：越往上，出现得越晚 */
+/** 打开时树从“你”往上一行行长出来：越往上，出现得越晚 */
 const growDelay = (y: number) => ({ animationDelay: `${Math.round(-y * 0.45)}ms` })
 
 type Relation = 'none' | 'path' | 'dim'
@@ -138,8 +138,8 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
 })
 
 export function SkillTree({ onCenter }: { onCenter: () => void }) {
-  const { tree, career, states, steps, focus, setFocus, pulse, flyRequest, progressBySub } = useApp()
-  const layout = useMemo(() => layoutTree(tree, career ?? undefined), [tree, career])
+  const { tree, career, area, states, steps, focus, setFocus, pulse, flyRequest, progressBySub } = useApp()
+  const layout = useMemo(() => layoutTree(tree, career ? { career } : { area: area! }), [tree, career, area])
   const cam = useCamera(layout.bounds)
   const [hover, setHover] = useState<string | null>(null)
   const [tipHover, setTipHover] = useState<string | null>(null)
@@ -152,7 +152,7 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
 
   /** 把这些节点整片放进屏幕（徽章上面还有名字和进度，往上多留一点） */
   const flyOver = (ids: string[]) => {
-    const pts = ids.map((id) => layout.nodes.get(id)!)
+    const pts = ids.flatMap((id) => layout.nodes.get(id) ?? [])
     const pad = 90
     const minX = Math.min(...pts.map((p) => p.x)) - pad
     const maxX = Math.max(...pts.map((p) => p.x)) + pad
@@ -304,21 +304,25 @@ export function SkillTree({ onCenter }: { onCenter: () => void }) {
               />
             )
           })}
-          {/* 看全貌时：每个领域一个大标题，点它飞进那一片，放大到看得清名字 */}
-          {layout.areas.map((a) => (
-            <text
-              key={a.id}
-              className="area-title"
-              x={a.x}
-              y={a.y}
-              onClick={(e) => {
-                e.stopPropagation()
-                if (!cam.dragged()) cam.fly(a.x, a.y, 0.8)
-              }}
-            >
-              {a.name}
-            </text>
-          ))}
+          {/* 主前置在别的领域：名字下面写“先会 某某”，点它跳到那个领域 */}
+          {[...layout.outside].map(([id, from]) => {
+            const n = layout.nodes.get(id)!
+            return (
+              <text
+                key={id}
+                className="from"
+                x={n.x}
+                y={n.y + LABEL_Y + 18}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (!cam.dragged()) setFocus({ kind: 'skill', id: from }, { scroll: true })
+                }}
+              >
+                <title>{`在「${tree.areas.get(tree.skill(from).areaId)!.name}」里，点它过去`}</title>
+                {fromText(tree.skill(from).name)}
+              </text>
+            )
+          })}
         </g>
       </svg>
 

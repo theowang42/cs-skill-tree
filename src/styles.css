@@ -77,7 +77,8 @@ a {
 }
 
 @media (min-width: 761px) {
-  .page.panel-open .web-wrap {
+  .page.panel-open .web-wrap,
+  .page.panel-open .tabs {
     margin-right: var(--panel-w);
   }
 }
@@ -184,38 +185,21 @@ a {
   }
 }
 
-/* ── 看全貌（地图模式）：缩得很小时，名字和图标藏起来，只看形状、点亮了哪些和每个领域的大标题 ── */
-
-.area-title {
-  font-size: 64px;
-  font-weight: 700;
-  fill: var(--ink);
+/* 主前置在别的领域：名字下面一行小字，点它跳过去 */
+.from {
+  font-size: 11px;
+  fill: var(--ink-3);
   text-anchor: middle;
-  dominant-baseline: central;
   paint-order: stroke;
   stroke: var(--paper);
-  stroke-width: 16px;
+  stroke-width: 5px;
   stroke-linejoin: round;
-  opacity: 0;
-  pointer-events: none;
   cursor: pointer;
-  transition: opacity 0.3s var(--ease);
 }
 
-.web.far .area-title {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.web.far .area-title:hover {
+.from:hover {
+  fill: var(--ink);
   text-decoration: underline;
-}
-
-.web.far .lbl,
-.web.far .node foreignObject,
-.web.far .tip-name,
-.web.far .tip-pct {
-  opacity: 0;
 }
 
 /* ── 最上面一行：职业徽章 ── */
@@ -670,6 +654,46 @@ a {
 
 .hud-text:hover {
   color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+/* 领域页签：一个领域一棵树，从左到右是学的先后 */
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 20px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line-2);
+  scrollbar-width: none;
+  transition: margin-right 0.35s var(--ease);
+}
+
+.tabs button {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 10px 10px 9px;
+  border: 0;
+  border-bottom: 2.5px solid transparent;
+  background: none;
+  font-size: 14px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.tabs button small {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabs button:hover {
+  color: var(--ink);
+}
+
+.tabs button.on {
+  color: var(--ink);
+  font-weight: 700;
   border-bottom-color: var(--ink);
 }
 

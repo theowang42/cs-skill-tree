@@ -1,4 +1,4 @@
-// 顶栏：左边名字（回首页）和进度（打开“我的进度”）；职业天赋树里右边多一个回大图的入口。都是字，没有壳。
+// 顶栏：左边名字（回首页）和进度（打开“我的进度”）；职业天赋树里右边多一个回技能树页（按领域看全部技能）的入口。都是字，没有壳。
 import { HOME_URL, TREE_URL, useApp } from '../state'
 import { totals } from '../lib/tree'
 
@@ -14,7 +14,7 @@ export function Hud({ onTogglePanel, panelOpen }: { onTogglePanel: () => void; p
           <b>{t.done}</b> / {t.total}
         </button>
       </div>
-      {career && <a className="hud-text" href={`${TREE_URL}index.html`}>整棵树</a>}
+      {career && <a className="hud-text" href={`${TREE_URL}index.html`}>全部技能</a>}
     </header>
   )
 }

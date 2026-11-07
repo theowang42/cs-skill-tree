@@ -1,7 +1,7 @@
 // 静态页面：首页、每个技能一页、每个职业一页，加 sitemap。
 // 技能树本身是单页应用（在 /tree/），搜索引擎看不到里面的内容；这些页面是写死的 HTML，
 // 让人能搜到“Docker 怎么学”“大模型算法工程师要学什么”，也方便把单个技能、单个职业分享出去。
-// 同一个意思只有一个页面：职业页打开就是这个职业的天赋树，技能页打开就是大图上这个技能的卡片。
+// 同一个意思只有一个页面：职业页打开就是这个职业的天赋树，技能页打开就是它所在领域的树，这个技能的卡片已经打开。
 // HTML 里写好同样的内容给搜索引擎，技能树的脚本加载后接管整页。
 //
 // 用法：npm run build 在 vite 打包完技能树之后跑这个，写进 dist/。
@@ -112,7 +112,7 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
   const tree = new Tree(rm)
   /** 首页的小树：一个职业的天赋树，只画形状，从“你”往上一节一节长出来（离“你”越远越晚） */
   const miniTree = (c: Sub) => {
-    const l = layoutTree(tree, c.id)
+    const l = layoutTree(tree, { career: c.id })
     const { minX, minY, maxX, maxY } = l.bounds
     const at = (id: string) => l.nodes.get(id)!
     const delay = (y: number) => `style="animation-delay:${Math.round(-y * 0.55)}ms"`
@@ -211,7 +211,7 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
 
 <section id="careers" class="block">
   <h2>你想做哪个岗位？</h2>
-  <p class="muted">点进去是这个岗位要学的全部技能，会的直接点亮。还没想好，就<a href="tree/">看整棵树</a>。</p>
+  <p class="muted">点进去是这个岗位要学的全部技能，会的直接点亮。还没想好，就<a href="tree/">按领域看全部技能</a>。</p>
   ${careerRing()}
   <p class="ask">你会哪些？点一下，圆环上马上算出离每个岗位还差几个。</p>
   <div class="quick">${QUICK.map((id) => `<button type="button" class="chip" data-s="${id}" aria-pressed="false">${icon(sk(id).icon, 16)}${esc(sk(id).name)}</button>`).join('')}</div>
@@ -331,7 +331,7 @@ ${list('可以参考的开源项目', c.projects.map((l) => `<a href="${esc(l.ur
     })
   }
 
-  // ── 技能页：大图，这个技能的卡片已经打开。HTML 里是同样的内容 ──
+  // ── 技能页：它所在领域的树，这个技能的卡片已经打开。HTML 里是同样的内容 ──
   for (const s of rm.skills) {
     const pre = s.prerequisites.map(sk)
     const desc =

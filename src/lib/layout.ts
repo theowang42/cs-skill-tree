@@ -1,5 +1,7 @@
 // 技能树的布局：竖着长。最下面是“你”，往上一行一行，最上面一行是职业徽章。
-// 整棵树和单个职业的天赋树都用它：职业天赋树只画这个职业要学的技能（含全部前置）和它自己的徽章。
+// 两种树都用它：一个领域的树（技能树页的一个页签：这个领域的技能，加上挂在它们上面的职业徽章），
+// 和一个职业的天赋树（这个职业要学的技能，含全部前置，加上它自己的徽章）。
+// 主前置不在这棵树里的技能（别的领域的），就从“你”直接连出来，记在 outside 里，页面上写明来自哪里。
 //
 //   - 每个技能挂在它的主前置上（前置里的第一个），所以画出来是一条条往上的链，只在关键节点分叉。
 //     其余前置不画线，选中时只让那些节点保持清楚，面板里列出来。
@@ -28,9 +30,9 @@ const FIRST = 190
 /** 徽章那根竖线占多宽的一半：别的节点离它至少这么远 */
 const LANE_HALF = 12
 
-/** 左右的顺序：AI 产品在左，AI Infra 在中间，底层系统和安全在右 */
+/** 左右的顺序：做产品的（Web、客户端、数据）在左，AI 在中间，地基、底层系统和安全在右 */
 const AREA_ORDER: Record<string, number> = {
-  dev: 0, product: 1, quant: 2, llm: 2.6, infra: 3, base: 5, systems: 6, security: 7,
+  web: 0, client: 1, data: 2, learning: 3, llm: 4, infra: 5, base: 6, systems: 7, security: 8,
 }
 
 /** 画一棵树要的全部位置 */
@@ -39,8 +41,8 @@ export interface Layout {
   nodes: Map<string, { x: number; y: number }>
   /** 树上画出来的枝：每个节点一根，没有前置的技能从“你”（'root'）连出来 */
   edges: { from: string; to: string; d: string }[]
-  /** 整棵树里每个领域的大标题：放在这个领域的技能最集中的地方，缩小看全貌时显示（职业天赋树没有） */
-  areas: { id: string; name: string; x: number; y: number }[]
+  /** 主前置在别的领域的技能 → 那个主前置（领域的树里才有） */
+  outside: Map<string, string>
   /** 整张图（含徽章上面的名字）都在这个框里 */
   bounds: { minX: number; minY: number; maxX: number; maxY: number }
 }
@@ -53,6 +55,9 @@ export const hexPath = (r: number) =>
     const a = (Math.PI / 3) * i - Math.PI / 2
     return `${i ? 'L' : 'M'}${(Math.cos(a) * r).toFixed(1)},${(Math.sin(a) * r).toFixed(1)}`
   }).join(' ') + 'Z'
+
+/** 主前置在别的领域时，名字下面那行小字（11px） */
+export const fromText = (name: string) => `先会 ${name}`
 
 /** 名字的显示宽度：中文 14px，英文数字约 8px */
 export function labelWidth(name: string): number {
@@ -68,16 +73,23 @@ function elbow(x1: number, y1: number, x2: number, y2: number, ym: number): stri
   return `M${f(x1)},${f(y1)} L${f(x1)},${f(ym)} L${f(x2)},${f(ym)} L${f(x2)},${f(y2)}`
 }
 
-/** 排一棵树：不给 career 是整棵树和全部职业；给了就只排这个职业的天赋树 */
-export function layoutTree(tree: Tree, career?: string): Layout {
-  const ids = career ? [...tree.closures.get(career)!] : tree.roadmap.skills.map((s) => s.id)
-  const subs = career ? [tree.subs.get(career)!] : tree.roadmap.subs
+/** 排一棵树：一个领域的，或者一个职业的 */
+export function layoutTree(tree: Tree, view: { area: string } | { career: string }): Layout {
+  const ids = 'career' in view ? [...tree.closures.get(view.career)!] : tree.areas.get(view.area)!.skillIds
+  const inTree = new Set(ids)
+  const subs = 'career' in view ? [tree.subs.get(view.career)!] : tree.roadmap.subs.filter((s) => inTree.has(s.anchor))
+  /** 树上画的那根枝连向谁：主前置在这棵树里就是它，否则从“你”连出来 */
+  const parentOf = (id: string) => {
+    const p = tree.skill(id).parent
+    return p && inTree.has(p) ? p : 'root'
+  }
+  const outside = new Map(ids.filter((id) => tree.skill(id).parent && parentOf(id) === 'root').map((id) => [id, tree.skill(id).parent!]))
   /** 挂着徽章的技能 → 徽章 */
   const tipOf = new Map(subs.map((s) => [s.anchor, subNodeId(s.id)]))
   // 主前置一定也在要排的技能里，所以每个技能的父亲都在这棵树里
   const children = new Map<string, string[]>([['root', []]])
   for (const id of ids) children.set(id, [])
-  for (const id of ids) children.get(tree.skill(id).parent ?? 'root')!.push(id)
+  for (const id of ids) children.get(parentOf(id))!.push(id)
 
   const depth = new Map<string, number>()
   const setDepth = (id: string, d: number) => {
@@ -144,7 +156,8 @@ export function layoutTree(tree: Tree, career?: string): Layout {
   }
   const build = (id: string): Contour => {
     const d = depth.get(id)!
-    const h = Math.max(NODE_R, labelWidth(tree.skill(id).name) / 2) + GAP / 2
+    const from = outside.get(id)
+    const h = Math.max(NODE_R, labelWidth(tree.skill(id).name) / 2, from ? (labelWidth(fromText(tree.skill(from).name)) * 11) / 14 / 2 : 0) + GAP / 2
     const tip = tipOf.get(id)
     const row = tip ? [...children.get(id)!, tip] : children.get(id)!
     const out = row.length ? lay(row, (k) => (k === tip ? tipColumn(d + 1) : build(k))) : new Map()
@@ -173,15 +186,8 @@ export function layoutTree(tree: Tree, career?: string): Layout {
     const ym = (y1 + (isTip ? rowY(depth.get(from)! + 1) + LABEL_BOTTOM + 4 : y2)) / 2
     edges.push({ from, to, d: elbow(a.x, y1, b.x, y2, ym) })
   }
-  for (const id of ids) link(tree.skill(id).parent ?? 'root', id, false)
+  for (const id of ids) link(parentOf(id), id, false)
   for (const [anchor, tip] of tipOf) link(anchor, tip, true)
-
-  // 领域的大标题：一个领域的技能会分散在好几支上，取横、竖两个方向的中位数，落在它最集中的那一片
-  const median = (v: number[]) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)]
-  const areas = career ? [] : tree.roadmap.areas.map((a) => {
-    const ps = a.skillIds.map((id) => nodes.get(id)!)
-    return { id: a.id, name: a.name, x: median(ps.map((p) => p.x)), y: median(ps.map((p) => p.y)) }
-  })
 
   // 整张图的框：左右是名字和徽章，上面是徽章的名字，下面是“你”
   const xs = [
@@ -191,7 +197,7 @@ export function layoutTree(tree: Tree, career?: string): Layout {
   return {
     nodes,
     edges,
-    areas,
+    outside,
     bounds: {
       minX: Math.min(-START_R, ...xs.map(([x, w]) => x - w)) - 40,
       maxX: Math.max(START_R, ...xs.map(([x, w]) => x + w)) + 40,

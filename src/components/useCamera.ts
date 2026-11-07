@@ -1,8 +1,8 @@
 // 技能树的镜头：滚轮平移、缩放、拖动、双指缩放、飞到某处。不走 React，直接改 <g> 的 transform。
 // “你”在 (0, 0)，整张图在 bounds 这个框里。
-//   - 打开时、点“看全图”时，缩放刚好把整张图装进屏幕；不能再小；
-//   - 任何缩放下都能拖，屏幕中心能到图上任何一点，图不会整个拖出屏幕；
-//   - 缩得比 FAR_K 还小是“地图模式”：<svg> 加上 far，名字藏起来、领域的大标题出来（样式里写）。
+//   - 打开时宽度装满屏幕（最多原大小），停在最下面的“你”，往上滚着读；
+//   - 点“看全图”时整张图装进屏幕，这也是最小的缩放；
+//   - 任何缩放下都能拖，屏幕中心能到图上任何一点，图不会整个拖出屏幕。
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
 import type { Layout } from '../lib/layout'
 
@@ -13,8 +13,6 @@ interface View {
 }
 
 const MAX_K = 2.5
-/** 比这还小就是地图模式：名字太小看不清，只看形状和领域 */
-export const FAR_K = 0.5
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 
 export function useCamera({ minX, minY, maxX, maxY }: Layout['bounds']) {
@@ -43,7 +41,6 @@ export function useCamera({ minX, minY, maxX, maxY }: Layout['bounds']) {
     const y = Math.min(maxY, Math.max(minY, (h / 2 - raw.y) / raw.k))
     view.current = { x: w / 2 - x * k, y: h / 2 - y * k, k }
     world.current?.setAttribute('transform', `translate(${view.current.x},${view.current.y}) scale(${k})`)
-    svg.current?.classList.toggle('far', k < FAR_K)
   }, [minX, minY, maxX, maxY])
 
   /** 让世界坐标 (cx, cy) 对着宽 width 的那块屏幕的正中，缩放 k；ms 是动画时长 */
@@ -71,10 +68,12 @@ export function useCamera({ minX, minY, maxX, maxY }: Layout['bounds']) {
     return () => ro.disconnect()
   }, [])
 
-  // 开头：看全貌。窗口变了也重新来，除非用户已经动过
+  // 开头：宽度装满屏幕，“你”贴着屏幕底下。窗口变了也重新来，除非用户已经动过
   useEffect(() => {
-    if (size.w && !touched.current) flyTo(cx, cy, limits.current.minK, { ms: 0 })
-  }, [size, flyTo, cx, cy])
+    if (!size.w || touched.current) return
+    const k = Math.max(limits.current.minK, Math.min(1, size.w / (2 * rx)))
+    flyTo(cx, maxY - size.h / 2 / k, k, { ms: 0 })
+  }, [size, flyTo, cx, rx, maxY])
 
   /** 以屏幕上的 (sx, sy) 为中心缩放到 k */
   const zoomAt = useCallback((sx: number, sy: number, k: number) => {

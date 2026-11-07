@@ -7,7 +7,7 @@
 
 ```
 content/
-  areas/       领域：技能树上的一支，列出它的技能和顺序
+  areas/       领域：技能树的一页，列出它的技能和顺序
   skills/      技能：一个文件一个
   categories/  大方向：列出它下面的职业和顺序
   careers/     职业：一个文件一个
@@ -101,7 +101,7 @@ skills: [cs61a, python, testing]
 CS 核心课、数学和每天都用的工具。
 ```
 
-`order` 是首页技能目录里的先后顺序（树上的左右位置按领域排，见 `src/lib/layout.ts`）。大方向（`content/categories/`）的写法一样，列表叫 `careers`。
+`order` 是领域页签和首页技能目录里的先后顺序，按学的先后排。大方向（`content/categories/`）的写法一样，列表叫 `careers`。
 
 ## 提交之前
 

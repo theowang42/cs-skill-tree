@@ -28,7 +28,7 @@ function Shortcuts() {
 }
 
 function Shell() {
-  const { focus, setFocus } = useApp()
+  const { tree, career, area, openArea, states, focus, setFocus } = useApp()
   // 选中东西就打开面板，取消选中就收起；顶上的进度和最下面的“你”可以单独打开“我的进度”
   const [panelOpen, setPanelOpen] = useState(false)
   const wantOverview = useRef(false)
@@ -45,7 +45,18 @@ function Shell() {
   return (
     <div className={`page${panelOpen ? ' panel-open' : ''}`}>
       <Hud onTogglePanel={() => setPanelOpen((o) => !o)} panelOpen={panelOpen} />
-      <SkillTree onCenter={openOverview} />
+      {area && (
+        <nav className="tabs" aria-label="领域">
+          {tree.roadmap.areas.map((a) => (
+            <button key={a.id} className={a.id === area ? 'on' : ''} onClick={() => openArea(a.id)}>
+              {a.name}
+              <small>{a.skillIds.filter((id) => states.get(id) === 'done').length} / {a.skillIds.length}</small>
+            </button>
+          ))}
+        </nav>
+      )}
+      {/* 换一个领域就换一棵树：重新长一遍，镜头回到开头 */}
+      <SkillTree key={career ?? area} onCenter={openOverview} />
       <aside className="panel" aria-label="详情" aria-hidden={!panelOpen}>
         <div className="panel-body">
           <Panel />

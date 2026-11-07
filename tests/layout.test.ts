@@ -1,4 +1,4 @@
-// 技能树布局：竖着长的一棵树。整棵树和每个职业的天赋树都检查：确定、每个节点一根枝、一行一行往上、徽章在最上面、不穿模不叠
+// 技能树布局：竖着长的一棵树。每个领域的树和每个职业的天赋树都检查：确定、每个节点一根枝、一行一行往上、徽章在最上面、不太大、不穿模不叠
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { build } from '../scripts/db.ts'
@@ -80,23 +80,28 @@ function overlaps(l: Layout, skills: string[], subs: string[]): string[] {
   return hits
 }
 
-/** 要检查的每一张图：整棵树，加 17 个职业的天赋树 */
+/** 要检查的每一张图：9 个领域的树，加 17 个职业的天赋树 */
 const views = [
-  { name: '整棵树', career: undefined, l: layoutTree(tree), skills: tree.roadmap.skills.map((s) => s.id), subs: tree.roadmap.subs.map((s) => s.id) },
-  ...tree.roadmap.subs.map((sub) => ({ name: sub.name, career: sub.id, l: layoutTree(tree, sub.id), skills: [...tree.closures.get(sub.id)!], subs: [sub.id] })),
-]
+  ...tree.roadmap.areas.map((a) => ({ name: a.name, view: { area: a.id }, skills: a.skillIds, subs: tree.roadmap.subs.filter((s) => a.skillIds.includes(s.anchor)).map((s) => s.id) })),
+  ...tree.roadmap.subs.map((sub) => ({ name: sub.name, view: { career: sub.id }, skills: [...tree.closures.get(sub.id)!], subs: [sub.id] })),
+].map((v) => ({ ...v, l: layoutTree(tree, v.view) }))
 
 test('结果每次一样；要画的技能和徽章都有位置，不多不少', () => {
-  for (const { name, career, l, skills, subs } of views) {
+  for (const { name, view, l, skills, subs } of views) {
     assert.equal(l.nodes.size, skills.length + subs.length, name)
-    assert.deepEqual(layoutTree(tree, career), l, name)
+    assert.deepEqual(layoutTree(tree, view), l, name)
   }
 })
 
-test('是一棵树：每个技能一根枝连主前置，没有前置的连到“你”，徽章连到它挂的技能', () => {
+test('是一棵树：每个技能一根枝连主前置（主前置不在这棵树里就连“你”，并记下来自哪里），徽章连到它挂的技能', () => {
   for (const { name, l, skills, subs } of views) {
     const into = new Map(l.edges.map((e) => [e.to, e.from]))
-    for (const id of skills) assert.equal(into.get(id), tree.skill(id).parent ?? 'root', `${name}: ${id}`)
+    for (const id of skills) {
+      const p = tree.skill(id).parent
+      const inside = p !== null && skills.includes(p)
+      assert.equal(into.get(id), inside ? p : 'root', `${name}: ${id}`)
+      assert.equal(l.outside.get(id), inside || !p ? undefined : p, `${name}: ${id} 来自哪里`)
+    }
     for (const id of subs) assert.equal(into.get(subNodeId(id)), tree.subs.get(id)!.anchor, `${name}: ${id}`)
     assert.equal(l.edges.length, skills.length + subs.length, name)
   }
@@ -112,12 +117,19 @@ test('大部分节点只有一个孩子：是一条条链，只在关键节点�
 test('一行一行往上：孩子正好在父亲上面一行，行距处处一样；徽章都在最上面一行', () => {
   for (const { name, l, skills, subs } of views) {
     const y = (id: string) => l.nodes.get(id)!.y
-    const gaps = new Set(skills.filter((id) => tree.skill(id).parent).map((id) => y(tree.skill(id).parent!) - y(id)))
-    assert.equal(gaps.size, 1, `${name}: 行距不一样 ${[...gaps]}`)
-    assert.ok([...gaps][0] > 0, `${name}: 孩子没在父亲上面`)
+    const gaps = new Set(skills.filter((id) => tree.skill(id).parent && skills.includes(tree.skill(id).parent!)).map((id) => y(tree.skill(id).parent!) - y(id)))
+    assert.ok(gaps.size <= 1, `${name}: 行距不一样 ${[...gaps]}`)
+    if (!subs.length) continue
     const tops = new Set(subs.map((id) => y(subNodeId(id))))
     assert.equal(tops.size, 1, `${name}: 徽章不在同一行`)
     assert.ok(skills.every((id) => y(id) > [...tops][0]), `${name}: 有技能比徽章还高`)
+  }
+})
+
+test('一棵树不太大：宽不超过 1400 像素，按原大小差不多放得进屏幕', () => {
+  for (const { name, l } of views) {
+    const { minX, minY, maxX, maxY } = l.bounds
+    assert.ok(maxX - minX <= 1400 && maxY - minY <= 2400, `${name}: ${Math.round(maxX - minX)} x ${Math.round(maxY - minY)}`)
   }
 })
 
@@ -127,16 +139,4 @@ test('线不穿过任何名字、徽章和别的节点', () => {
 
 test('名字、徽章、节点和“你”互相不叠', () => {
   for (const { name, l, skills, subs } of views) assert.deepEqual(overlaps(l, skills, subs), [], name)
-})
-
-test('看全貌时每个领域一个大标题，标题互相不叠', () => {
-  const { areas } = layoutTree(tree)
-  assert.equal(areas.length, tree.roadmap.areas.length)
-  // 标题 64px 一个字，高 80
-  const box = (a: Layout['areas'][number]) => ({ l: a.x - (a.name.length * 64) / 2, r: a.x + (a.name.length * 64) / 2, t: a.y - 40, b: a.y + 40 })
-  for (let i = 0; i < areas.length; i++) for (let j = i + 1; j < areas.length; j++) {
-    const a = box(areas[i])
-    const b = box(areas[j])
-    assert.ok(!(a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b), `${areas[i].name} 和 ${areas[j].name} 的标题叠在一起`)
-  }
 })
