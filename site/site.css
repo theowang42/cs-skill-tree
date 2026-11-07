@@ -104,5 +104,5 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .flow { list-style: none; margin: 8px 0 0; padding: 0; }
 .flow li { position: relative; display: flex; align-items: center; gap: 14px; padding: 7px 0; font-size: 16px; }
 .flow li + li::before { content: ''; position: absolute; left: 13px; top: -7px; width: 2px; height: 14px; background: var(--ink); }
-.flow .dot { display: grid; flex: none; place-items: center; width: 28px; height: 28px; border: 1.5px solid var(--ink); border-radius: 50%; background: #fff; font-size: 13px; font-weight: 700; }
+.flow .dot { display: grid; flex: none; place-items: center; width: 28px; height: 28px; border: 1.5px solid var(--ink); background: #fff; font-size: 13px; font-weight: 700; }
 .flow i { font-style: normal; color: var(--ink-2); }

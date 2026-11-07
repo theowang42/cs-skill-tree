@@ -716,7 +716,7 @@ a {
   margin-top: 4px;
 }
 
-/* 卡片里的学习流程：几个圆点连成一条竖线，点亮的是实心 */
+/* 卡片里的学习流程：一格一格的方块按钮，像技能栏，按下去有手感；点亮的格子是实心 */
 .flow {
   margin: 0;
   padding: 0;
@@ -727,11 +727,16 @@ a {
   position: relative;
 }
 
+.flow li + li {
+  margin-top: 10px;
+}
+
+/* 格子之间的连线 */
 .flow li + li::before {
   content: '';
   position: absolute;
-  top: -5px;
-  left: 11px;
+  top: -10px;
+  left: 22px;
   width: 2px;
   height: 10px;
   background: var(--line);
@@ -746,14 +751,27 @@ a {
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 5px 0;
-  border: 0;
-  background: none;
+  padding: 8px 10px;
+  border: 1.5px solid var(--ink);
+  background: var(--paper);
+  box-shadow: 3px 3px 0 var(--line);
   color: var(--ink);
   font: inherit;
   font-size: 14px;
   text-align: left;
   cursor: pointer;
+  transition: transform 0.12s var(--ease), box-shadow 0.12s var(--ease), background 0.12s var(--ease);
+}
+
+.flow button:hover:not(:disabled) {
+  background: var(--wash);
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.flow button:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--ink);
 }
 
 .flow .dot {
@@ -763,14 +781,13 @@ a {
   width: 24px;
   height: 24px;
   border: 1.5px solid var(--ink);
-  border-radius: 50%;
   background: var(--paper);
   font-size: 12px;
   font-weight: 700;
 }
 
-.flow button:hover:not(:disabled) .dot {
-  box-shadow: 0 0 0 3px var(--line-2);
+.flow li.done button {
+  font-weight: 500;
 }
 
 .flow li.done .dot {
@@ -779,6 +796,8 @@ a {
 }
 
 .flow.locked button {
+  border-color: var(--off-line);
+  box-shadow: none;
   color: var(--off-ink);
   cursor: not-allowed;
 }
