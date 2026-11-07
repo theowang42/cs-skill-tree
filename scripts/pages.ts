@@ -153,7 +153,7 @@ export function renderSite(rm: Roadmap): Map<string, string> {
     <p class="muted small">免费 · 不用注册 · 每个技能附公开课</p>
   </div>
   <div class="hero-media">
-    <video src="intro.mp4" poster="intro-poster.jpg" autoplay muted loop playsinline controls preload="metadata" aria-label="演示：点亮技能、看进度、选职业"></video>
+    <video src="intro.mp4" poster="intro-poster.jpg" autoplay muted loop playsinline controls preload="metadata" aria-label="短片：标出你会的技能，看下一步学什么、离岗位还差多少"></video>
   </div>
 </section>
 
