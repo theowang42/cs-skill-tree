@@ -23,9 +23,9 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .chip:hover { border-color: var(--ink); background: var(--wash); }
 .chip svg { color: var(--ink-2); }
 
-/* 首页。三种字号：大 40（标题、岗位名）、中 16（正文、类别名、按钮）、小 13（数字、说明、技能选项）。
-   一条网格：标题横跨，下面左边圆环、右边选中的岗位，两栏顶部对齐、一样高 */
-.home { display: grid; grid-template-columns: 6fr 5fr; grid-template-rows: auto 1fr; column-gap: 64px; padding: 48px 0 0; }
+/* 首页。三种字号：大 40（标题、岗位名）、中 16（正文、岗位按钮）、小 13（大方向、数字、说明、技能选项）。
+   一条网格：标题横跨，下面左边岗位列表、右边选中的岗位，两栏顶部对齐 */
+.home { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; column-gap: 64px; padding: 48px 0 0; }
 .home h1 { grid-column: 1 / -1; margin-bottom: 32px; font-size: 40px; letter-spacing: .02em; }
 .pick { display: flex; flex-direction: column; min-width: 0; }
 .pick-hint { margin: auto 0; text-align: center; font-size: 16px; color: var(--ink-3); }
@@ -65,42 +65,33 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .mini .you { fill: var(--ink); }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes pop { to { opacity: 1; transform: none; } }
-@keyframes rise { from { opacity: 0; transform: scale(.3); } }
 @media (prefers-reduced-motion: reduce) {
-  .mini .e, .mini .n > g, .job .w { animation: none; opacity: 1; transform: none; stroke-dashoffset: 0; }
+  .mini .e, .mini .n > g { animation: none; opacity: 1; transform: none; stroke-dashoffset: 0; }
 }
 
-/* 岗位圆环：扇形里只有图标，外面只写大方向。字都在图里，跟圆环一起缩放 */
-.ring { position: relative; align-self: start; }
-.jobs { display: block; width: 100%; height: auto; overflow: visible; }
-.cat { font-size: calc(var(--cat, 27) * 1px); font-weight: 500; fill: var(--ink-2); dominant-baseline: central; }
-.job { outline: none; cursor: pointer; }
-.job .w { transition: transform .35s var(--ease); animation: rise .45s var(--ease) backwards; animation-delay: calc(var(--i) * 35ms); }
-.wedge { fill: #f7f7f7; transition: fill .25s; }
-.job .w svg { color: var(--ink); transition: color .25s; }
-.job .prog { fill: none; stroke: var(--ink); stroke-width: 7; transition: stroke-dasharray .5s var(--ease); }
-.job:hover .wedge, .job:focus-visible .wedge { fill: var(--line-2); }
-.job.done .wedge { fill: var(--off-ink); }
-.job.done .w svg { color: #fff; }
-.job.on .w { transform: translate(var(--dx), var(--dy)); }
-.job.on .wedge { fill: var(--ink); }
-.job.on .w svg { color: #fff; }
-/* 悬停的名字：挂在扇形外沿，往外偏一点，不挡扇形 */
-.tag { position: absolute; z-index: 2; padding: 2px 10px; border-radius: 4px; background: var(--ink); color: #fff; font-size: 13px; font-weight: 700; white-space: nowrap; pointer-events: none; transform: translate(8px, -50%); }
-.tag[data-side="l"] { transform: translate(calc(-100% - 8px), -50%); }
+/* 岗位列表：大方向一组，每个岗位一个按钮，图标加名字；点亮过技能的后面写进度 */
+.group + .group { margin-top: 24px; }
+.group > h2 { margin-bottom: 10px; font-size: 13px; color: var(--ink-2); }
+.jobs { display: flex; flex-wrap: wrap; gap: 8px; }
+.job { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px 9px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 16px; text-decoration: none; scroll-margin-top: 76px; transition: border-color .2s var(--ease), background .2s var(--ease); }
+.job:hover { border-color: var(--ink); }
+.job .n { font-size: 13px; color: var(--ink-3); }
+.job .n:empty { display: none; }
+.job.done .n { color: var(--ink); font-weight: 700; }
+.job.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.job.on .n { color: #fff; }
 
 
 .foot { max-width: 1200px; margin: 40px auto 0; padding: 28px 24px 48px; border-top: 1px solid var(--line-2); color: var(--ink-2); font-size: 13px; }
 .foot p { margin: 4px 0; }
 
-/* 窄屏一栏排下来：圆环、岗位、小树、技能、按钮 */
+/* 窄屏一栏排下来；选中岗位的详情放进它那组下面 */
 @media (max-width: 860px) {
   .home { grid-template-columns: 1fr; padding-top: 24px; }
-  .home h1 { margin-bottom: 8px; font-size: 32px; }
-  .pick { margin-top: 16px; }
-  .pick-hint { margin: 0; font-size: 13px; }
+  .home h1 { margin-bottom: 24px; font-size: 32px; }
+  .pick { display: none; }
+  .group .pick { display: flex; margin-top: 16px; padding: 24px 0; border-top: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); }
   .pk-name { font-size: 32px; }
-  .ring { width: min(100%, 520px); justify-self: center; }
 }
 @media (max-width: 560px) {
   main { padding: 0 16px 32px; }

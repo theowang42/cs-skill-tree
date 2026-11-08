@@ -138,68 +138,14 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
     return `<svg class="${side ? 'side' : 'up'}" viewBox="${vx} ${vy} ${vw} ${vh}" aria-hidden="true">${edges}${nodes}<g class="n tip" ${move(t.x, t.y)}><g ${delay(t.y)}><circle r="${TIP_R}"/><circle r="${TIP_R - 7}"/><g transform="translate(-20,-20) scale(1.67)">${icon(c.icon)}</g></g></g><circle class="you" r="16"/></svg>`
   }
 
-  /**
-   * 首页的岗位圆环：17 个岗位是一圈扇形按钮，扇形里只有图标；同一个大方向的挨着，大方向之间空开一点，大方向的名字写在圆环外面。
-   * 从正上方开始顺时针。字都在这张图里，跟圆环一起缩放，窗口怎么变，字和圆环的相对位置都不变。
-   */
-  const careerRing = () => {
-    const [RI, RO, RP] = [190, 330, 346] // 扇形内外半径、进度弧
-    const FS = 40 // 大方向名字最大的字号（图里的单位，手机上用这么大；电脑上样式里写小一点）
-    const GAP = 0.6 // 大方向之间空出几个扇形的位置
-    const PAD = 0.012 // 扇形之间的缝（弧度）
-    const unit = (Math.PI * 2) / (rm.subs.length + rm.categories.length * GAP)
-    // 转一下，让名字最长的大方向落在正下方（居中写），左右两边只剩短名字，圆环可以画大一点
-    const longest = rm.categories.reduce((m, c) => ([...c.name].length > [...m.name].length ? c : m))
-    let before = GAP / 2
-    for (const c of rm.categories.slice(0, rm.categories.indexOf(longest))) before += c.subIds.length + GAP
-    const ROT = Math.PI - (before + longest.subIds.length / 2) * unit
-    const r1 = (n: number) => Math.round(n * 10) / 10
-    const pt = (r: number, a: number) => [r1(r * Math.sin(a + ROT)), r1(-r * Math.cos(a + ROT))]
-    const arc = (r: number, a1: number, a2: number) => {
-      const [x1, y1] = pt(r, a1)
-      const [x2, y2] = pt(r, a2)
-      return `M${x1},${y1} A${r},${r} 0 0 1 ${x2},${y2}`
-    }
-    const width = (t: string) => [...t].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 1 : 0.58), 0) * FS
-    const box = { x: RP, y: RP }
-    const parts: string[] = []
-    let pos = GAP / 2
-    let i = 0
-    for (const cat of rm.categories) {
-      // 大方向的名字：写在它那段圆弧正中的外面；左右两边朝外写，正上正下居中
-      const mid = (pos + cat.subIds.length / 2) * unit
-      const [sx, cy] = [Math.sin(mid + ROT), -Math.cos(mid + ROT)]
-      const [lx, ly] = pt(RP + 40 + FS * 0.4 * Math.abs(cy), mid)
-      const anchor = Math.abs(sx) < 0.35 ? 'middle' : sx > 0 ? 'start' : 'end'
-      const w = width(cat.name)
-      box.x = Math.max(box.x, Math.abs(lx) + (anchor === 'middle' ? w / 2 : w) + 8)
-      box.y = Math.max(box.y, Math.abs(ly) + FS * 0.6)
-      parts.push(`<text class="cat" x="${lx}" y="${ly}" text-anchor="${anchor}">${esc(cat.name)}</text>`)
-      for (const id of cat.subIds) {
-        const c = subs.get(id)!
-        const a1 = pos * unit
-        const a = a1 + unit / 2
-        const [b1, b2] = [a1 + PAD, a1 + unit - PAD]
-        const [ix, iy] = pt((RI + RO) / 2, a)
-        const [dx, dy] = pt(16, a)
-        const [ox1, oy1] = pt(RO, b1)
-        const [ox2, oy2] = pt(RO, b2)
-        const [ix2, iy2] = pt(RI, b2)
-        const [jx1, jy1] = pt(RI, b1)
-        const [tx, ty] = pt(RO, a) // 悬停时名字标签挂在扇形外沿正中
-        parts.push(`<a class="job" href="career/${c.id}/" data-id="${c.id}" data-name="${esc(c.name)}" data-cat="${esc(cat.name)}" data-intro="${esc(c.intro)}" data-tx="${tx}" data-ty="${ty}" style="--i:${i++};--dx:${dx}px;--dy:${dy}px" aria-label="${esc(c.name)}">` +
-          `<g class="w"><path class="wedge" d="M${ox1},${oy1} A${RO},${RO} 0 0 1 ${ox2},${oy2} L${ix2},${iy2} A${RI},${RI} 0 0 0 ${jx1},${jy1}Z"/>` +
-          `<g transform="translate(${r1(ix - 26)},${r1(iy - 26)}) scale(2.17)">${icon(c.icon)}</g>` +
-          `<path class="prog" d="${arc(RP, b1, b2)}" pathLength="100" stroke-dasharray="0 100"/></g></a>`)
-        pos++
-      }
-      pos += GAP
-    }
-    const [hw, hh] = [Math.ceil(box.x), Math.ceil(box.y)]
-    return `<div class="ring" style="--hw:${hw};--hh:${hh}"><svg class="jobs" viewBox="${-hw} ${-hh} ${hw * 2} ${hh * 2}" role="group" aria-label="${rm.subs.length} 个岗位">${parts.join('')}</svg><span class="tag" hidden></span></div>`
-  }
+  /** 首页的岗位列表：按大方向分组，每个岗位一个按钮，图标加名字（去掉“工程师”，和技能树顶上的切换一样），点亮过技能的后面写进度 */
+  const careerList = () =>
+    rm.categories.map((cat) => `<div class="group"><h2>${esc(cat.name)}</h2><div class="jobs">${cat.subIds.map((id) => {
+      const c = subs.get(id)!
+      return `<a class="job" href="career/${c.id}/" data-id="${c.id}" data-name="${esc(c.name)}" data-cat="${esc(cat.name)}" data-intro="${esc(c.intro)}">${icon(c.icon, 20)}${esc(c.name.replace(/\s*工程师$/, ''))}<span class="n"></span></a>`
+    }).join('')}</div></div>`).join('')
 
-  // ── 首页：一个问题“你想学什么”，一圈 17 个岗位。点一个，右边写它是什么、长出它的技能树；点“就学这个”记下来，进这条路线 ──
+  // ── 首页：一个问题“你想学什么”，下面按大方向列出 17 个岗位。点一个，旁边（窄屏上在它那组下面）写它是什么、长出它的技能树；点“就学这个”记下来，进这条路线 ──
   {
     // 首页的脚本要用的：每个岗位要学的技能，每个技能的全部前置（点亮它就连前置一起点亮，熄灭它就连依赖它的一起熄灭）
     const data = {
@@ -224,9 +170,9 @@ try {
 <svg width="0" height="0" class="defs" aria-hidden="true">${[...new Set(rm.subs.flatMap((c) => [...tree.closures.get(c.id)!]))].map((id) => `<symbol id="i-${id}" viewBox="0 0 24 24">${icon(sk(id).icon)}</symbol>`).join('')}</svg>
 <div class="home">
   <h1>你想学什么？</h1>
-  <section id="careers">${careerRing()}</section>
+  <section id="careers">${careerList()}</section>
   <aside class="pick">
-    <p class="pick-hint">点圆环上的一个岗位</p>
+    <p class="pick-hint">点左边的一个岗位</p>
     <h2 class="pk-name"></h2>
     <p class="pk-meta"></p>
     <p class="pk-intro"></p>
@@ -243,8 +189,7 @@ try { store = JSON.parse(localStorage.getItem(KEY)) } catch {}
 if (store?.format !== 'cs-skill-tree-progress') store = { format: 'cs-skill-tree-progress', version: 1, skills: {} }
 const lit = () => new Set(Object.keys(store.skills).filter((k) => store.skills[k].status === 'done'))
 const page = document.querySelector('.home')
-const ring = document.querySelector('.ring')
-const tag = ring.querySelector('.tag')
+const list = document.querySelector('#careers')
 const pick = document.querySelector('.pick')
 const minis = pick.querySelector('.minis')
 const jobs = [...document.querySelectorAll('.job')]
@@ -259,7 +204,7 @@ const count = (id) => {
   const need = D.careers[id]
   return { total: need.length, left: need.filter((s) => !l.has(s)).length }
 }
-/** 选中一个岗位：扇形弹出来，右边换成它：名字、介绍、小树（重新长一遍）、要学的技能 */
+/** 选中一个岗位：按钮变黑，详情换成它：名字、介绍、小树（重新长一遍）、要学的技能 */
 function choose(id) {
   current = id
   const j = job(id)
@@ -274,18 +219,22 @@ function choose(id) {
   render()
   layout()
 }
+const wide = () => getComputedStyle(page).gridTemplateColumns.split(' ').length > 1
 /**
- * 小树竖着还是横着：哪个在这块地方画得大用哪个。这块地方是右栏里剩下的高度（两栏并排时右栏和圆环一样高），
- * 窄屏上一栏排下来，给一个固定高度。挑好后框按树的形状收紧。
+ * 详情放哪：两栏并排时在右栏；窄屏上放进选中岗位那一组的下面。
+ * 小树竖着还是横着：哪个在这块地方画得大用哪个。这块地方是右栏里剩下的高度（两栏并排时右栏和岗位列表一样高），
+ * 窄屏上给一个固定高度。挑好后框按树的形状收紧。
  */
 function layout() {
   const m = pick.querySelector('.mini.on')
   if (!m) return
+  const w2 = wide()
+  const at = w2 ? page : job(current).closest('.group')
+  if (pick.parentNode !== at) at.append(pick)
   minis.style.height = '0px'
-  const wide = getComputedStyle(page).gridTemplateColumns.split(' ').length > 1
   // 右栏除了小树还要放的：名字到技能列表，加上按钮
   const used = pick.querySelector('.has.on').getBoundingClientRect().bottom - pick.getBoundingClientRect().top + pick.querySelector('.go').offsetHeight + 32
-  const h = wide ? Math.max(260, ring.offsetHeight - used) : 320
+  const h = w2 ? Math.max(260, list.offsetHeight - used) : 320
   const w = minis.clientWidth
   const box = (svg) => svg.getAttribute('viewBox').split(' ').map(Number).slice(2)
   const fit = ([vw, vh]) => Math.min(w / vw, h / vh)
@@ -294,23 +243,14 @@ function layout() {
   const [vw, vh] = box(m.querySelector(side ? '.side' : '.up'))
   minis.style.height = Math.round(Math.min(h, (w * vh) / vw)) + 'px'
 }
-/** 大方向的名字在屏幕上保持 16px 左右（图里留的地方最多放得下 40 个单位） */
-function catSize() {
-  const svg = ring.querySelector('svg')
-  ring.style.setProperty('--cat', Math.min(40, (16 * svg.viewBox.baseVal.width) / svg.clientWidth).toFixed(1))
-}
-addEventListener('resize', () => {
-  catSize()
-  layout()
-})
-catSize()
+addEventListener('resize', layout)
 function render() {
   const l = lit()
   for (const b of pick.querySelectorAll('.quick .chip')) b.setAttribute('aria-pressed', l.has(b.dataset.s))
   for (const n of pick.querySelectorAll('.mini .n[data-s]')) n.classList.toggle('lit', l.has(n.dataset.s))
   for (const j of jobs) {
     const { total, left } = count(j.dataset.id)
-    j.querySelector('.prog').setAttribute('stroke-dasharray', Math.round((100 * (total - left)) / total) + ' 100')
+    j.querySelector('.n').textContent = left < total ? total - left + '/' + total : ''
     j.classList.toggle('done', left === 0)
   }
   if (current) {
@@ -327,21 +267,13 @@ function toggle(id) {
   render()
 }
 for (const b of pick.querySelectorAll('.quick .chip')) b.addEventListener('click', () => toggle(b.dataset.s))
-// 悬停：扇形外沿挂一个名字标签（位置按圆环的比例算，跟着圆环缩放）
-const [hw, hh] = [+getComputedStyle(ring).getPropertyValue('--hw'), +getComputedStyle(ring).getPropertyValue('--hh')]
 for (const j of jobs) {
-  j.addEventListener('pointerenter', (e) => {
-    if (e.pointerType !== 'mouse') return
-    tag.textContent = j.dataset.name
-    tag.style.left = (50 + (50 * j.dataset.tx) / hw) + '%'
-    tag.style.top = (50 + (50 * j.dataset.ty) / hh) + '%'
-    tag.dataset.side = j.dataset.tx > 0 ? 'r' : 'l'
-    tag.hidden = false
-  })
-  j.addEventListener('pointerleave', () => { tag.hidden = true })
   j.addEventListener('click', (e) => {
     e.preventDefault()
-    if (current !== j.dataset.id) choose(j.dataset.id)
+    if (current === j.dataset.id) return
+    choose(j.dataset.id)
+    // 窄屏上详情在这组下面展开：把点的按钮滚到顶上，下面就是它的详情
+    if (!wide()) j.scrollIntoView({ behavior: 'smooth', block: 'start' })
   })
 }
 pick.querySelector('.go').addEventListener('click', () => {
