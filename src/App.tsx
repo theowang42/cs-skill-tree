@@ -40,7 +40,8 @@ function useWindowSize() {
 }
 
 function Shell() {
-  const { tree, career, area, openArea, states, focus, setFocus } = useApp()
+  const { tree, career, route, area, openArea, states, focus, setFocus } = useApp()
+  const mine = route ? tree.closures.get(route)! : null
   // 往上长和往右长各排一遍，挑在这块屏幕上画得更大的（树的地方大约是窗口减去顶栏和页签；都能按原大小画就往上长）
   const win = useWindowSize()
   const layouts = useMemo(() => {
@@ -67,12 +68,16 @@ function Shell() {
       <Hud onTogglePanel={() => setPanelOpen((o) => !o)} panelOpen={panelOpen} />
       {area && (
         <nav className="tabs" aria-label="领域">
-          {tree.roadmap.areas.map((a) => (
-            <button key={a.id} className={a.id === area ? 'on' : ''} onClick={() => openArea(a.id)}>
-              {a.name}
-              <small>{a.skillIds.filter((id) => states.get(id) === 'done').length} / {a.skillIds.length}</small>
-            </button>
-          ))}
+          {tree.roadmap.areas.map((a) => {
+            // 选定了路线：数的是路线要学的；这个领域路线一个都不要，就不写数、字变浅
+            const ids = mine ? a.skillIds.filter((id) => mine.has(id)) : a.skillIds
+            return (
+              <button key={a.id} className={`${a.id === area ? 'on' : ''}${ids.length ? '' : ' off'}`} onClick={() => openArea(a.id)}>
+                {a.name}
+                {ids.length > 0 && <small>{ids.filter((id) => states.get(id) === 'done').length} / {ids.length}</small>}
+              </button>
+            )
+          })}
         </nav>
       )}
       {/* 换一个领域或者换了方向就换一棵树：重新长一遍，镜头回到开头 */}

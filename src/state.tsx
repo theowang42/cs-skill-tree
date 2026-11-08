@@ -5,6 +5,7 @@ import type { SkillState } from './types'
 import { Tree, clean, cleanSteps, computeStates, plan, subProgress, type Lit } from './lib/tree'
 import { EMPTY, load, onOtherTab, save, type Progress } from './lib/progress'
 import { decodeShare } from './lib/share'
+import { loadRoute } from './lib/route'
 
 /** 选中了什么：一个技能，或者一个职业 */
 type Focus = { kind: 'skill' | 'sub'; id: string } | null
@@ -45,6 +46,8 @@ interface AppState {
   tree: Tree
   /** 只看一个职业的天赋树时是它的 id；在技能树页（按领域看）时是 null */
   career: string | null
+  /** 首页选定要学的岗位（“就学这个”），没选过是 null */
+  route: string | null
   /** 什么都不选时回到哪：技能树页是“我的进度”，职业天赋树是这个职业 */
   home: Focus
   /** 技能树页正在看哪个领域的树（选中一个技能或职业，就跳到它所在的领域）；职业天赋树里是 null */
@@ -114,6 +117,10 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
 
   const [page] = useState(() => parsePage(tree, location.pathname))
   const career = page?.kind === 'sub' ? page.id : null
+  const [route] = useState(() => {
+    const r = loadRoute()
+    return r && tree.subs.has(r) ? r : null
+  })
   const home: Focus = career ? page : null
   // 地址栏里的焦点要在第一次渲染前读出来：下面把焦点同步到地址栏时，空焦点会把它清掉
   const [focus, setFocusState] = useState<Focus>(() => parseFocus(tree, location.hash) ?? page)
@@ -273,7 +280,7 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
   }, [shared, replace])
 
   const value: AppState = {
-    tree, career, home, area, openArea, lit, steps, states, progressBySub, readOnly, leaveShared, adoptShared,
+    tree, career, route, home, area, openArea, lit, steps, states, progressBySub, readOnly, leaveShared, adoptShared,
     focus, setFocus, flyRequest, pulse,
     setLit, setStep, replace, reset,
     toasts, toast, dismissToast,

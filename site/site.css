@@ -17,10 +17,6 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--ink); color: #fff; font-weight: 700; text-decoration: none; white-space: nowrap; transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
 .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,.14); }
 
-/* 首页 */
-.hero { padding: 56px 0 8px; }
-.hero h1 { font-size: clamp(28px, 4.2vw, 44px); letter-spacing: .02em; }
-.lead { font-size: 17px; color: #333; margin: 18px 0 0; }
 
 .block { padding: 36px 0 4px; }
 .block > h2 { font-size: 24px; margin-bottom: 6px; }
@@ -36,20 +32,27 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .chip:hover { border-color: var(--ink); background: var(--wash); }
 .chip svg { color: var(--ink-2); }
 
-/* 首页：左边标题、常见技能、岗位；右边一棵跟着岗位换的小树 */
-.home { display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-template-rows: auto 1fr; grid-template-areas: "hero preview" "careers preview"; column-gap: 48px; }
-.hero { grid-area: hero; }
-#careers { grid-area: careers; }
-.ask { margin: 12px 0 10px; font-weight: 700; }
-.quick { display: flex; flex-wrap: wrap; gap: 8px; }
-.quick .chip { background: #fff; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
+/* 首页：左边问题和岗位圆环；右边是选中的岗位：小树、已经会的、就学这个 */
+.home { display: grid; grid-template-columns: minmax(0, 1fr) 340px; column-gap: 40px; align-items: start; }
+.ask h1 { padding: 48px 0 0; font-size: clamp(30px, 4.4vw, 48px); letter-spacing: .02em; }
+.pick { position: sticky; top: 76px; height: calc(100vh - 100px); min-height: 520px; display: flex; flex-direction: column; padding-top: 48px; }
+.pick-hint { margin: auto 0; text-align: center; color: var(--ink-3); }
+.pick-body { display: none; flex: 1; min-height: 0; flex-direction: column; }
+.chosen .pick-hint { display: none; }
+.chosen .pick-body { display: flex; }
+.pk-name { font-size: 26px; }
+.pk-meta { margin: 2px 0 0; color: var(--ink-2); }
+.minis { flex: 1; min-height: 200px; margin: 12px 0; }
+.mini { display: none; height: 100%; }
+.mini.on { display: block; }
+.mini svg { width: 100%; height: 100%; }
+.pk-ask { margin: 0 0 8px; font-weight: 700; }
+.quick { display: flex; flex-wrap: wrap; gap: 6px; }
+.quick .chip { background: #fff; color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
 .quick .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
 .quick .chip[aria-pressed="true"] svg { color: #fff; }
-.preview { grid-area: preview; position: sticky; top: 76px; align-self: start; height: calc(100vh - 140px); margin-top: 56px; }
-.mini { display: none; height: 100%; flex-direction: column; align-items: center; gap: 8px; text-decoration: none; }
-.mini.on { display: flex; }
-.mini svg { flex: 1; min-height: 0; width: 100%; }
-.mini b { font-size: 14px; }
+.go { display: block; margin-top: 16px; padding: 14px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 18px; font-weight: 700; text-align: center; text-decoration: none; transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
+.go:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.18); }
 .mini .e { fill: none; stroke: var(--off-line); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw .45s var(--ease) forwards; }
 .mini .n > g { opacity: 0; transform: scale(.3); animation: pop .4s var(--ease) forwards; }
 .mini .n > g > circle, .mini .n > g > path { fill: #fff; stroke: var(--off-line); stroke-width: 1.5; vector-effect: non-scaling-stroke; transition: fill .3s, stroke .3s; }
@@ -65,34 +68,30 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 @keyframes pop { to { opacity: 1; transform: none; } }
 @keyframes rise { from { opacity: 0; transform: scale(.3); } }
 @media (prefers-reduced-motion: reduce) {
-  .mini .e, .mini .n > g, .job .b { animation: none; opacity: 1; transform: none; stroke-dashoffset: 0; }
+  .mini .e, .mini .n > g, .job .w { animation: none; opacity: 1; transform: none; stroke-dashoffset: 0; }
 }
 
-/* 岗位圆环：内圈大方向，外圈徽章；圆心写正看着的岗位 */
+/* 岗位圆环：一圈扇形按钮。选中的变黑、往外弹出一点；圆心写悬停或选中的那个 */
 .ring-wrap { position: relative; margin: 8px 0 0; }
 .jobs { display: block; width: 100%; height: auto; }
-.orbit { fill: none; stroke: var(--line-2); stroke-width: 1.5; }
-.band path { fill: var(--wash); stroke: #fff; stroke-width: 4; }
-.band text { font-size: 19px; font-weight: 700; fill: var(--ink-2); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-.spoke { stroke: var(--off-line); stroke-width: 1.5; }
-.job { text-decoration: none; outline: none; }
-.job .b { transition: transform .25s var(--ease); animation: rise .45s var(--ease) backwards; animation-delay: calc(var(--i) * 45ms); }
-.job .hit { fill: transparent; }
+.job { text-decoration: none; outline: none; cursor: pointer; }
+.job .w { transition: transform .35s var(--ease); animation: rise .45s var(--ease) backwards; animation-delay: calc(var(--i) * 35ms); }
+.wedge { fill: var(--wash); transition: fill .25s; }
+.job .w svg { color: var(--ink); transition: color .25s; }
 .job .track { fill: none; stroke: var(--line-2); stroke-width: 6; }
-.job .ring { fill: none; stroke: var(--ink); stroke-width: 6; transition: stroke-dasharray .5s var(--ease); }
-.job .seal { fill: #fff; stroke: var(--ink); stroke-width: 5; transition: fill .3s; }
-.job .seal-in { fill: none; stroke: var(--ink); stroke-width: 1.5; }
-.job .b svg { color: var(--ink); transition: color .3s; }
-.job.done .seal { fill: var(--ink); }
-.job.done .b svg { color: #fff; }
-.job:hover .b, .job:focus-visible .b, .job.on .b { transform: scale(1.14); }
-.job.on .seal { stroke-width: 7; }
-.job-name { font-size: 23px; font-weight: 700; fill: var(--ink); dominant-baseline: central; }
-.ring-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 22%; container-type: inline-size; display: flex; flex-direction: column; align-items: center; text-align: center; }
-.rc-name { font-size: min(20px, 100cqi / var(--len, 1)); line-height: 1.3; white-space: nowrap; }
-.rc-meta { margin-top: 2px; font-size: 13px; color: var(--ink-2); }
-.rc-intro { margin: 8px 0 10px; font-size: 12.5px; line-height: 1.55; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.rc-go { font-size: 13px; font-weight: 700; text-underline-offset: 3px; }
+.job .prog { fill: none; stroke: var(--ink); stroke-width: 6; transition: stroke-dasharray .5s var(--ease); }
+.job:hover .wedge, .job:focus-visible .wedge { fill: var(--line); }
+.job.done .wedge { fill: var(--off-ink); }
+.job.done .w svg { color: #fff; }
+.job.on .w { transform: translate(var(--dx), var(--dy)); }
+.job.on .wedge { fill: var(--ink); }
+.job.on .w svg { color: #fff; }
+.job-name { font-size: 22px; font-weight: 700; fill: var(--ink-2); dominant-baseline: central; transition: fill .25s; }
+.job:hover .job-name, .job.on .job-name { fill: var(--ink); }
+.ring-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 30%; container-type: inline-size; display: flex; flex-direction: column; align-items: center; text-align: center; pointer-events: none; }
+.rc-name { font-size: min(24px, 100cqi / var(--len, 5)); line-height: 1.3; white-space: nowrap; }
+.rc-meta { margin-top: 2px; font-size: 14px; color: var(--ink-2); }
+.rc-intro { margin: 8px 0 0; font-size: 13px; line-height: 1.55; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
 #skills > summary { cursor: pointer; font-size: 24px; font-weight: 700; }
 
@@ -100,13 +99,15 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .foot p { margin: 4px 0; }
 
 @media (max-width: 860px) {
-  .home { grid-template-columns: 1fr; grid-template-areas: "hero" "preview" "careers"; }
-  .preview { position: static; height: 300px; margin-top: 24px; }
+  .home { grid-template-columns: 1fr; }
+  .pick { position: static; height: auto; min-height: 0; padding-top: 24px; scroll-margin-top: 72px; }
+  .pick-hint { display: none; }
+  .minis { height: 320px; flex: none; }
 }
-/* 手机上圆环太小，外面的名字不写，圆心写正看着的那个 */
+/* 手机上圆环外面放不下名字，圆心写正看着的那个 */
 @media (max-width: 560px) {
   .job-name { display: none; }
-  .ring-center { width: 34%; }
+  .ring-center { width: 50%; }
   .rc-intro { display: none; }
 }
 @media (max-width: 560px) {
