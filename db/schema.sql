@@ -72,6 +72,8 @@ CREATE TABLE subs (
   icon         TEXT    NOT NULL,
   name         TEXT    NOT NULL UNIQUE,
   intro        TEXT    NOT NULL CHECK (length(intro) > 0),
+  -- 首页岗位名后面的一句，十个字左右（英文单词算一个字）
+  brief        TEXT    NOT NULL CHECK (length(brief) BETWEEN 1 AND 12),
   -- 徽章挂在树上哪个技能后面，必须是它必学的技能
   anchor_id    TEXT    NOT NULL REFERENCES skills (id),
   UNIQUE (category_id, position)

@@ -1,6 +1,7 @@
 ---
 name: 机器学习算法工程师
 icon: target
+brief: 做推荐、搜索、广告
 keywords: [推荐, 视觉, 特征]
 requires: [ranking, detection, gbdt, feature, ab-test]
 bonus: [multimodal, rl, mlops]

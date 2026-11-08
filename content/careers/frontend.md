@@ -1,6 +1,7 @@
 ---
 name: 前端开发工程师
 icon: layout-template
+brief: 做网页和 Web 应用
 keywords: [React, TypeScript, 全栈]
 requires: [design-system, web-perf, build-tools, e2e, nextjs, auth, ci]
 bonus: [vue, threejs, tailwind, fastapi]

@@ -1,6 +1,7 @@
 ---
 name: 测试开发工程师
 icon: clipboard-check
+brief: 写自动化测试
 keywords: [自动化测试, 接口测试, 性能测试]
 requires: [e2e, ci, perf, shell, java, leetcode]
 bonus: [fuzzing, observability]

@@ -1,6 +1,7 @@
 ---
 name: 数据开发工程师
 icon: database
+brief: 搭数据管道和数仓
 keywords: [ETL, Spark, 数仓]
 requires: [spark, kafka, cloud]
 bonus: [analytics, viz, timeseries]

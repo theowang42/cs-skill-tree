@@ -1,6 +1,7 @@
 ---
 name: 安全工程师
 icon: fingerprint
+brief: 找漏洞、补漏洞
 keywords: [Web 安全, 二进制, CTF]
 requires: [reverse, ctf, pentest, fuzzing]
 ---

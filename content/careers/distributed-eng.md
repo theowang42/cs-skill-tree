@@ -1,6 +1,7 @@
 ---
 name: 基础架构工程师
 icon: earth
+brief: 做存储和消息队列
 keywords: [共识, 存储, 数据库]
 requires: [kafka, system-design, db-internals, go]
 bonus: [leetcode, java, cloud]

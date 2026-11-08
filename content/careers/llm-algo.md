@@ -1,6 +1,7 @@
 ---
 name: 大模型算法工程师
 icon: atom
+brief: 训练和调教大模型
 keywords: [预训练, 后训练, 评测]
 requires: [reasoning-rl, pretrain-run]
 bonus: [distillation, train-framework, dist-train, dlsys, english]

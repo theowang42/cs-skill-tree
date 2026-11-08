@@ -1,6 +1,7 @@
 ---
 name: 游戏开发工程师
 icon: gamepad
+brief: 用引擎做能玩的游戏
 keywords: [引擎, 图形学, 玩法]
 requires: [physics, shader, netcode, perf, ci]
 ---

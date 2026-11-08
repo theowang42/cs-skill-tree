@@ -1,6 +1,7 @@
 ---
 name: 量化研究员
 icon: chart-spline
+brief: 用数据做交易策略
 keywords: [回测, 因子, 风控]
 requires: [portfolio, factor, derivatives, viz, gbdt, sql, cpp]
 ---

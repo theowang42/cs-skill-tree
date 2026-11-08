@@ -65,6 +65,7 @@ requires: [linux]
 ---
 name: 后端开发工程师
 icon: server
+brief: 写接口和数据库
 keywords: [接口, 数据库, 缓存]
 requires: [postgres, system-design, ci]
 bonus: [go, java]
@@ -82,6 +83,7 @@ bonus: [go, java]
 | 属性 | 写什么 |
 | --- | --- |
 | `name`、`icon` | 同技能。名字用招聘时最常写的岗位名 |
+| `brief` | 首页岗位名后面的一句，十个字左右（英文单词算一个字） |
 | `keywords` | 三个关键词 |
 | `requires` | 必学的技能，只写最高层的，前置会自动带上。第一个是徽章挂在树上的位置，徽章出现在这个技能所在领域的那一页 |
 | `bonus` | 加分项：有更好，不算进达成条件 |
