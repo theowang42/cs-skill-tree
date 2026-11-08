@@ -6,7 +6,7 @@
 
 👉 https://theowang42.github.io/cs-skill-tree/ (the site is in Chinese for now)
 
-![Lighting up Python and PyTorch on the home page; the 17 jobs instantly show how many skills are left](demo.gif)
+![Picking AI application engineer on the home ring, lighting up a few known skills in its mini tree, then opening its skill tree](demo.gif)
 
 - **How far from a job**: the home page is a ring of 17 jobs; tap one and its skill tree grows, tap the skills you know and it shows how many are left
 - **169 skills in 9 areas**: foundations, web, client and games, systems, security, data and quant, machine learning, large models, AI infra, in learning order. Each area is one talent tree, and a skill lights up only after its prerequisites
