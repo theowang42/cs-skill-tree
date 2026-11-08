@@ -110,105 +110,97 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
 
   const tree = new Tree(rm)
   /** 首页的小树：一个职业的天赋树，只画形状，从“你”往上一节一节长出来（离“你”越远越晚） */
-  const miniTree = (c: Sub) => {
+  const miniTree = (c: Sub, side: boolean) => {
     const l = layoutTree(tree, { career: c.id })
-    const { minX, minY, maxX, maxY } = l.bounds
+    // 小树不写名字，层和层之间压紧一点（K）；横着的就是把往上长的整棵转 90°：往上变成往右，图标不转
+    const K = 0.55
+    const P = (x: number, y: number) => (side ? [-y * K, x] : [x, y * K])
+    const { minX, maxX } = l.bounds
+    const [minY, maxY] = [l.bounds.minY * K, l.bounds.maxY * K]
+    const [vx, vy, vw, vh] = (side ? [-maxY, minX, maxY - minY, maxX - minX] : [minX, minY, maxX - minX, maxY - minY]).map(Math.round)
     const at = (id: string) => l.nodes.get(id)!
     const delay = (y: number) => `style="animation-delay:${Math.round(-y * 0.55)}ms"`
-    // 小树没有名字，枝条直接连到节点中心（节点是白底，盖住线头）：父节点往上一点横过去，再往上到孩子
+    const move = (x: number, y: number) => `transform="translate(${P(x, y).join(',')})"`
+    // 小树没有名字，枝条直接连到节点中心（节点是白底，盖住线头）：父节点往前一点拐过去，再到孩子
     const edges = l.edges.map((e) => {
       const a = e.from === 'root' ? { x: 0, y: 0 } : at(e.from)
       const b = at(e.to)
-      const d = a.x === b.x ? `M${a.x},${a.y} V${b.y}` : `M${a.x},${a.y} V${a.y - 50} H${b.x} V${b.y}`
+      const pts = a.x === b.x ? [[a.x, a.y], [b.x, b.y]] : [[a.x, a.y], [a.x, a.y - 80], [b.x, a.y - 80], [b.x, b.y]]
+      const d = 'M' + pts.map(([x, y]) => P(x, y).join(',')).join(' L')
       return `<path class="e" pathLength="1" d="${d}" ${delay(b.y)}/>`
     }).join('')
     const nodes = [...tree.closures.get(c.id)!].map((id) => {
       const { x, y } = at(id)
       const shape = sk(id).language ? `<path d="${hexPath(NODE_R + 2)}"/>` : `<circle r="${NODE_R}"/>`
-      return `<g class="n" data-s="${id}" transform="translate(${x},${y})"><g ${delay(y)}>${shape}<use href="#i-${id}" x="-15" y="-15" width="30" height="30"/></g></g>`
+      return `<g class="n" data-s="${id}" ${move(x, y)}><g ${delay(y)}>${shape}<use href="#i-${id}" x="-15" y="-15" width="30" height="30"/></g></g>`
     }).join('')
     const t = at(subNodeId(c.id))
-    return `<svg viewBox="${minX} ${minY} ${maxX - minX} ${maxY - minY}" aria-hidden="true">${edges}${nodes}<g class="n tip" transform="translate(${t.x},${t.y})"><g ${delay(t.y)}><circle r="${TIP_R}"/><circle r="${TIP_R - 7}"/><g transform="translate(-20,-20) scale(1.67)">${icon(c.icon)}</g></g></g><g class="you"><circle r="${START_R}"/><text>你</text></g></svg>`
+    return `<svg class="${side ? 'side' : 'up'}" viewBox="${vx} ${vy} ${vw} ${vh}" aria-hidden="true">${edges}${nodes}<g class="n tip" ${move(t.x, t.y)}><g ${delay(t.y)}><circle r="${TIP_R}"/><circle r="${TIP_R - 7}"/><g transform="translate(-20,-20) scale(1.67)">${icon(c.icon)}</g></g></g><g class="you"><circle r="${START_R}"/><text>你</text></g></svg>`
   }
 
   const skillChip = (s: Skill, root: string) => `<a class="chip" href="${root}skill/${s.id}/">${icon(s.icon, 16)}${esc(s.name)}</a>`
   /**
-   * 首页的岗位圆环：17 个岗位是一圈扇形按钮，同一个大方向的挨着，大方向之间空开一点；从正上方开始顺时针。
-   * 扇形中间是图标，外面一道细弧是进度，名字写在圆环外面，名字也能点。圆心写悬停或选中的那个。
-   * 电脑和手机各画一套：手机上圆环小一点、字按屏幕像素定，名字用短的。
+   * 首页的岗位圆环：17 个岗位是一圈扇形按钮，扇形里只有图标；同一个大方向的挨着，大方向之间空开一点，大方向的名字写在圆环外面。
+   * 从正上方开始顺时针。字都在这张图里，跟圆环一起缩放，窗口怎么变，字和圆环的相对位置都不变。
    */
-  type Ring = { ri: number; ro: number; fs: number; lift: number; spread: number; iconS: number; pop: number; track: number; label: (c: Sub) => string; cls: string }
-  const ringSvg = (g: Ring) => {
-    const rp = g.ro + g.track * 1.6 // 进度弧
+  const careerRing = () => {
+    const [RI, RO, RP] = [190, 330, 346] // 扇形内外半径、进度弧
+    const FS = 40 // 大方向名字最大的字号（图里的单位，手机上用这么大；电脑上样式里写小一点）
     const GAP = 0.6 // 大方向之间空出几个扇形的位置
     const PAD = 0.012 // 扇形之间的缝（弧度）
     const unit = (Math.PI * 2) / (rm.subs.length + rm.categories.length * GAP)
+    // 转一下，让名字最长的大方向落在正下方（居中写），左右两边只剩短名字，圆环可以画大一点
+    const longest = rm.categories.reduce((m, c) => ([...c.name].length > [...m.name].length ? c : m))
+    let before = GAP / 2
+    for (const c of rm.categories.slice(0, rm.categories.indexOf(longest))) before += c.subIds.length + GAP
+    const ROT = Math.PI - (before + longest.subIds.length / 2) * unit
     const r1 = (n: number) => Math.round(n * 10) / 10
-    const pt = (r: number, a: number) => [r1(r * Math.sin(a)), r1(-r * Math.cos(a))]
+    const pt = (r: number, a: number) => [r1(r * Math.sin(a + ROT)), r1(-r * Math.cos(a + ROT))]
     const arc = (r: number, a1: number, a2: number) => {
       const [x1, y1] = pt(r, a1)
       const [x2, y2] = pt(r, a2)
       return `M${x1},${y1} A${r},${r} 0 0 1 ${x2},${y2}`
     }
-    /** 名字大概多宽：中文一个字宽，英文数字半个多一点 */
-    const width = (t: string) => [...t].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 1 : 0.58), 0) * g.fs
-    const jobs: { c: Sub; cat: string; a: number; lx: number; ly: number }[] = []
+    const width = (t: string) => [...t].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 1 : 0.58), 0) * FS
+    const box = { x: RP, y: RP }
+    const parts: string[] = []
     let pos = GAP / 2
+    let i = 0
     for (const cat of rm.categories) {
-      cat.subIds.forEach((id, i) => {
-        const a = (pos + i + 0.5) * unit
-        // 越靠近正上方、正下方，名字（横着写）越要离圆环远一点才不压到它
-        const [lx, ly] = pt(rp + g.fs * 0.6 + g.lift * Math.cos(a) ** 2, a)
-        jobs.push({ c: subs.get(id)!, cat: cat.name, a, lx, ly })
-      })
-      pos += cat.subIds.length + GAP
+      // 大方向的名字：写在它那段圆弧正中的外面；左右两边朝外写，正上正下居中
+      const mid = (pos + cat.subIds.length / 2) * unit
+      const [sx, cy] = [Math.sin(mid + ROT), -Math.cos(mid + ROT)]
+      const [lx, ly] = pt(RP + 40 + FS * 0.4 * Math.abs(cy), mid)
+      const anchor = Math.abs(sx) < 0.35 ? 'middle' : sx > 0 ? 'start' : 'end'
+      const w = width(cat.name)
+      box.x = Math.max(box.x, Math.abs(lx) + (anchor === 'middle' ? w / 2 : w) + 8)
+      box.y = Math.max(box.y, Math.abs(ly) + FS * 0.6)
+      parts.push(`<text class="cat" x="${lx}" y="${ly}" text-anchor="${anchor}">${esc(cat.name)}</text>`)
+      for (const id of cat.subIds) {
+        const c = subs.get(id)!
+        const a1 = pos * unit
+        const a = a1 + unit / 2
+        const [b1, b2] = [a1 + PAD, a1 + unit - PAD]
+        const [ix, iy] = pt((RI + RO) / 2, a)
+        const [dx, dy] = pt(16, a)
+        const [ox1, oy1] = pt(RO, b1)
+        const [ox2, oy2] = pt(RO, b2)
+        const [ix2, iy2] = pt(RI, b2)
+        const [jx1, jy1] = pt(RI, b1)
+        const [tx, ty] = pt(RO, a) // 悬停时名字标签挂在扇形外沿正中
+        parts.push(`<a class="job" href="career/${c.id}/" data-id="${c.id}" data-name="${esc(c.name)}" data-cat="${esc(cat.name)}" data-intro="${esc(c.intro)}" data-tx="${tx}" data-ty="${ty}" style="--i:${i++};--dx:${dx}px;--dy:${dy}px" aria-label="${esc(c.name)}">` +
+          `<g class="w"><path class="wedge" d="M${ox1},${oy1} A${RO},${RO} 0 0 1 ${ox2},${oy2} L${ix2},${iy2} A${RI},${RI} 0 0 0 ${jx1},${jy1}Z"/>` +
+          `<g transform="translate(${r1(ix - 26)},${r1(iy - 26)}) scale(2.17)">${icon(c.icon)}</g>` +
+          `<path class="track" d="${arc(RP, b1, b2)}"/><path class="prog" d="${arc(RP, b1, b2)}" pathLength="100" stroke-dasharray="0 100"/></g></a>`)
+        pos++
+      }
+      pos += GAP
     }
-    // 同一边上下挨得太近的名字往下错开
-    for (const right of [true, false]) {
-      const half = jobs.filter((j) => Math.sin(j.a) > 0 === right).sort((p, q) => p.ly - q.ly)
-      for (let k = 1; k < half.length; k++) half[k].ly = Math.max(half[k].ly, half[k - 1].ly + g.spread)
-    }
-    const box = { x1: -rp, x2: rp, y1: -rp, y2: rp }
-    const wedges = jobs.map(({ c, cat, a, lx, ly }, i) => {
-      const [b1, b2] = [a - unit / 2 + PAD, a + unit / 2 - PAD]
-      const [ix, iy] = pt((g.ri + g.ro) / 2, a)
-      const [dx, dy] = pt(g.pop, a)
-      const [ox1, oy1] = pt(g.ro, b1)
-      const [ox2, oy2] = pt(g.ro, b2)
-      const [ix2, iy2] = pt(g.ri, b2)
-      const [ix1, iy1] = pt(g.ri, b1)
-      const shape = `M${ox1},${oy1} A${g.ro},${g.ro} 0 0 1 ${ox2},${oy2} L${ix2},${iy2} A${g.ri},${g.ri} 0 0 0 ${ix1},${iy1}Z`
-      const name = g.label(c)
-      const w = width(name)
-      const right = Math.sin(a) > 0
-      const tx = right ? lx : lx - w
-      box.x1 = Math.min(box.x1, tx - 4)
-      box.x2 = Math.max(box.x2, tx + w + 4)
-      box.y1 = Math.min(box.y1, ly - g.fs)
-      box.y2 = Math.max(box.y2, ly + g.fs)
-      const h = g.iconS / 2
-      return `<a class="job" href="career/${c.id}/" data-id="${c.id}" data-name="${esc(c.name)}" data-cat="${esc(cat)}" data-intro="${esc(c.intro)}" style="--i:${i};--dx:${dx}px;--dy:${dy}px">` +
-        `<g class="w"><path class="wedge" d="${shape}"/><g transform="translate(${r1(ix - h)},${r1(iy - h)}) scale(${r1(g.iconS / 24 * 100) / 100})">${icon(c.icon)}</g>` +
-        `<path class="track" d="${arc(rp, b1, b2)}" stroke-width="${g.track}"/><path class="prog" d="${arc(rp, b1, b2)}" stroke-width="${g.track}" pathLength="100" stroke-dasharray="0 100"/></g>` +
-        `<rect class="hit" x="${r1(tx - 4)}" y="${r1(ly - g.fs * 0.8)}" width="${r1(w + 8)}" height="${r1(g.fs * 1.6)}"/>` +
-        `<text class="job-name" x="${lx}" y="${r1(ly)}" font-size="${g.fs}" text-anchor="${right ? 'start' : 'end'}">${esc(name)}</text></a>`
-    })
-    const vb = [box.x1, box.y1, box.x2 - box.x1, box.y2 - box.y1].map(Math.round).join(' ')
-    return `<svg class="jobs ${g.cls}" viewBox="${vb}">${wedges.join('')}</svg>`
+    const [hw, hh] = [Math.ceil(box.x), Math.ceil(box.y)]
+    return `<div class="ring" style="--hw:${hw};--hh:${hh}"><svg class="jobs" viewBox="${-hw} ${-hh} ${hw * 2} ${hh * 2}" role="group" aria-label="${rm.subs.length} 个岗位">${parts.join('')}</svg><span class="tag" hidden></span></div>`
   }
-  /** 手机上圆环外面放不下全名，写最短的叫法 */
-  const SHORT: Record<string, string> = {
-    backend: '后端', frontend: '前端', mobile: '客户端', gamedev: '游戏', 'product-eng': '全栈', 'test-dev': '测试', sre: '运维',
-    'systems-eng': '嵌入式', 'distributed-eng': '基础架构', security: '安全', 'data-analyst': '数据分析', data: '数据开发',
-    quant: '量化', 'ml-algo': '机器学习', 'llm-algo': '大模型', 'ai-app': 'AI 应用', inference: 'AI Infra',
-  }
-  const careerRing = () =>
-    `<div class="ring-wrap">` +
-    ringSvg({ cls: 'wide', ri: 240, ro: 350, fs: 22, lift: 34, spread: 34, iconS: 46, pop: 16, track: 7, label: (c) => c.name.replace(/工程师$/, '') }) +
-    ringSvg({ cls: 'narrow', ri: 62, ro: 106, fs: 13, lift: 10, spread: 19, iconS: 18, pop: 6, track: 3, label: (c) => SHORT[c.id] ?? c.name }) +
-    `<div class="ring-center"><b class="rc-name"></b><span class="rc-meta"></span></div></div>`
 
-  // ── 首页：一个问题“你想学什么”，一圈 17 个岗位。点一个，旁边长出它的技能树；点“就学这个”记下来，进这条路线 ──
+  // ── 首页：一个问题“你想学什么”，一圈 17 个岗位。点一个，右边写它是什么、长出它的技能树；点“就学这个”记下来，进这条路线 ──
   {
     // 首页的脚本要用的：每个岗位要学的技能，每个技能的全部前置（点亮它就连前置一起点亮，熄灭它就连依赖它的一起熄灭）
     const data = {
@@ -233,24 +225,19 @@ try {
   sessionStorage.setItem(${JSON.stringify(SEEN_KEY)}, '1')
 } catch {}
 </script>
-<div class="home">
-<section id="careers" class="ask">
-  <h1>你想学什么？</h1>
-  ${careerRing()}
-</section>
-
 <svg width="0" height="0" class="defs" aria-hidden="true">${[...new Set(rm.subs.flatMap((c) => [...tree.closures.get(c.id)!]))].map((id) => `<symbol id="i-${id}" viewBox="0 0 24 24">${icon(sk(id).icon)}</symbol>`).join('')}</svg>
-<aside class="pick">
-  <p class="pick-hint">点一个岗位，这里长出它要学的技能</p>
-  <div class="pick-body">
+<div class="home">
+  <h1>你想学什么？</h1>
+  <section id="careers">${careerRing()}</section>
+  <aside class="pick">
+    <p class="pick-hint">点圆环上的一个岗位</p>
     <h2 class="pk-name"></h2>
     <p class="pk-meta"></p>
     <p class="pk-intro"></p>
-    <div class="minis">${rm.subs.map((c) => `<div class="mini" data-id="${c.id}">${miniTree(c)}</div>`).join('')}</div>
-    ${rm.subs.map((c) => `<div class="has" data-id="${c.id}"><p class="pk-ask">要学这 ${c.plan.length} 个，会的点一下</p><div class="quick">${c.plan.map(({ skillId: id }) => `<button type="button" class="chip" data-s="${id}" aria-pressed="false">${icon(sk(id).icon, 16)}${esc(sk(id).name)}</button>`).join('')}</div></div>`).join('')}
+    <div class="minis">${rm.subs.map((c) => `<div class="mini" data-id="${c.id}">${miniTree(c, false)}${miniTree(c, true)}</div>`).join('')}</div>
+    ${rm.subs.map((c) => `<div class="has" data-id="${c.id}"><p class="pk-ask">要学这 ${c.plan.length} 个，会的点一下</p><div class="quick">${c.plan.map(({ skillId: id }) => `<button type="button" class="chip" data-s="${id}" aria-pressed="false">${icon(sk(id).icon, 14)}${esc(sk(id).name)}</button>`).join('')}</div></div>`).join('')}
     <a class="go" href="">就学这个</a>
-  </div>
-</aside>
+  </aside>
 </div>
 
 <details id="skills" class="block">
@@ -264,55 +251,71 @@ try { store = JSON.parse(localStorage.getItem(KEY)) } catch {}
 if (store?.format !== 'cs-skill-tree-progress') store = { format: 'cs-skill-tree-progress', version: 1, skills: {} }
 const lit = () => new Set(Object.keys(store.skills).filter((k) => store.skills[k].status === 'done'))
 const page = document.querySelector('.home')
-const jobs = [...document.querySelectorAll('.job')]
-const center = document.querySelector('.ring-center')
+const ring = document.querySelector('.ring')
+const tag = ring.querySelector('.tag')
 const pick = document.querySelector('.pick')
+const minis = pick.querySelector('.minis')
+const jobs = [...document.querySelectorAll('.job')]
+const job = (id) => jobs.find((j) => j.dataset.id === id)
 let current = null
 try { current = localStorage.getItem(${JSON.stringify(ROUTE_KEY)}) } catch {}
 if (!D.careers[current]) current = null
 const saved = current
 /** 一个岗位还差几个、一共几个 */
 const count = (id) => {
+  const l = lit()
   const need = D.careers[id]
-  return { total: need.length, left: need.filter((s) => !lit().has(s)).length }
+  return { total: need.length, left: need.filter((s) => !l.has(s)).length }
 }
-const job = (id) => jobs.find((j) => j.dataset.id === id)
-/** 圆心写一个岗位（悬停时是悬停的，否则是选中的） */
-function show(id) {
-  const name = center.querySelector('.rc-name')
-  const meta = center.querySelector('.rc-meta')
-  if (!id) {
-    name.textContent = '${rm.subs.length} 个岗位'
-    name.style.removeProperty('--len')
-    meta.textContent = '点一个看看'
-    return
-  }
-  const j = job(id)
-  const { total, left } = count(id)
-  name.textContent = j.dataset.name
-  // 名字一行放下：中文按一个字宽，英文数字按半个多一点
-  name.style.setProperty('--len', [...j.dataset.name].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 1 : 0.6), 0))
-  meta.textContent = j.dataset.cat + ' · ' + (left === total ? total + ' 个技能' : left ? '还差 ' + left + ' 个' : '已达成')
-}
-/** 选中一个岗位：扇形弹出来，旁边换成它的小树、重新长一遍 */
-function choose(id, scroll) {
+/** 选中一个岗位：扇形弹出来，右边换成它：名字、介绍、小树（重新长一遍）、要学的技能 */
+function choose(id) {
   current = id
+  const j = job(id)
   page.classList.add('chosen')
-  for (const j of jobs) j.classList.toggle('on', j.dataset.id === id)
-  for (const m of document.querySelectorAll('.mini, .has')) m.classList.toggle('on', m.dataset.id === id)
-  pick.querySelector('.pk-intro').textContent = job(id).dataset.intro
-  pick.querySelector('.pk-name').textContent = job(id).dataset.name
+  for (const x of jobs) x.classList.toggle('on', x === j)
+  for (const m of pick.querySelectorAll('.mini, .has')) m.classList.toggle('on', m.dataset.id === id)
+  pick.querySelector('.pk-name').textContent = j.dataset.name
+  pick.querySelector('.pk-intro').textContent = j.dataset.intro
   const go = pick.querySelector('.go')
   go.setAttribute('href', 'career/' + id + '/index.html')
   go.textContent = id === saved ? '继续学这个' : '就学这个'
   render()
-  // 窄屏上小树在圆环下面：先看扇形弹出来，再滚下去
-  if (scroll && matchMedia('(max-width: 860px)').matches) setTimeout(() => pick.scrollIntoView({ behavior: 'smooth', block: 'start' }), 450)
+  layout()
 }
+/**
+ * 小树竖着还是横着：哪个在这块地方画得大用哪个。这块地方是右栏里剩下的高度（两栏并排时右栏和圆环一样高），
+ * 窄屏上一栏排下来，给一个固定高度。挑好后框按树的形状收紧。
+ */
+function layout() {
+  const m = pick.querySelector('.mini.on')
+  if (!m) return
+  minis.style.height = '0px'
+  const wide = getComputedStyle(page).gridTemplateColumns.split(' ').length > 1
+  // 右栏除了小树还要放的：名字到技能列表，加上按钮
+  const used = pick.querySelector('.has.on').getBoundingClientRect().bottom - pick.getBoundingClientRect().top + pick.querySelector('.go').offsetHeight + 32
+  const h = wide ? Math.max(260, ring.offsetHeight - used) : 320
+  const w = minis.clientWidth
+  const box = (svg) => svg.getAttribute('viewBox').split(' ').map(Number).slice(2)
+  const fit = ([vw, vh]) => Math.min(w / vw, h / vh)
+  const side = fit(box(m.querySelector('.side'))) > fit(box(m.querySelector('.up')))
+  m.classList.toggle('is-side', side)
+  const [vw, vh] = box(m.querySelector(side ? '.side' : '.up'))
+  minis.style.height = Math.round(Math.min(h, (w * vh) / vw)) + 'px'
+}
+/** 大方向的名字在屏幕上保持 16px 左右（图里留的地方最多放得下 40 个单位） */
+function catSize() {
+  const svg = ring.querySelector('svg')
+  ring.style.setProperty('--cat', Math.min(40, (16 * svg.viewBox.baseVal.width) / svg.clientWidth).toFixed(1))
+}
+addEventListener('resize', () => {
+  catSize()
+  layout()
+})
+catSize()
 function render() {
   const l = lit()
-  for (const b of document.querySelectorAll('.quick .chip')) b.setAttribute('aria-pressed', l.has(b.dataset.s))
-  for (const n of document.querySelectorAll('.mini .n[data-s]')) n.classList.toggle('lit', l.has(n.dataset.s))
+  for (const b of pick.querySelectorAll('.quick .chip')) b.setAttribute('aria-pressed', l.has(b.dataset.s))
+  for (const n of pick.querySelectorAll('.mini .n[data-s]')) n.classList.toggle('lit', l.has(n.dataset.s))
   for (const j of jobs) {
     const { total, left } = count(j.dataset.id)
     j.querySelector('.prog').setAttribute('stroke-dasharray', Math.round((100 * (total - left)) / total) + ' 100')
@@ -320,9 +323,8 @@ function render() {
   }
   if (current) {
     const { total, left } = count(current)
-    pick.querySelector('.pk-meta').textContent = '共 ' + total + ' 个技能' + (left < total ? '，你已会 ' + (total - left) + ' 个' : '')
+    pick.querySelector('.pk-meta').textContent = job(current).dataset.cat + ' · ' + total + ' 个技能' + (left === 0 ? ' · 已达成' : left < total ? ' · 还差 ' + left + ' 个' : '')
   }
-  show(current)
 }
 /** 会了：连前置一起点亮。点错了再点一下：连依赖它的一起熄灭（和技能树里的规则一样） */
 function toggle(id) {
@@ -332,19 +334,28 @@ function toggle(id) {
   try { localStorage.setItem(KEY, JSON.stringify(store)) } catch {}
   render()
 }
-for (const b of document.querySelectorAll('.quick .chip')) b.addEventListener('click', () => toggle(b.dataset.s))
+for (const b of pick.querySelectorAll('.quick .chip')) b.addEventListener('click', () => toggle(b.dataset.s))
+// 悬停：扇形外沿挂一个名字标签（位置按圆环的比例算，跟着圆环缩放）
+const [hw, hh] = [+getComputedStyle(ring).getPropertyValue('--hw'), +getComputedStyle(ring).getPropertyValue('--hh')]
 for (const j of jobs) {
-  j.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') show(j.dataset.id) })
-  j.addEventListener('pointerleave', () => show(current))
+  j.addEventListener('pointerenter', (e) => {
+    if (e.pointerType !== 'mouse') return
+    tag.textContent = j.dataset.name
+    tag.style.left = (50 + (50 * j.dataset.tx) / hw) + '%'
+    tag.style.top = (50 + (50 * j.dataset.ty) / hh) + '%'
+    tag.dataset.side = j.dataset.tx > 0 ? 'r' : 'l'
+    tag.hidden = false
+  })
+  j.addEventListener('pointerleave', () => { tag.hidden = true })
   j.addEventListener('click', (e) => {
     e.preventDefault()
-    if (current !== j.dataset.id) choose(j.dataset.id, true)
+    if (current !== j.dataset.id) choose(j.dataset.id)
   })
 }
 pick.querySelector('.go').addEventListener('click', () => {
   try { localStorage.setItem(${JSON.stringify(ROUTE_KEY)}, current) } catch {}
 })
-if (current) choose(current, false)
+if (current) choose(current)
 else render()
 </script>
 `,
