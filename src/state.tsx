@@ -122,8 +122,9 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
     return r && tree.subs.has(r) ? r : null
   })
   const home: Focus = career ? page : null
-  // 地址栏里的焦点要在第一次渲染前读出来：下面把焦点同步到地址栏时，空焦点会把它清掉
-  const [focus, setFocusState] = useState<Focus>(() => parseFocus(tree, location.hash) ?? page)
+  // 地址栏里的焦点要在第一次渲染前读出来：下面把焦点同步到地址栏时，空焦点会把它清掉。
+  // 职业页一打开什么都不选（职业卡不弹，点徽章才看）；技能页选中这个技能
+  const [focus, setFocusState] = useState<Focus>(() => parseFocus(tree, location.hash) ?? (career ? null : page))
   const [flyRequest, setFlyRequest] = useState(0)
   const [pulse, setPulse] = useState<Set<string>>(new Set())
   const pulseTimer = useRef(0)

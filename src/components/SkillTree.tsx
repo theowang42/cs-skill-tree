@@ -1,14 +1,14 @@
 // 技能树：从“你”往外一层一层长，最外面一层是职业徽章（lib/layout.ts）。白底黑线。
 // 往上长时名字在节点下面，往右长时名字在节点右边；用哪个方向由页面挑（App.tsx）。
 // 技能树页一次画一个领域（页签切换）；职业页只画这个职业要学的技能和它的徽章，画法一样。
-// 每个节点一个图标和名字。点亮了是实心黑加一圈光芒，能点是黑框，还够不着是浅灰。
+// 每个节点一个图标和名字。点亮了是实心黑，能点是黑框，还够不着是浅灰。和首页一样只用细黑线，不加光芒。
 // 每个节点只画一根枝（连到主前置）；悬停或选中时，它的全部前置保持清楚，其余变淡。
 import { memo, useEffect, useMemo, useState } from 'react'
 import type { SkillState } from '../types'
 import { useApp } from '../state'
 import { fromText, hexPath, LABEL_Y, NODE_R, SIDE_X, START_R, subNodeId, TIP_R, type Layout } from '../lib/layout'
 import { frontier, totals } from '../lib/tree'
-import { Rays, SkillGlyph } from './glyphs'
+import { SkillGlyph } from './glyphs'
 import { useCamera } from './useCamera'
 
 /** 打开时树从“你”往外一层层长出来：离“你”越远，出现得越晚 */
@@ -49,14 +49,12 @@ const Node = memo(function Node({ id, language, x, y, name, icon, state, focused
     >
       {language ? (
         <>
-          <path className="ring" d={hexPath(NODE_R + 8)} />
           {pulse && <path className="ripple" d={hexPath(NODE_R + 2)} />}
           <path className="box" d={hexPath(NODE_R + 2)} />
           {part > 0 && <path className="part" d={hexPath(NODE_R + 8)} pathLength={100} strokeDasharray={`${part * 100} 100`} />}
         </>
       ) : (
         <>
-          <circle className="ring" r={NODE_R + 6} />
           {pulse && <circle className="ripple" r={NODE_R} />}
           <circle className="box" r={NODE_R} />
           {part > 0 && <circle className="part" r={NODE_R + 6} pathLength={100} strokeDasharray={`${part * 100} 100`} transform="rotate(-90)" />}
@@ -67,15 +65,6 @@ const Node = memo(function Node({ id, language, x, y, name, icon, state, focused
           <SkillGlyph icon={icon} size={28} />
         </div>
       </foreignObject>
-      {state === 'done' && <Rays r={NODE_R + 6} id={id} />}
-      {/* 点亮那一刻：八道光芒往外散开 */}
-      {pulse && state === 'done' && (
-        <g className="sparks">
-          {Array.from({ length: 8 }, (_, i) => (
-            <line key={i} x1={0} y1={-NODE_R - 10} x2={0} y2={-NODE_R - 22} transform={`rotate(${i * 45})`} />
-          ))}
-        </g>
-      )}
       {side ? <text className="lbl side" x={SIDE_X} y={5}>{name}</text> : <text className="lbl" y={LABEL_Y}>{name}</text>}
     </g>
   )
@@ -100,8 +89,8 @@ interface TipProps {
 }
 
 /**
- * 职业：最上面一行的终极节点。一枚双圈的奖章，中间是职业图标，外面一圈进度环随着点亮慢慢填满。
- * 全部点亮就自动达成：徽章变黑，外面一大圈光芒转起来。
+ * 职业：最上面一行的终极节点。一个圆，中间是职业图标，外面一圈进度环随着点亮慢慢填满。
+ * 全部点亮就自动达成：圆变黑，图标变白。
  */
 const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim, pulse, side, onClick, onHover }: TipProps) {
   const reached = done === total
@@ -117,25 +106,13 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
       onPointerLeave={() => onHover(null)}
     >
       {side ? <rect className="hit" x={-TIP_R - 8} y={-TIP_R - 8} width={2 * TIP_R + 170} height={2 * TIP_R + 16} /> : <rect className="hit" x={-80} y={-TIP_R - 68} width={160} height={2 * TIP_R + 78} />}
-      {reached && <Rays r={TIP_R + 12} count={32} long={14} short={7} id={id} className="tip-rays" />}
       <circle className="tip-track" r={TIP_R + 5} />
       <circle className="tip-progress" r={TIP_R + 5} pathLength={100} strokeDasharray={`${Math.round((100 * done) / total)} 100`} transform="rotate(-90)" />
       <circle className="seal" r={TIP_R} />
-      <circle className="seal-inner" r={TIP_R - 7} />
       <foreignObject x={-16} y={-16} width="32" height="32">
         <div className="tip-glyph"><SkillGlyph icon={icon} size={32} /></div>
       </foreignObject>
-      {/* 达成那一刻：两圈波纹和一圈光芒冲出去 */}
-      {pulse && reached && (
-        <g className="burst">
-          <circle className="burst-ring" r={TIP_R} />
-          <circle className="burst-ring late" r={TIP_R} />
-          {Array.from({ length: 16 }, (_, i) => (
-            <line key={i} x1={0} y1={-TIP_R - 16} x2={0} y2={-TIP_R - 34} transform={`rotate(${i * 22.5})`} />
-          ))}
-        </g>
-      )}
-      {/* 名字和进度写在光芒外面，达成后转起来的光芒不会压到字 */}
+      {/* 名字和进度写在进度环外面 */}
       <text className={`tip-name${side ? ' side' : ''}`} x={side ? TIP_R + 14 : 0} y={side ? -4 : -TIP_R - 48}>{name}</text>
       <text className={`tip-pct${side ? ' side' : ''}`} x={side ? TIP_R + 14 : 0} y={side ? 14 : -TIP_R - 31}>{reached ? '已达成' : `${done} / ${total}`}</text>
     </g>
@@ -263,7 +240,6 @@ export function SkillTree({ layout, onCenter }: { layout: Layout; onCenter: () =
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onCenter() }}
           >
             <title>{`你：已点亮 ${lit.done} / ${lit.total}\n悬停看下一步能点哪些，点开看我的进度`}</title>
-            {lit.done > 0 && <Rays r={START_R + 9} count={32} long={10} short={5} />}
             <circle className="start-track" r={START_R + 4} />
             <circle className="start-progress" r={START_R + 4} pathLength={100} strokeDasharray={`${(lit.done / lit.total) * 100} 100`} transform="rotate(-90)" />
             <circle className="start-ring" r={START_R - 2} />

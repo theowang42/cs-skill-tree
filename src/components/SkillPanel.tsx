@@ -17,7 +17,7 @@ export function SkillPanel({ id }: { id: string }) {
   return (
     <div className="detail" key={id}>
       <div className="card-head">
-        <SkillSlot uid={`card-${id}`} icon={s.icon} language={s.language} state={state} />
+        <SkillSlot icon={s.icon} language={s.language} state={state} />
         <div className="card-title">
           <p className="card-kind">
             {s.language ? '语言天赋' : '技能'} · {tree.areas.get(s.areaId)!.name} · 第 {row} 层
@@ -34,7 +34,7 @@ export function SkillPanel({ id }: { id: string }) {
       {s.prerequisites.length > 0 && (
         <section className="card-sec">
           <h4>先点亮上一级</h4>
-          <div className="mini-row">{s.prerequisites.map((p) => <MiniSkill key={p} id={p} from="req" />)}</div>
+          <div className="mini-row">{s.prerequisites.map((p) => <MiniSkill key={p} id={p} />)}</div>
         </section>
       )}
 

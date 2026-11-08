@@ -11,7 +11,9 @@
   /* 没点亮的：线和字都要看得清，不能灰到看不见 */
   --off-line: #b9b9b9;
   --off-ink: #6b6b6b;
-  --sans: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  /* 用设备自带的中文字体，不从网上下载（谷歌字体在国内会卡住页面）：苹果苹方、Windows 微软雅黑、安卓思源黑体 */
+  --sans: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Source Han Sans SC', system-ui, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   color-scheme: light;
 }

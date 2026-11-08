@@ -9,13 +9,13 @@ import { Hud } from './components/Hud'
 import { Toasts } from './components/Toasts'
 import { layoutTree, type Layout } from './lib/layout'
 
-/** 全局快捷键：Esc 返回；选中技能时 D 点亮、X 熄灭 */
+/** 全局快捷键：Esc 取消选中、收起卡片；选中技能时 D 点亮、X 熄灭 */
 function Shortcuts() {
-  const { focus, home, setFocus, setLit } = useApp()
+  const { focus, setFocus, setLit } = useApp()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return
-      if (e.key === 'Escape') setFocus(home)
+      if (e.key === 'Escape') setFocus(null)
       else if (focus?.kind === 'skill') {
         const k = e.key.toLowerCase()
         if (k === 'd') setLit(focus.id, true)
@@ -24,7 +24,7 @@ function Shortcuts() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [focus, home, setFocus, setLit])
+  }, [focus, setFocus, setLit])
   return null
 }
 
@@ -50,7 +50,7 @@ function Shell() {
   }, [tree, career, area])
   const scale = ({ bounds: b }: Layout) => Math.min(1, win.w / (b.maxX - b.minX), (win.h - 100) / (b.maxY - b.minY))
   const layout = scale(layouts[1]) > scale(layouts[0]) ? layouts[1] : layouts[0]
-  // 选中东西就打开面板，取消选中就收起；顶上的进度和最下面的“你”可以单独打开“我的进度”
+  // 选中东西就打开面板，取消选中就收起；最下面的“你”可以单独打开“我的进度”
   const [panelOpen, setPanelOpen] = useState(false)
   const wantOverview = useRef(false)
   useEffect(() => {
@@ -65,7 +65,7 @@ function Shell() {
   }
   return (
     <div className={`page${panelOpen ? ' panel-open' : ''}`}>
-      <Hud onTogglePanel={() => setPanelOpen((o) => !o)} panelOpen={panelOpen} />
+      <Hud />
       {area && (
         <nav className="tabs" aria-label="领域">
           {tree.roadmap.areas.map((a) => {

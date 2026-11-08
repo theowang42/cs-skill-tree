@@ -11,10 +11,7 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 /* 顶栏 */
 .top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 60px; padding: 0 24px; background: rgba(255,255,255,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line-2); }
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .06em; text-decoration: none; white-space: nowrap; }
-.logo .mark { width: 16px; height: 16px; border-radius: 3px; background: var(--ink); }
-.top nav { display: flex; align-items: center; gap: 22px; font-size: 13px; }
-.top nav a { color: var(--ink-2); text-decoration: none; }
-.top nav a:hover { color: var(--ink); }
+.logo svg { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 
 
@@ -23,60 +20,65 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .chip:hover { border-color: var(--ink); background: var(--wash); }
 .chip svg { color: var(--ink-2); }
 
-/* 首页。三种字号：大 40（标题、抽屉里的岗位名）、中 16（岗位、正文、按钮）、小 13（大方向、一句话、说明、技能选项）。
-   一屏放下全部岗位：标题，下面一张表，大方向竖着写在左边，一行一个岗位，行高跟着屏幕高度走。
-   点一行，抽屉从右边滑出（手机上从底下升起） */
-.home { --row: clamp(34px, calc((100svh - 230px) / 17), 46px); max-width: 720px; margin: 0 auto; padding: 32px 0 0; transition: transform .5s var(--ease); }
-.home h1 { margin-bottom: 24px; font-size: 40px; letter-spacing: .02em; animation: rise .6s var(--ease) backwards; }
-@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
-
-/* 岗位表：组和组之间一条黑线（从左往右画出来），组里一行一条细线 */
-.group { position: relative; display: grid; grid-template-columns: 36px 1fr; }
-.group::before, #careers::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: var(--ink); transform-origin: left; animation: line .8s var(--ease) backwards; animation-delay: calc(var(--g, 6) * 70ms); }
-#careers { position: relative; }
-#careers::after { top: auto; bottom: 0; }
-@keyframes line { from { transform: scaleX(0); } }
-/* 竖排的大方向：不撑高这一组（只有一行的组也放得下），在组里上下居中 */
-.group > h2 { contain: size; display: flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; font-weight: 700; white-space: nowrap; color: var(--ink-2); writing-mode: vertical-rl; text-orientation: upright; animation: fade .6s var(--ease) backwards; animation-delay: calc(var(--g) * 70ms + 150ms); }
-@keyframes fade { from { opacity: 0; } }
-.job { position: relative; isolation: isolate; display: grid; grid-template-columns: 18px 10em 1fr 16px; align-items: center; column-gap: 12px; height: var(--row); padding: 0 12px; font-size: 16px; text-decoration: none; white-space: nowrap; animation: slide .55s var(--ease) backwards; animation-delay: calc(var(--i) * 28ms + 120ms); transition: color .25s var(--ease); }
-@keyframes slide { from { opacity: 0; transform: translateX(-14px); } }
-.job + .job { border-top: 1px solid var(--line-2); }
+/* 首页。三种字号：大 40（标题、编号、详情里的岗位名）、中 16（岗位名、正文、按钮）、小 13（一句话、需求、说明、技能选项）。
+   像一本职业年鉴的目录：标题下面一张表，一行一个岗位，近几年需求涨得越多越靠前，行和行之间一条细灰线。
+   电脑上两栏（各 --half 行），窄屏一栏 --n 行；行高按屏幕剩下的高度算，一屏放下。
+   点一行，它从原地放大铺满屏幕变成详情，关上再缩回去 */
+.jobs { --row: clamp(52px, calc((100svh - 60px - 150px) / var(--half)), 76px); }
+.home { max-width: 1200px; margin: 0 auto; padding: 28px 0 24px; }
+.hello { margin-bottom: 20px; animation: tile .6s var(--ease) backwards; }
+.hello h1 { margin: 0; font-size: 40px; line-height: 1.2; }
+.hello p { margin: 6px 0 0; font-size: 13px; color: var(--ink-2); }
+.jobs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--half), var(--row)); grid-auto-flow: column; column-gap: 56px; border-top: 1px solid var(--ink); }
+.job { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 20px; padding: 0 12px 0 4px; border-bottom: 1px solid var(--line-2); text-decoration: none; white-space: nowrap; animation: tile .6s var(--ease) backwards; animation-delay: calc(var(--i) * 30ms + 100ms); transition: background .3s var(--ease), color .3s var(--ease); }
+@keyframes tile { from { opacity: 0; transform: translateY(8px); } }
+/* 每栏最后一行：底下一条黑线收住（第 10 个是左栏最后一行，和 --half 对应） */
+.job:nth-child(10), .job:last-child { border-bottom-color: var(--ink); }
+.job .no { width: 2ch; font: 300 40px/1 var(--mono); color: var(--line); transition: color .3s var(--ease); }
+.job .nm { display: flex; flex-direction: column; min-width: 0; }
+.job b { font-size: 16px; overflow: hidden; text-overflow: ellipsis; transition: transform .35s var(--ease); }
+.job .br, .job .ct { font-size: 13px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; }
+.job .meta { display: flex; flex-direction: column; align-items: flex-end; }
+.job .tr { font-size: 13px; color: var(--ink-2); }
+.job .tr.t-hot { color: var(--ink); font-weight: 700; }
+.job .tr.t-down { color: var(--ink-3); }
+.job .tag { display: none; }
+/* 指到这一行：浅灰底，编号变黑，名字往右挪一点 */
+.job:hover { background: var(--wash); }
+.job:hover .no { color: var(--ink); }
+.job:hover b { transform: translateX(4px); }
 /* 点亮了多少：行底一条黑线从左往右铺开 */
-.job::before { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; z-index: 1; background: var(--ink); transform: scaleX(var(--p, 0)); transform-origin: left; transition: transform .7s var(--ease); }
-/* 选中：黑底从左往右推过去 */
-.job::after { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ink); transform: scaleX(0); transform-origin: left; transition: transform .35s var(--ease); }
-.job.on { color: #fff; }
-.job.on::after { transform: none; }
-.job:hover:not(.on) { background: var(--wash); }
-.job svg { transition: transform .25s var(--ease); }
-.job b { font-weight: 700; }
-.job .br { overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); transition: color .25s var(--ease); }
-.job.on .br { color: #fff; }
-.job i { font-style: normal; opacity: 0; transform: translateX(-6px); transition: opacity .25s var(--ease), transform .25s var(--ease); }
-.job:hover svg { transform: translateX(3px); }
-.job:hover i, .job.on i { opacity: 1; transform: none; }
+.job::before { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--ink); transform: scaleX(var(--p, 0)); transform-origin: left; transition: transform .7s var(--ease); }
+/* 正在学的那行：黑底白字，后面写“在学” */
+.job.mine { background: var(--ink); color: #fff; }
+.job.mine .no { color: #fff; }
+.job.mine .br, .job.mine .ct, .job.mine .tr { color: rgba(255,255,255,.72); }
+.job.mine .tag { display: inline; color: #fff; }
+.job.mine::before { background: #fff; }
 
-/* 抽屉 */
-.scrim { position: fixed; inset: 0; z-index: 20; background: rgba(17,17,17,.28); opacity: 0; pointer-events: none; transition: opacity .35s var(--ease); }
-.scrim.on { opacity: 1; pointer-events: auto; }
-.pick { position: fixed; z-index: 21; top: 60px; right: 0; bottom: 0; display: flex; flex-direction: column; width: min(480px, 100%); padding: 28px 28px 32px; overflow-y: auto; overscroll-behavior: contain; background: var(--paper); border-left: 1px solid var(--ink); transform: translateX(100%); visibility: hidden; transition: transform .5s var(--ease), visibility 0s .5s; }
-.pick.open { transform: none; visibility: visible; transition: transform .5s var(--ease); }
-.pick .x { position: absolute; top: 20px; right: 20px; width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 0; background: none; cursor: pointer; }
+/* 详情：铺满屏幕。四条边从点的那一格出发（--t --r --b --l），放大开、缩回去；里面的东西等它铺开再浮上来 */
+html.lock { overflow: hidden; }
+.pick { --t: 50%; --r: 50%; --b: 50%; --l: 50%; position: fixed; inset: 0; z-index: 30; display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); align-items: start; gap: 56px; padding: 72px max(24px, calc((100vw - 1200px) / 2)) 48px; overflow-y: auto; overscroll-behavior: contain; background: var(--paper); clip-path: inset(var(--t) var(--r) var(--b) var(--l)); visibility: hidden; transition: clip-path .6s var(--ease), visibility 0s .6s; }
+.pick.open { clip-path: inset(0); visibility: visible; transition: clip-path .6s var(--ease); }
+.pk-l, .pk-r { opacity: 0; transform: translateY(14px); transition: opacity .25s var(--ease), transform .25s var(--ease); }
+.pick.open .pk-l, .pick.open .pk-r { opacity: 1; transform: none; transition: opacity .5s var(--ease) .3s, transform .6s var(--ease) .3s; }
+.pick.open .pk-r { transition-delay: .4s; }
+.pk-l { display: flex; flex-direction: column; }
+.pick .x { position: absolute; top: 20px; right: 24px; width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 0; background: none; cursor: pointer; }
 .pick .x path { stroke: var(--ink); stroke-width: 1.6; }
 .pick .x:hover { background: var(--wash); }
-.pk-name { padding-right: 40px; font-size: 40px; line-height: 1.2; }
+.pk-name { font-size: 40px; line-height: 1.2; }
 .pk-meta { margin: 8px 0 0; font-size: 13px; color: var(--ink-2); }
-.pk-intro { margin: 12px 0 0; font-size: 16px; }
+.pk-intro { margin: 16px 0 0; font-size: 16px; }
 /* 这个岗位的技能分在技能树的哪几个领域，点了打开那一页 */
-.dom { display: none; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 10px 0 0; font-size: 13px; }
+.dom { display: none; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 14px 0 0; font-size: 13px; }
 .dom.on { display: flex; }
 .dom a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--line); transition: color .2s var(--ease), border-color .2s var(--ease); }
 .dom a:hover { color: var(--ink); border-color: var(--ink); }
-.minis { margin: 16px 0; }
+.minis { margin-bottom: 28px; }
 .mini, .has { display: none; height: 100%; }
 .mini.on, .has.on { display: block; }
-.has.on { height: auto; margin-bottom: 24px; }
+.has.on { height: auto; }
 .mini svg { width: 100%; height: 100%; }
 .mini .side, .mini.is-side .up { display: none; }
 .mini.is-side .side { display: block; }
@@ -87,7 +89,7 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .quick .chip:hover { color: var(--ink); }
 .quick .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
 .quick .chip[aria-pressed="true"] svg { color: #fff; }
-.go { padding: 14px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 16px; font-weight: 700; text-align: center; text-decoration: none; transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
+.go { margin-top: 32px; padding: 14px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 16px; font-weight: 700; text-align: center; text-decoration: none; transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
 .go:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.18); }
 
 /* 小树 */
@@ -105,21 +107,30 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 @keyframes pop { to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   .mini .e, .mini .n > g { animation: none; opacity: 1; transform: none; stroke-dashoffset: 0; }
-  .home h1, .group::before, #careers::after, .group > h2, .job { animation: none; }
+  .hello, .job { animation: none; }
+  .pick, .pick.open, .pk-l, .pk-r, .pick.open .pk-l, .pick.open .pk-r { transition: none; }
 }
 
 .foot { max-width: 1200px; margin: 40px auto 0; padding: 28px 24px 48px; border-top: 1px solid var(--line-2); color: var(--ink-2); font-size: 13px; }
 .foot p { margin: 4px 0; }
 
-/* 手机：抽屉从底下升起，盖住大半屏；一句话缩小一号跟在名字后面 */
+/* 窄屏一栏 17 行：一行里放名字、一句话和需求，编号小一号；详情变成一栏 */
+@media (max-width: 900px) {
+  .jobs { --row: clamp(32px, calc((100svh - 60px - 140px) / var(--n)), 56px); }
+  .home { padding-top: 18px; }
+  .hello { margin-bottom: 14px; }
+  .jobs { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-flow: row; grid-auto-rows: var(--row); }
+  .job:nth-child(10) { border-bottom-color: var(--line-2); }
+  .job { column-gap: 12px; }
+  .job .no { font-size: 16px; font-weight: 400; color: var(--ink-3); }
+  .job .nm { flex-direction: row; align-items: baseline; gap: 10px; }
+  .job b { flex: none; }
+  .job .ct { display: none; }
+}
 @media (max-width: 640px) {
-  .home { padding-top: 20px; }
-  .home h1 { margin-bottom: 16px; font-size: 32px; }
-  .group { grid-template-columns: 28px 1fr; }
-  .job { grid-template-columns: 18px auto 1fr; padding: 0 10px; }
-  .job .br { font-size: 13px; }
-  .job i { display: none; }
-  .pick { top: auto; left: 0; height: 86svh; width: 100%; padding: 24px 16px 28px; border-left: 0; border-top: 1px solid var(--ink); transform: translateY(100%); }
+  .hello h1 { font-size: 32px; }
+  .pick { grid-template-columns: minmax(0, 1fr); gap: 28px; padding: 64px 16px 32px; }
+  .pick .x { top: 12px; right: 12px; }
   .pk-name { font-size: 32px; }
 }
 @media (max-width: 560px) {

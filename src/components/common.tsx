@@ -50,13 +50,13 @@ export function StatusControl({ id }: { id: string }) {
 }
 
 /** 列表里的一个技能：小技能槽、名字、点亮了没有。点了飞过去 */
-export function MiniSkill({ id, from }: { id: string; from: string }) {
+export function MiniSkill({ id }: { id: string }) {
   const { tree, states, setFocus } = useApp()
   const s = tree.skill(id)
   const st = states.get(id)!
   return (
     <button className={`mini s-${st}`} onClick={() => setFocus({ kind: 'skill', id }, { scroll: true })}>
-      <SkillSlot uid={`${from}-${id}`} icon={s.icon} language={s.language} state={st} size={52} />
+      <SkillSlot icon={s.icon} language={s.language} state={st} size={52} />
       <span className="mini-name">{s.name}</span>
       <span className="mini-state">{st === 'done' ? '已点亮' : '未点亮'}</span>
     </button>
