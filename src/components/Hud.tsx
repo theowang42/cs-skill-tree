@@ -1,10 +1,14 @@
-// 顶栏：左边名字（回首页）和进度（打开“我的进度”）；职业天赋树里右边多一个回技能树页（按领域看全部技能）的入口。都是字，没有壳。
-import { HOME_URL, TREE_URL, useApp } from '../state'
+// 顶栏：左边名字（回首页）和进度（打开“我的进度”）；右边在“这条路线”和“全部技能”之间切换，正选中的技能跟着过去。都是字，没有壳。
+import { TREE_URL, HOME_URL, useApp } from '../state'
 import { totals } from '../lib/tree'
 
 export function Hud({ onTogglePanel, panelOpen }: { onTogglePanel: () => void; panelOpen: boolean }) {
-  const { career, states } = useApp()
+  const { tree, career, route, focus, states } = useApp()
   const t = totals(states)
+  // 职业天赋树里切的是这个职业；技能树页里切的是选定的路线；都没有就不显示开关
+  const mine = career ?? route
+  const skill = focus?.kind === 'skill' ? focus.id : null
+  const at = (keep: boolean) => (skill && keep ? `#/skill/${skill}` : '')
 
   return (
     <header className="hud">
@@ -14,7 +18,20 @@ export function Hud({ onTogglePanel, panelOpen }: { onTogglePanel: () => void; p
           <b>{t.done}</b> / {t.total}
         </button>
       </div>
-      {career && <a className="hud-text" href={`${TREE_URL}index.html`}>全部技能</a>}
+      {mine && (
+        <nav className="switch" aria-label="看哪棵树">
+          <a
+            className={career ? 'on' : ''}
+            aria-current={career ? 'page' : undefined}
+            href={`${TREE_URL}../career/${mine}/index.html${at(tree.closures.get(mine)!.has(skill ?? ''))}`}
+          >
+            {tree.subs.get(mine)!.name.replace(/工程师$/, '')}
+          </a>
+          <a className={career ? '' : 'on'} aria-current={career ? undefined : 'page'} href={`${TREE_URL}index.html${at(true)}`}>
+            全部
+          </a>
+        </nav>
+      )}
     </header>
   )
 }

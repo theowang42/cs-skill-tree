@@ -652,20 +652,31 @@ a {
   color: var(--ink);
 }
 
-.hud-text {
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid transparent;
-  background: none;
+.switch {
+  display: flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--wash);
+}
+
+.switch a {
+  padding: 4px 14px;
+  border-radius: 999px;
   font-size: 13.5px;
   color: var(--ink-2);
   text-decoration: none;
   white-space: nowrap;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease);
 }
 
-.hud-text:hover {
+.switch a:hover {
   color: var(--ink);
-  border-bottom-color: var(--ink);
+}
+
+.switch a.on {
+  background: var(--ink);
+  color: #fff;
+  font-weight: 700;
 }
 
 /* 领域页签：一个领域一棵树，从左到右是学的先后 */
@@ -700,6 +711,10 @@ a {
 
 .tabs button:hover {
   color: var(--ink);
+}
+
+.tabs button.off {
+  color: var(--ink-3);
 }
 
 .tabs button.on {
@@ -1312,6 +1327,31 @@ button.danger {
 }
 
 /* 卡片里的小节点：先点亮的下一级、点亮后解锁的。和树上的节点长得一样 */
+.jobs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.jobs-row a {
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 13px;
+  text-decoration: none;
+  transition: border-color 0.2s var(--ease);
+}
+
+.jobs-row a:hover {
+  border-color: var(--ink);
+}
+
+.jobs-row a.on {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
 .mini-row {
   display: flex;
   flex-wrap: wrap;

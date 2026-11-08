@@ -4,7 +4,7 @@
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.7 var(--sans); -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
-main { max-width: 1120px; margin: 0 auto; padding: 0 24px 40px; }
+main { max-width: 1248px; margin: 0 auto; padding: 0 24px 40px; }
 h1, h2, h3 { line-height: 1.25; margin: 0; }
 .muted { color: var(--ink-2); }
 
@@ -12,44 +12,47 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 60px; padding: 0 24px; background: rgba(255,255,255,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line-2); }
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .06em; text-decoration: none; white-space: nowrap; }
 .logo .mark { width: 16px; height: 16px; border-radius: 3px; background: var(--ink); }
-.top nav { display: flex; align-items: center; gap: 22px; font-size: 14px; }
+.top nav { display: flex; align-items: center; gap: 22px; font-size: 13px; }
+.top nav a { color: var(--ink-2); text-decoration: none; }
+.top nav a:hover { color: var(--ink); }
 
-.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--ink); color: #fff; font-weight: 700; text-decoration: none; white-space: nowrap; transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
-.btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,.14); }
 
-/* 首页 */
-.hero { padding: 56px 0 8px; }
-.hero h1 { font-size: clamp(28px, 4.2vw, 44px); letter-spacing: .02em; }
-.lead { font-size: 17px; color: #333; margin: 18px 0 0; }
-
-.block { padding: 36px 0 4px; }
-.block > h2 { font-size: 24px; margin-bottom: 6px; }
-.block > .muted { margin: 0 0 18px; }
-.group { margin-top: 26px; }
-.group h3 { font-size: 15px; margin-bottom: 10px; display: flex; align-items: baseline; gap: 8px; }
-.group h3 span { color: var(--ink-3); font-weight: 500; font-size: 13px; }
-.group > .muted { margin: -4px 0 12px; font-size: 14px; }
 
 /* 卡片 */
-.chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 5px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; text-decoration: none; transition: border-color .2s var(--ease), background .2s var(--ease); }
 .chip:hover { border-color: var(--ink); background: var(--wash); }
 .chip svg { color: var(--ink-2); }
 
-/* 首页：左边标题、常见技能、岗位；右边一棵跟着岗位换的小树 */
-.home { display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-template-rows: auto 1fr; grid-template-areas: "hero preview" "careers preview"; column-gap: 48px; }
-.hero { grid-area: hero; }
-#careers { grid-area: careers; }
-.ask { margin: 12px 0 10px; font-weight: 700; }
-.quick { display: flex; flex-wrap: wrap; gap: 8px; }
-.quick .chip { background: #fff; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
+/* 首页。三种字号：大 40（标题、岗位名）、中 16（正文、类别名、按钮）、小 13（数字、说明、技能选项）。
+   一条网格：标题横跨，下面左边圆环、右边选中的岗位，两栏顶部对齐、一样高 */
+.home { display: grid; grid-template-columns: 6fr 5fr; grid-template-rows: auto 1fr; column-gap: 64px; padding: 48px 0 0; }
+.home h1 { grid-column: 1 / -1; margin-bottom: 32px; font-size: 40px; letter-spacing: .02em; }
+.pick { display: flex; flex-direction: column; min-width: 0; }
+.pick-hint { margin: auto 0; text-align: center; font-size: 16px; color: var(--ink-3); }
+.pk-name, .pk-meta, .pk-intro, .minis, .go { display: none; }
+.chosen .pick-hint { display: none; }
+.chosen .pk-name, .chosen .pk-meta, .chosen .pk-intro, .chosen .minis, .chosen .go { display: block; }
+.pk-name { font-size: 40px; line-height: 1.2; }
+.pk-meta { margin: 8px 0 0; font-size: 13px; color: var(--ink-2); }
+.pk-intro { margin: 12px 0 0; font-size: 16px; }
+.minis { margin: 24px 0; }
+.mini, .has { display: none; height: 100%; }
+.mini.on, .has.on { display: block; }
+.has.on { height: auto; margin-bottom: 24px; }
+.mini svg { width: 100%; height: 100%; }
+.mini .side, .mini.is-side .up { display: none; }
+.mini.is-side .side { display: block; }
+.pk-ask { margin: 0 0 10px; font-size: 13px; font-weight: 700; }
+.quick { display: flex; flex-wrap: wrap; gap: 6px; }
+.quick .chip { padding: 3px 10px 3px 8px; gap: 5px; background: #fff; color: var(--ink-2); font: inherit; font-size: 13px; line-height: 1.6; cursor: pointer; }
+.quick .chip svg { width: 14px; height: 14px; }
+.quick .chip:hover { color: var(--ink); }
 .quick .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
 .quick .chip[aria-pressed="true"] svg { color: #fff; }
-.preview { grid-area: preview; position: sticky; top: 76px; align-self: start; height: calc(100vh - 140px); margin-top: 56px; }
-.mini { display: none; height: 100%; flex-direction: column; align-items: center; gap: 8px; text-decoration: none; }
-.mini.on { display: flex; }
-.mini svg { flex: 1; min-height: 0; width: 100%; }
-.mini b { font-size: 14px; }
+.go { margin-top: auto; padding: 14px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 16px; font-weight: 700; text-align: center; text-decoration: none; transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
+.go:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.18); }
+
+/* 小树 */
 .mini .e { fill: none; stroke: var(--off-line); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw .45s var(--ease) forwards; }
 .mini .n > g { opacity: 0; transform: scale(.3); animation: pop .4s var(--ease) forwards; }
 .mini .n > g > circle, .mini .n > g > path { fill: #fff; stroke: var(--off-line); stroke-width: 1.5; vector-effect: non-scaling-stroke; transition: fill .3s, stroke .3s; }
@@ -59,55 +62,45 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .defs { position: absolute; }
 .mini .tip > g > circle { stroke: var(--ink); stroke-width: 2.5; }
 .mini .tip svg { color: var(--ink); }
-.mini .you circle { fill: #fff; stroke: var(--ink); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
-.mini .you text { font-size: 38px; font-weight: 700; text-anchor: middle; dominant-baseline: central; fill: var(--ink); }
+.mini .you { fill: var(--ink); }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes pop { to { opacity: 1; transform: none; } }
 @keyframes rise { from { opacity: 0; transform: scale(.3); } }
 @media (prefers-reduced-motion: reduce) {
-  .mini .e, .mini .n > g, .job .b { animation: none; opacity: 1; transform: none; stroke-dashoffset: 0; }
+  .mini .e, .mini .n > g, .job .w { animation: none; opacity: 1; transform: none; stroke-dashoffset: 0; }
 }
 
-/* 岗位圆环：内圈大方向，外圈徽章；圆心写正看着的岗位 */
-.ring-wrap { position: relative; margin: 8px 0 0; }
-.jobs { display: block; width: 100%; height: auto; }
-.orbit { fill: none; stroke: var(--line-2); stroke-width: 1.5; }
-.band path { fill: var(--wash); stroke: #fff; stroke-width: 4; }
-.band text { font-size: 19px; font-weight: 700; fill: var(--ink-2); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-.spoke { stroke: var(--off-line); stroke-width: 1.5; }
-.job { text-decoration: none; outline: none; }
-.job .b { transition: transform .25s var(--ease); animation: rise .45s var(--ease) backwards; animation-delay: calc(var(--i) * 45ms); }
-.job .hit { fill: transparent; }
-.job .track { fill: none; stroke: var(--line-2); stroke-width: 6; }
-.job .ring { fill: none; stroke: var(--ink); stroke-width: 6; transition: stroke-dasharray .5s var(--ease); }
-.job .seal { fill: #fff; stroke: var(--ink); stroke-width: 5; transition: fill .3s; }
-.job .seal-in { fill: none; stroke: var(--ink); stroke-width: 1.5; }
-.job .b svg { color: var(--ink); transition: color .3s; }
-.job.done .seal { fill: var(--ink); }
-.job.done .b svg { color: #fff; }
-.job:hover .b, .job:focus-visible .b, .job.on .b { transform: scale(1.14); }
-.job.on .seal { stroke-width: 7; }
-.job-name { font-size: 23px; font-weight: 700; fill: var(--ink); dominant-baseline: central; }
-.ring-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 22%; container-type: inline-size; display: flex; flex-direction: column; align-items: center; text-align: center; }
-.rc-name { font-size: min(20px, 100cqi / var(--len, 1)); line-height: 1.3; white-space: nowrap; }
-.rc-meta { margin-top: 2px; font-size: 13px; color: var(--ink-2); }
-.rc-intro { margin: 8px 0 10px; font-size: 12.5px; line-height: 1.55; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.rc-go { font-size: 13px; font-weight: 700; text-underline-offset: 3px; }
+/* 岗位圆环：扇形里只有图标，外面只写大方向。字都在图里，跟圆环一起缩放 */
+.ring { position: relative; align-self: start; }
+.jobs { display: block; width: 100%; height: auto; overflow: visible; }
+.cat { font-size: calc(var(--cat, 27) * 1px); font-weight: 500; fill: var(--ink-2); dominant-baseline: central; }
+.job { outline: none; cursor: pointer; }
+.job .w { transition: transform .35s var(--ease); animation: rise .45s var(--ease) backwards; animation-delay: calc(var(--i) * 35ms); }
+.wedge { fill: #f7f7f7; transition: fill .25s; }
+.job .w svg { color: var(--ink); transition: color .25s; }
+.job .prog { fill: none; stroke: var(--ink); stroke-width: 7; transition: stroke-dasharray .5s var(--ease); }
+.job:hover .wedge, .job:focus-visible .wedge { fill: var(--line-2); }
+.job.done .wedge { fill: var(--off-ink); }
+.job.done .w svg { color: #fff; }
+.job.on .w { transform: translate(var(--dx), var(--dy)); }
+.job.on .wedge { fill: var(--ink); }
+.job.on .w svg { color: #fff; }
+/* 悬停的名字：挂在扇形外沿，往外偏一点，不挡扇形 */
+.tag { position: absolute; z-index: 2; padding: 2px 10px; border-radius: 4px; background: var(--ink); color: #fff; font-size: 13px; font-weight: 700; white-space: nowrap; pointer-events: none; transform: translate(8px, -50%); }
+.tag[data-side="l"] { transform: translate(calc(-100% - 8px), -50%); }
 
-#skills > summary { cursor: pointer; font-size: 24px; font-weight: 700; }
 
-.foot { max-width: 1120px; margin: 40px auto 0; padding: 28px 24px 48px; border-top: 1px solid var(--line-2); color: var(--ink-2); font-size: 13px; }
+.foot { max-width: 1200px; margin: 40px auto 0; padding: 28px 24px 48px; border-top: 1px solid var(--line-2); color: var(--ink-2); font-size: 13px; }
 .foot p { margin: 4px 0; }
 
+/* 窄屏一栏排下来：圆环、岗位、小树、技能、按钮 */
 @media (max-width: 860px) {
-  .home { grid-template-columns: 1fr; grid-template-areas: "hero" "preview" "careers"; }
-  .preview { position: static; height: 300px; margin-top: 24px; }
-}
-/* 手机上圆环太小，外面的名字不写，圆心写正看着的那个 */
-@media (max-width: 560px) {
-  .job-name { display: none; }
-  .ring-center { width: 34%; }
-  .rc-intro { display: none; }
+  .home { grid-template-columns: 1fr; padding-top: 24px; }
+  .home h1 { margin-bottom: 8px; font-size: 32px; }
+  .pick { margin-top: 16px; }
+  .pick-hint { margin: 0; font-size: 13px; }
+  .pk-name { font-size: 32px; }
+  .ring { width: min(100%, 520px); justify-self: center; }
 }
 @media (max-width: 560px) {
   main { padding: 0 16px 32px; }

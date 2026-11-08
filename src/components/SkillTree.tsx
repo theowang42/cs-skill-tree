@@ -143,7 +143,7 @@ const Tip = memo(function Tip({ id, x, y, name, icon, done, total, focused, dim,
 })
 
 export function SkillTree({ layout, onCenter }: { layout: Layout; onCenter: () => void }) {
-  const { tree, career, states, steps, focus, setFocus, pulse, flyRequest, progressBySub } = useApp()
+  const { tree, career, route, states, steps, focus, setFocus, pulse, flyRequest, progressBySub } = useApp()
   const side = layout.orient === 'right'
   const cam = useCamera(layout.bounds, layout.orient)
   const [hover, setHover] = useState<string | null>(null)
@@ -191,11 +191,13 @@ export function SkillTree({ layout, onCenter }: { layout: Layout; onCenter: () =
   const lens = subLens ? null : hover ?? focusedSkill
   const anc = useMemo(() => (lens ? tree.ancestors(lens) : new Set<string>()), [tree, lens])
   const plan = subLens ? tree.closures.get(subLens)! : null
+  // 技能树页里选定了路线：平时路线外的变浅（看别的东西时按那个来）
+  const mine = !career && route ? tree.closures.get(route)! : null
   const relation = (id: string): Relation => {
     if (centerHover) return next.has(id) ? 'path' : 'dim'
     if (plan) return plan.has(id) ? 'path' : 'dim'
     if (lens) return lens === id ? 'none' : anc.has(id) ? 'path' : 'dim'
-    return 'none'
+    return mine && !mine.has(id) ? 'dim' : 'none'
   }
   /** 一根枝在当前视角下怎么画 */
   const edgeLens = (from: string, to: string): string => {
@@ -205,6 +207,7 @@ export function SkillTree({ layout, onCenter }: { layout: Layout; onCenter: () =
       return (from === 'root' || plan.has(from)) && plan.has(to) ? ' e-path' : ' e-dim'
     }
     if (lens) return (to === lens || anc.has(to)) && (from === 'root' || anc.has(from)) ? ' e-path' : ' e-dim'
+    if (mine) return (to.startsWith('sub:') ? to === subNodeId(route!) : mine.has(to)) ? '' : ' e-dim'
     return ''
   }
   const edgeState = (from: string, to: string) => {
@@ -283,7 +286,7 @@ export function SkillTree({ layout, onCenter }: { layout: Layout; onCenter: () =
                 pulse={pulse.has(`sub:${sub.id}`)}
                 side={side}
                 focused={focusedSub === sub.id}
-                dim={(subLens !== null && subLens !== sub.id) || (lens !== null && !tree.closures.get(sub.id)!.has(lens))}
+                dim={subLens !== null || lens !== null || centerHover ? (subLens !== null && subLens !== sub.id) || (lens !== null && !tree.closures.get(sub.id)!.has(lens)) : mine !== null && sub.id !== route}
                 onClick={onTip}
                 onHover={setTipHover}
               />

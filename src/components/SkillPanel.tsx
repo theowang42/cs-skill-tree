@@ -1,14 +1,15 @@
 // 一个技能：像游戏里的技能卡。技能槽、名字、状态、一句话、点亮按钮、学习流程、要先点亮的、去哪学。
 import type { SkillState } from '../types'
-import { useApp } from '../state'
+import { TREE_URL, useApp } from '../state'
 import { SkillSlot } from './glyphs'
 import { CardName, Links, MiniSkill, StatusControl } from './common'
 
 const BADGE: Record<SkillState, string> = { locked: '未解锁', available: '可点亮', done: '已点亮' }
 
 export function SkillPanel({ id }: { id: string }) {
-  const { tree, states } = useApp()
+  const { tree, career, states } = useApp()
   const s = tree.skill(id)
+  const jobs = tree.roadmap.subs.filter((c) => tree.closures.get(c.id)!.has(id))
   const state = states.get(id)!
   let row = 1
   for (let p = s.parent; p; p = tree.skill(p).parent) row++
@@ -34,6 +35,22 @@ export function SkillPanel({ id }: { id: string }) {
         <section className="card-sec">
           <h4>先点亮上一级</h4>
           <div className="mini-row">{s.prerequisites.map((p) => <MiniSkill key={p} id={p} from="req" />)}</div>
+        </section>
+      )}
+
+      {jobs.length > 0 && (
+        <section className="card-sec">
+          <h4>
+            哪些岗位要它 <span className="count">{jobs.length} / {tree.roadmap.subs.length}</span>
+          </h4>
+          {/* 点一个就去那条路线，停在这个技能上 */}
+          <div className="jobs-row">
+            {jobs.map((c) => (
+              <a key={c.id} className={c.id === career ? 'on' : ''} href={`${TREE_URL}../career/${c.id}/index.html#/skill/${id}`}>
+                {c.name.replace(/工程师$/, '')}
+              </a>
+            ))}
+          </div>
         </section>
       )}
 

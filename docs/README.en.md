@@ -8,7 +8,7 @@
 
 ![Lighting up Python and PyTorch on the home page; the 17 jobs instantly show how many skills are left](demo.gif)
 
-- **How far from a job**: pick a few skills you know on the home page and all 17 jobs show how many skills you still need; the closest one moves to the center
+- **How far from a job**: the home page is a ring of 17 jobs; tap one and its skill tree grows, tap the skills you know and it shows how many are left
 - **169 skills in 9 areas**: foundations, web, client and games, systems, security, data and quant, machine learning, large models, AI infra, in learning order. Each area is one talent tree, and a skill lights up only after its prerequisites
 - **Every skill spelled out**: a one-line bar for “you know it”, a 4 to 6 step learning flow (each step can be lit), and resources tagged by type and whether they are free
 - **One tree per job**: only the skills that job needs, e.g. [backend engineer](https://theowang42.github.io/cs-skill-tree/career/backend/) or [LLM algorithm engineer](https://theowang42.github.io/cs-skill-tree/career/llm-algo/)
@@ -18,7 +18,7 @@
 
 ## How to use
 
-1. On the home page, pick skills you know, or pick a job you want
+1. On the home page, pick the job you want and press “就学这个” (learn this)
 2. Open the tree and light up from “you” outward until you reach what you don't know. That is where you are
 3. Before lighting a skill, follow its learning flow and tick each step
 
