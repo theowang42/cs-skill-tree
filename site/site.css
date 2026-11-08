@@ -18,16 +18,7 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,.14); }
 
 
-.block { padding: 36px 0 4px; }
-.block > h2 { font-size: 24px; margin-bottom: 6px; }
-.block > .muted { margin: 0 0 18px; }
-.group { margin-top: 26px; }
-.group h3 { font-size: 15px; margin-bottom: 10px; display: flex; align-items: baseline; gap: 8px; }
-.group h3 span { color: var(--ink-3); font-weight: 500; font-size: 13px; }
-.group > .muted { margin: -4px 0 12px; font-size: 14px; }
-
 /* 卡片 */
-.chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 5px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; text-decoration: none; transition: border-color .2s var(--ease), background .2s var(--ease); }
 .chip:hover { border-color: var(--ink); background: var(--wash); }
 .chip svg { color: var(--ink-2); }
@@ -71,8 +62,7 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .defs { position: absolute; }
 .mini .tip > g > circle { stroke: var(--ink); stroke-width: 2.5; }
 .mini .tip svg { color: var(--ink); }
-.mini .you circle { fill: #fff; stroke: var(--ink); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
-.mini .you text { font-size: 38px; font-weight: 700; text-anchor: middle; dominant-baseline: central; fill: var(--ink); }
+.mini .you { fill: var(--ink); }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes pop { to { opacity: 1; transform: none; } }
 @keyframes rise { from { opacity: 0; transform: scale(.3); } }
@@ -100,9 +90,6 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .tag { position: absolute; z-index: 2; padding: 2px 10px; border-radius: 4px; background: var(--ink); color: #fff; font-size: 13px; font-weight: 700; white-space: nowrap; pointer-events: none; transform: translate(8px, -50%); }
 .tag[data-side="l"] { transform: translate(calc(-100% - 8px), -50%); }
 
-#skills > summary { cursor: pointer; font-size: 16px; font-weight: 700; }
-#skills .group h3 { font-size: 16px; }
-#skills .group > .muted, #skills .chip { font-size: 13px; }
 
 .foot { max-width: 1200px; margin: 40px auto 0; padding: 28px 24px 48px; border-top: 1px solid var(--line-2); color: var(--ink-2); font-size: 13px; }
 .foot p { margin: 4px 0; }

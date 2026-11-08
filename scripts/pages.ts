@@ -11,10 +11,10 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import type { Roadmap, Skill, Sub } from '../src/types.ts'
+import type { Roadmap, Sub } from '../src/types.ts'
 import { ICONS } from '../src/generated/icons.ts'
 import { Tree } from '../src/lib/tree.ts'
-import { hexPath, layoutTree, NODE_R, START_R, subNodeId, TIP_R } from '../src/lib/layout.ts'
+import { hexPath, layoutTree, NODE_R, subNodeId, TIP_R } from '../src/lib/layout.ts'
 import { ROUTE_KEY, SEEN_KEY } from '../src/lib/route.ts'
 
 export const SITE = 'https://theowang42.github.io/cs-skill-tree/'
@@ -135,10 +135,9 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
       return `<g class="n" data-s="${id}" ${move(x, y)}><g ${delay(y)}>${shape}<use href="#i-${id}" x="-15" y="-15" width="30" height="30"/></g></g>`
     }).join('')
     const t = at(subNodeId(c.id))
-    return `<svg class="${side ? 'side' : 'up'}" viewBox="${vx} ${vy} ${vw} ${vh}" aria-hidden="true">${edges}${nodes}<g class="n tip" ${move(t.x, t.y)}><g ${delay(t.y)}><circle r="${TIP_R}"/><circle r="${TIP_R - 7}"/><g transform="translate(-20,-20) scale(1.67)">${icon(c.icon)}</g></g></g><g class="you"><circle r="${START_R}"/><text>你</text></g></svg>`
+    return `<svg class="${side ? 'side' : 'up'}" viewBox="${vx} ${vy} ${vw} ${vh}" aria-hidden="true">${edges}${nodes}<g class="n tip" ${move(t.x, t.y)}><g ${delay(t.y)}><circle r="${TIP_R}"/><circle r="${TIP_R - 7}"/><g transform="translate(-20,-20) scale(1.67)">${icon(c.icon)}</g></g></g><circle class="you" r="16"/></svg>`
   }
 
-  const skillChip = (s: Skill, root: string) => `<a class="chip" href="${root}skill/${s.id}/">${icon(s.icon, 16)}${esc(s.name)}</a>`
   /**
    * 首页的岗位圆环：17 个岗位是一圈扇形按钮，扇形里只有图标；同一个大方向的挨着，大方向之间空开一点，大方向的名字写在圆环外面。
    * 从正上方开始顺时针。字都在这张图里，跟圆环一起缩放，窗口怎么变，字和圆环的相对位置都不变。
@@ -207,9 +206,6 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
       careers: Object.fromEntries(rm.subs.map((c) => [c.id, c.plan.map((p) => p.skillId)])),
       up: Object.fromEntries(rm.skills.map((s) => [s.id, [...tree.ancestors(s.id)]])),
     }
-    const all = rm.areas
-      .map((a) => `<section class="group"><h3>${esc(a.name)}<span>${a.skillIds.length}</span></h3><p class="muted">${esc(a.intro)}</p><div class="chips">${a.skillIds.map((id) => skillChip(sk(id), '')).join('')}</div></section>`)
-      .join('')
     put({
       path: '',
       title: `${NAME}：${rm.skills.length} 个计算机技能和 ${rm.subs.length} 个职业的学习路线`,
@@ -240,10 +236,6 @@ try {
   </aside>
 </div>
 
-<details id="skills" class="block">
-  <summary>全部 ${rm.skills.length} 个技能</summary>
-  ${all}
-</details>
 <script>
 const KEY = ${JSON.stringify(PROGRESS_KEY)}, D = ${JSON.stringify(data)}
 let store = null
