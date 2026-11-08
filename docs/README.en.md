@@ -2,19 +2,19 @@
 
 [简体中文](../README.md) | English
 
-**A CS skill tree like a game talent tree: light up what you know and see how many skills you are from 17 jobs.**
+**A CS skill tree like a game talent tree: light up what you know and see how many skills you are from 20 jobs.**
 
 👉 https://theowang42.github.io/cs-skill-tree/ (the site is in Chinese for now)
 
 ![Picking AI application engineer on the home page, lighting up a few known skills in its mini tree, then opening its skill tree](demo.gif)
 
-- **How far from a job**: the home page lists 17 jobs, one per row; tap one and its skill tree grows, tap the skills you know and it shows how many are left
-- **169 skills in 9 areas**: foundations, web, client and games, systems, security, data and quant, machine learning, large models, AI infra, in learning order. Each area is one talent tree, and a skill lights up only after its prerequisites
+- **How far from a job**: the home page lists 20 jobs with their recent demand trend; tap one and it opens with its skill tree, tap the skills you know and it shows how many are left
+- **181 skills in 10 areas**: foundations, web, client and games, systems, security, data and quant, machine learning, large models, AI infra, robotics, in learning order. Each area is one talent tree, and a skill lights up only after its prerequisites
 - **Every skill spelled out**: a one-line bar for “you know it”, a 4 to 6 step learning flow (each step can be lit), and resources tagged by type and whether they are free
 - **One tree per job**: only the skills that job needs, e.g. [backend engineer](https://theowang42.github.io/cs-skill-tree/career/backend/) or [LLM algorithm engineer](https://theowang42.github.io/cs-skill-tree/career/llm-algo/)
 - **No sign-up**: progress stays in your browser; export, import or share it as a link
 
-![The foundations area growing right from “you”, lit skills in black with rays around them](screenshot.jpg)
+![The foundations area growing right from “you”, lit skills in black](screenshot.jpg)
 
 ## How to use
 

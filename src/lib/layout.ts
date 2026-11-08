@@ -6,7 +6,7 @@
 //   - 每个技能挂在它的主前置上（前置里的第一个），所以画出来是一条条往上的链，只在关键节点分叉。
 //     其余前置不画线，选中时只让那些节点保持清楚，面板里列出来。
 //   - 子树按每一行的左右轮廓紧挨着排，父节点在孩子正中间；只有一个孩子时在同一列，链是直的。
-//     兄弟的左右顺序按子树的领域重心（AREA_ORDER），同一个领域的挨在一起。
+//     兄弟的先后按必要性：要学它的岗位越多越靠前。
 //   - 徽章都在最上面一行，挂的技能往上到徽章是一条单独的竖道，别的节点不压上去。
 //   - 枝条：从父节点往上到两行中间，横着走过去，再往上停在孩子的名字下面。
 //
@@ -29,11 +29,6 @@ const ROW = 160
 const FIRST = 190
 /** 徽章那根竖线占多宽的一半：别的节点离它至少这么远 */
 const LANE_HALF = 12
-
-/** 左右的顺序：做产品的（Web、客户端、数据）在左，AI 在中间，地基、底层系统和安全在右 */
-const AREA_ORDER: Record<string, number> = {
-  web: 0, client: 1, data: 2, learning: 3, llm: 4, infra: 5, base: 6, systems: 7, security: 8,
-}
 
 /** 往上长，或者往右长 */
 export type Orient = 'up' | 'right'
@@ -118,20 +113,10 @@ export function layoutTree(tree: Tree, view: { area: string } | { career: string
   for (const k of children.get('root')!) setDepth(k, 1)
   const top = Math.max(...depth.values()) + 1
 
-  // 兄弟的先后：按子树的领域重心
-  const rank = new Map<string, number>()
-  const tally = (id: string): [sum: number, n: number] => {
-    let sum = AREA_ORDER[tree.skill(id).areaId]
-    let n = 1
-    for (const k of children.get(id)!) {
-      const [s, c] = tally(k)
-      sum += s
-      n += c
-    }
-    rank.set(id, sum / n)
-    return [sum, n]
-  }
-  for (const r of children.get('root')!) tally(r)
+  // 兄弟的先后：越必要越靠前（往右长是越靠上）。必要 = 有几个岗位要学它
+  const need = new Map<string, number>()
+  for (const closure of tree.closures.values()) for (const id of closure) need.set(id, (need.get(id) ?? 0) + 1)
+  const rank = new Map(ids.map((id) => [id, -(need.get(id) ?? 0)]))
   for (const kids of children.values()) kids.sort((a, b) => rank.get(a)! - rank.get(b)! || a.localeCompare(b))
 
   // ── 同一层里的位置（往上长是左右，往右长是上下）：子树按每一层的轮廓紧挨着排 ──

@@ -83,7 +83,7 @@ function overlaps(l: Layout, skills: string[], subs: string[]): string[] {
   return hits
 }
 
-/** 要检查的每一张图：9 个领域的树，加 17 个职业的天赋树，往上长和往右长各一遍 */
+/** 要检查的每一张图：每个领域的树，加每个职业的天赋树，往上长和往右长各一遍 */
 const views = [
   ...tree.roadmap.areas.map((a) => ({ name: a.name, view: { area: a.id }, skills: a.skillIds, subs: tree.roadmap.subs.filter((s) => a.skillIds.includes(s.anchor)).map((s) => s.id) })),
   ...tree.roadmap.subs.map((sub) => ({ name: sub.name, view: { career: sub.id }, skills: [...tree.closures.get(sub.id)!], subs: [sub.id] })),
@@ -141,11 +141,11 @@ test('一层一层往外：同一层的技能在同一行（往右长是同一�
   }
 })
 
-test('一棵领域的树不太大：往上长宽不超过 1400 像素，往右长高不超过 1400 像素', () => {
+test('一棵领域的树不太大：往上长宽不超过 1500 像素，往右长高不超过 1500 像素', () => {
   for (const { name, l } of views.filter((v) => 'area' in v.view)) {
     const { minX, minY, maxX, maxY } = l.bounds
     const across = l.orient === 'right' ? maxY - minY : maxX - minX
-    assert.ok(across <= 1400, `${name}: ${Math.round(maxX - minX)} x ${Math.round(maxY - minY)}`)
+    assert.ok(across <= 1500, `${name}: ${Math.round(maxX - minX)} x ${Math.round(maxY - minY)}`)
   }
 })
 
