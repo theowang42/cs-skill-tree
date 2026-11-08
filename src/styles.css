@@ -49,6 +49,16 @@ a {
   color: var(--ink-3);
 }
 
+/* 职业页、技能页 HTML 里给搜索引擎看的文字：页面上不显示，程序起来后整块换成技能树 */
+.seo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .boot.error {
   gap: 12px;
   align-content: center;

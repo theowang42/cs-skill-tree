@@ -73,11 +73,11 @@ function layout(p: Page): string {
 <meta name="twitter:image" content="${SITE}og.jpg">
 <meta name="theme-color" content="#ffffff">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='15' y='15' width='70' height='70' rx='8' fill='%23111'/></svg>">
-${p.app ?? `<link rel="stylesheet" href="${root}site.css">`}
+${p.app === undefined ? `<link rel="stylesheet" href="${root}site.css">` : `${p.app}\n<link rel="preload" href="${root}tree/data/roadmap.json" as="fetch" crossorigin>`}
 ${ld}
 </head>
 <body>
-${p.app === undefined ? site(root, p.body) : `<div id="root">\n${p.body}\n</div>`}
+${p.app === undefined ? site(root, p.body) : `<div id="root"><div class="boot">加载中</div><div class="seo">\n${p.body}\n</div></div>`}
 </body>
 </html>
 `
@@ -162,6 +162,8 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
       careers: Object.fromEntries(rm.subs.map((c) => [c.id, c.plan.map((p) => p.skillId)])),
       up: Object.fromEntries(rm.skills.map((s) => [s.id, [...tree.ancestors(s.id)]])),
     }
+    // 技能树的脚本、样式和数据（从首页出发的路径）：打开一个岗位的详情时先下好，点“就学这个”就不用等
+    const appFiles = [...[...app.matchAll(/(?:src|href)="\.\.\/\.\.\/([^"]+)"/g)].map((m) => m[1]), 'tree/data/roadmap.json']
     put({
       path: '',
       title: `你想学什么？${rm.subs.length} 个计算机岗位，各要学哪些技能 | ${NAME}`,
@@ -244,6 +246,7 @@ function choose(id) {
     pick.scrollTop = 0
   }
   current = id
+  if (id) prefetch(['career/' + id + '/index.html', ...${JSON.stringify(appFiles)}])
   pick.classList.toggle('open', !!id)
   pick.inert = !id
   document.documentElement.classList.toggle('lock', !!id)
@@ -251,6 +254,18 @@ function choose(id) {
     render()
     layout()
   } else j?.focus({ preventScroll: true })
+}
+/** 让浏览器空闲时先把这些文件下好（下过的不再下） */
+const fetched = new Set()
+function prefetch(urls) {
+  for (const href of urls) {
+    if (fetched.has(href)) continue
+    fetched.add(href)
+    const l = document.createElement('link')
+    l.rel = 'prefetch'
+    l.href = href
+    document.head.append(l)
+  }
 }
 /** 小树竖着还是横着：在 w × h 的框里哪个画得大用哪个；返回画出来多高 */
 function orient(m, w, h) {
