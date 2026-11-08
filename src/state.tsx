@@ -149,9 +149,13 @@ export function AppProvider({ tree, children }: { tree: Tree; children: ReactNod
     if (location.hash !== hash) history.replaceState(null, '', hash || location.pathname + location.search)
   }, [focus, readOnly])
 
-  // 技能树页的页签：选中了技能或职业就是它所在的领域，否则是最后看的那个
+  // 技能树页的页签：选中了技能或职业就是它所在的领域，否则是最后看的那个；
+  // 一打开先看地址栏的 #/area/web（首页抽屉里的领域链接），焦点同步时它会被清掉
   const areaOf = (f: Focus) => (!f ? null : tree.skill(f.kind === 'skill' ? f.id : tree.subs.get(f.id)!.anchor).areaId)
-  const [tab, setTab] = useState(() => areaOf(focus) ?? tree.roadmap.areas[0].id)
+  const [tab, setTab] = useState(() => {
+    const id = /^#\/area\/([a-z0-9-]+)$/.exec(location.hash)?.[1]
+    return areaOf(focus) ?? tree.roadmap.areas.find((a) => a.id === id)?.id ?? tree.roadmap.areas[0].id
+  })
   const area = career ? null : areaOf(focus) ?? tab
   useEffect(() => {
     if (area) setTab(area)
