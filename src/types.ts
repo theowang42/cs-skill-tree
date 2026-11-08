@@ -54,6 +54,8 @@ export interface Sub {
   categoryId: string
   name: string
   intro: string
+  /** 首页岗位名后面的一句，十个字左右 */
+  brief: string
   icon: string
   /** 徽章挂在哪个技能后面 */
   anchor: string

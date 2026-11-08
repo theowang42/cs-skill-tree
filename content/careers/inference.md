@@ -1,6 +1,7 @@
 ---
 name: AI Infra 工程师
 icon: circle-gauge
+brief: 让模型跑得更快更省
 keywords: [推理引擎, GPU, 分布式]
 requires: [dist-infer, bench, quantization, cuda]
 bonus: [triton, flash-attn, cutlass, gpu-perf, nccl, ai-compiler, tvm, mlir, sglang, trt-llm, spec-decode, onnx, edge-infer]

@@ -138,14 +138,15 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
     return `<svg class="${side ? 'side' : 'up'}" viewBox="${vx} ${vy} ${vw} ${vh}" aria-hidden="true">${edges}${nodes}<g class="n tip" ${move(t.x, t.y)}><g ${delay(t.y)}><circle r="${TIP_R}"/><circle r="${TIP_R - 7}"/><g transform="translate(-20,-20) scale(1.67)">${icon(c.icon)}</g></g></g><circle class="you" r="16"/></svg>`
   }
 
-  /** 首页的岗位列表：按大方向分组，每个岗位一个按钮，图标加名字（去掉“工程师”，和技能树顶上的切换一样），点亮过技能的后面写进度 */
+  /** 首页的岗位列表：按大方向分组，大方向竖着写在组的左边；一行一个岗位：图标、名字、一句话，点亮了多少从行底铺开 */
+  let row = 0
   const careerList = () =>
-    rm.categories.map((cat) => `<div class="group"><h2>${esc(cat.name)}</h2><div class="jobs">${cat.subIds.map((id) => {
+    rm.categories.map((cat, g) => `<div class="group" style="--g:${g}"><h2>${esc(cat.name)}</h2><div class="jobs">${cat.subIds.map((id) => {
       const c = subs.get(id)!
-      return `<a class="job" href="career/${c.id}/" data-id="${c.id}" data-name="${esc(c.name)}" data-cat="${esc(cat.name)}" data-intro="${esc(c.intro)}">${icon(c.icon, 20)}${esc(c.name.replace(/\s*工程师$/, ''))}<span class="n"></span></a>`
+      return `<a class="job" href="career/${c.id}/" data-id="${c.id}" data-name="${esc(c.name)}" data-cat="${esc(cat.name)}" data-intro="${esc(c.intro)}" style="--i:${row++}">${icon(c.icon, 18)}<b>${esc(c.name)}</b><span class="br">${esc(c.brief)}</span><i aria-hidden="true">→</i></a>`
     }).join('')}</div></div>`).join('')
 
-  // ── 首页：一个问题“你想学什么”，下面按大方向列出 17 个岗位。点一个，旁边（窄屏上在它那组下面）写它是什么、长出它的技能树；点“就学这个”记下来，进这条路线 ──
+  // ── 首页：一个问题“你想学什么”，下面一屏列出全部 17 个岗位，一行一个。点一个，旁边滑出抽屉（手机上从底下升起）：它是什么、它的技能树；点“就学这个”记下来，进这条路线 ──
   {
     // 首页的脚本要用的：每个岗位要学的技能，每个技能的全部前置（点亮它就连前置一起点亮，熄灭它就连依赖它的一起熄灭）
     const data = {
@@ -171,16 +172,17 @@ try {
 <div class="home">
   <h1>你想学什么？</h1>
   <section id="careers">${careerList()}</section>
-  <aside class="pick">
-    <p class="pick-hint">点左边的一个岗位</p>
-    <h2 class="pk-name"></h2>
-    <p class="pk-meta"></p>
-    <p class="pk-intro"></p>
-    <div class="minis">${rm.subs.map((c) => `<div class="mini" data-id="${c.id}">${miniTree(c, false)}${miniTree(c, true)}</div>`).join('')}</div>
-    ${rm.subs.map((c) => `<div class="has" data-id="${c.id}"><p class="pk-ask">要学这 ${c.plan.length} 个，会的点一下</p><div class="quick">${c.plan.map(({ skillId: id }) => `<button type="button" class="chip" data-s="${id}" aria-pressed="false"><svg width="14" height="14" aria-hidden="true"><use href="#i-${id}"/></svg>${esc(sk(id).name)}</button>`).join('')}</div></div>`).join('')}
-    <a class="go" href="">就学这个</a>
-  </aside>
 </div>
+<div class="scrim"></div>
+<aside class="pick" aria-label="岗位详情" inert>
+  <button type="button" class="x" aria-label="关闭"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16"/></svg></button>
+  <h2 class="pk-name"></h2>
+  <p class="pk-meta"></p>
+  <p class="pk-intro"></p>
+  <div class="minis">${rm.subs.map((c) => `<div class="mini" data-id="${c.id}">${miniTree(c, false)}${miniTree(c, true)}</div>`).join('')}</div>
+  ${rm.subs.map((c) => `<div class="has" data-id="${c.id}"><p class="pk-ask">要学这 ${c.plan.length} 个，会的点一下</p><div class="quick">${c.plan.map(({ skillId: id }) => `<button type="button" class="chip" data-s="${id}" aria-pressed="false"><svg width="14" height="14" aria-hidden="true"><use href="#i-${id}"/></svg>${esc(sk(id).name)}</button>`).join('')}</div></div>`).join('')}
+  <a class="go" href="">就学这个</a>
+</aside>
 
 <script>
 const KEY = ${JSON.stringify(PROGRESS_KEY)}, D = ${JSON.stringify(data)}
@@ -188,53 +190,57 @@ let store = null
 try { store = JSON.parse(localStorage.getItem(KEY)) } catch {}
 if (store?.format !== 'cs-skill-tree-progress') store = { format: 'cs-skill-tree-progress', version: 1, skills: {} }
 const lit = () => new Set(Object.keys(store.skills).filter((k) => store.skills[k].status === 'done'))
-const page = document.querySelector('.home')
-const list = document.querySelector('#careers')
+const home = document.querySelector('.home')
 const pick = document.querySelector('.pick')
+const scrim = document.querySelector('.scrim')
 const minis = pick.querySelector('.minis')
 const jobs = [...document.querySelectorAll('.job')]
 const job = (id) => jobs.find((j) => j.dataset.id === id)
 let current = null
-try { current = localStorage.getItem(${JSON.stringify(ROUTE_KEY)}) } catch {}
-if (!D.careers[current]) current = null
-const saved = current
+let saved = null
+try { saved = localStorage.getItem(${JSON.stringify(ROUTE_KEY)}) } catch {}
 /** 一个岗位还差几个、一共几个 */
 const count = (id) => {
   const l = lit()
   const need = D.careers[id]
   return { total: need.length, left: need.filter((s) => !l.has(s)).length }
 }
-/** 选中一个岗位：按钮变黑，详情换成它：名字、介绍、小树（重新长一遍）、要学的技能 */
+/** 打开一个岗位的抽屉：这一行变黑，抽屉里换成它：名字、介绍、小树（重新长一遍）、要学的技能；id 为空就关上 */
 function choose(id) {
   current = id
   const j = job(id)
-  page.classList.add('chosen')
   for (const x of jobs) x.classList.toggle('on', x === j)
-  for (const m of pick.querySelectorAll('.mini, .has')) m.classList.toggle('on', m.dataset.id === id)
-  pick.querySelector('.pk-name').textContent = j.dataset.name
-  pick.querySelector('.pk-intro').textContent = j.dataset.intro
-  const go = pick.querySelector('.go')
-  go.setAttribute('href', 'career/' + id + '/index.html')
-  go.textContent = id === saved ? '继续学这个' : '就学这个'
-  render()
-  layout()
+  pick.classList.toggle('open', !!j)
+  pick.inert = !j
+  if (j) {
+    for (const m of pick.querySelectorAll('.mini, .has')) m.classList.toggle('on', m.dataset.id === id)
+    pick.querySelector('.pk-name').textContent = j.dataset.name
+    pick.querySelector('.pk-intro').textContent = j.dataset.intro
+    const go = pick.querySelector('.go')
+    go.setAttribute('href', 'career/' + id + '/index.html')
+    go.textContent = id === saved ? '继续学这个' : '就学这个'
+    pick.scrollTop = 0
+    render()
+    layout()
+  }
+  place()
 }
-const wide = () => getComputedStyle(page).gridTemplateColumns.split(' ').length > 1
 /**
- * 详情放哪：两栏并排时在右栏；窄屏上放进选中岗位那一组的下面。
- * 小树竖着还是横着：哪个在这块地方画得大用哪个。这块地方是右栏里剩下的高度（两栏并排时右栏和岗位列表一样高），
- * 窄屏上给一个固定高度。挑好后框按树的形状收紧。
+ * 抽屉旁边放得下整个列表：列表往左让开，两边都看得见；放不下（窄屏）：抽屉盖在上面，后面压一层浅灰，点它关上
  */
+function place() {
+  const open = pick.classList.contains('open')
+  const free = innerWidth - pick.offsetWidth
+  const beside = free >= home.offsetWidth + 48
+  scrim.classList.toggle('on', open && !beside)
+  const dx = open && beside ? Math.min(0, Math.max(24, (free - home.offsetWidth) / 2) - home.offsetLeft) : 0
+  home.style.transform = dx ? 'translateX(' + dx + 'px)' : ''
+}
+/** 小树竖着还是横着：哪个在抽屉里（一栏宽、最高 300）画得大用哪个。挑好后框按树的形状收紧 */
 function layout() {
   const m = pick.querySelector('.mini.on')
   if (!m) return
-  const w2 = wide()
-  const at = w2 ? page : job(current).closest('.group')
-  if (pick.parentNode !== at) at.append(pick)
-  minis.style.height = '0px'
-  // 右栏除了小树还要放的：名字到技能列表，加上按钮
-  const used = pick.querySelector('.has.on').getBoundingClientRect().bottom - pick.getBoundingClientRect().top + pick.querySelector('.go').offsetHeight + 32
-  const h = w2 ? Math.max(260, list.offsetHeight - used) : 320
+  const h = 260
   const w = minis.clientWidth
   const box = (svg) => svg.getAttribute('viewBox').split(' ').map(Number).slice(2)
   const fit = ([vw, vh]) => Math.min(w / vw, h / vh)
@@ -243,15 +249,17 @@ function layout() {
   const [vw, vh] = box(m.querySelector(side ? '.side' : '.up'))
   minis.style.height = Math.round(Math.min(h, (w * vh) / vw)) + 'px'
 }
-addEventListener('resize', layout)
+addEventListener('resize', () => {
+  layout()
+  place()
+})
 function render() {
   const l = lit()
   for (const b of pick.querySelectorAll('.quick .chip')) b.setAttribute('aria-pressed', l.has(b.dataset.s))
   for (const n of pick.querySelectorAll('.mini .n[data-s]')) n.classList.toggle('lit', l.has(n.dataset.s))
   for (const j of jobs) {
     const { total, left } = count(j.dataset.id)
-    j.querySelector('.n').textContent = left < total ? total - left + '/' + total : ''
-    j.classList.toggle('done', left === 0)
+    j.style.setProperty('--p', ((total - left) / total).toFixed(3))
   }
   if (current) {
     const { total, left } = count(current)
@@ -270,17 +278,17 @@ for (const b of pick.querySelectorAll('.quick .chip')) b.addEventListener('click
 for (const j of jobs) {
   j.addEventListener('click', (e) => {
     e.preventDefault()
-    if (current === j.dataset.id) return
-    choose(j.dataset.id)
-    // 窄屏上详情在这组下面展开：把点的按钮滚到顶上，下面就是它的详情
-    if (!wide()) j.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // 再点一下打开着的那行就关上
+    choose(current === j.dataset.id ? null : j.dataset.id)
   })
 }
+pick.querySelector('.x').addEventListener('click', () => choose(null))
+scrim.addEventListener('click', () => choose(null))
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && current) choose(null) })
 pick.querySelector('.go').addEventListener('click', () => {
   try { localStorage.setItem(${JSON.stringify(ROUTE_KEY)}, current) } catch {}
 })
-if (current) choose(current)
-else render()
+render()
 </script>
 `,
     })

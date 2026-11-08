@@ -31,6 +31,7 @@ export interface Content {
     id: string
     name: string
     icon: string
+    brief: string
     keywords: string[]
     requires: string[]
     bonus: string[]
@@ -162,14 +163,15 @@ export function load(root: URL = CONTENT): Content {
   })
   const careers = each('careers', (id, file, text) => {
     const f = read(file, text, {
-      meta: { name: 'text', icon: 'text', keywords: 'list', requires: 'list', bonus: 'list' },
-      required: ['name', 'icon', 'keywords', 'requires'],
+      meta: { name: 'text', icon: 'text', brief: 'text', keywords: 'list', requires: 'list', bonus: 'list' },
+      required: ['name', 'icon', 'brief', 'keywords', 'requires'],
       sections: ['平时做什么', '代表项目'],
     })
     return {
       id,
       name: f.get('name') as string,
       icon: f.get('icon') as string,
+      brief: f.get('brief') as string,
       keywords: f.get('keywords') as string[],
       requires: f.get('requires') as string[],
       bonus: f.get('bonus') as string[],

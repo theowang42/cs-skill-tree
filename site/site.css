@@ -23,16 +23,49 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .chip:hover { border-color: var(--ink); background: var(--wash); }
 .chip svg { color: var(--ink-2); }
 
-/* 首页。三种字号：大 40（标题、岗位名）、中 16（正文、岗位按钮）、小 13（大方向、数字、说明、技能选项）。
-   一条网格：标题横跨，下面左边岗位列表、右边选中的岗位，两栏顶部对齐 */
-.home { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; column-gap: 64px; padding: 48px 0 0; }
-.home h1 { grid-column: 1 / -1; margin-bottom: 32px; font-size: 40px; letter-spacing: .02em; }
-.pick { display: flex; flex-direction: column; min-width: 0; }
-.pick-hint { margin: auto 0; text-align: center; font-size: 16px; color: var(--ink-3); }
-.pk-name, .pk-meta, .pk-intro, .minis, .go { display: none; }
-.chosen .pick-hint { display: none; }
-.chosen .pk-name, .chosen .pk-meta, .chosen .pk-intro, .chosen .minis, .chosen .go { display: block; }
-.pk-name { font-size: 40px; line-height: 1.2; }
+/* 首页。三种字号：大 40（标题、抽屉里的岗位名）、中 16（岗位、正文、按钮）、小 13（大方向、一句话、说明、技能选项）。
+   一屏放下全部岗位：标题，下面一张表，大方向竖着写在左边，一行一个岗位，行高跟着屏幕高度走。
+   点一行，抽屉从右边滑出（手机上从底下升起） */
+.home { --row: clamp(34px, calc((100svh - 230px) / 17), 46px); max-width: 720px; margin: 0 auto; padding: 32px 0 0; transition: transform .5s var(--ease); }
+.home h1 { margin-bottom: 24px; font-size: 40px; letter-spacing: .02em; animation: rise .6s var(--ease) backwards; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+
+/* 岗位表：组和组之间一条黑线（从左往右画出来），组里一行一条细线 */
+.group { position: relative; display: grid; grid-template-columns: 36px 1fr; }
+.group::before, #careers::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: var(--ink); transform-origin: left; animation: line .8s var(--ease) backwards; animation-delay: calc(var(--g, 6) * 70ms); }
+#careers { position: relative; }
+#careers::after { top: auto; bottom: 0; }
+@keyframes line { from { transform: scaleX(0); } }
+/* 竖排的大方向：不撑高这一组（只有一行的组也放得下），在组里上下居中 */
+.group > h2 { contain: size; display: flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; font-weight: 700; letter-spacing: .1em; color: var(--ink-2); writing-mode: vertical-rl; text-orientation: upright; animation: fade .6s var(--ease) backwards; animation-delay: calc(var(--g) * 70ms + 150ms); }
+@keyframes fade { from { opacity: 0; } }
+.job { position: relative; isolation: isolate; display: grid; grid-template-columns: 18px 10em 1fr 16px; align-items: center; column-gap: 12px; height: var(--row); padding: 0 12px; font-size: 16px; text-decoration: none; white-space: nowrap; animation: slide .55s var(--ease) backwards; animation-delay: calc(var(--i) * 28ms + 120ms); transition: color .25s var(--ease); }
+@keyframes slide { from { opacity: 0; transform: translateX(-14px); } }
+.job + .job { border-top: 1px solid var(--line-2); }
+/* 点亮了多少：行底一条黑线从左往右铺开 */
+.job::before { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; z-index: 1; background: var(--ink); transform: scaleX(var(--p, 0)); transform-origin: left; transition: transform .7s var(--ease); }
+/* 选中：黑底从左往右推过去 */
+.job::after { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ink); transform: scaleX(0); transform-origin: left; transition: transform .35s var(--ease); }
+.job.on { color: #fff; }
+.job.on::after { transform: none; }
+.job:hover:not(.on) { background: var(--wash); }
+.job svg { transition: transform .25s var(--ease); }
+.job b { font-weight: 700; }
+.job .br { overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); transition: color .25s var(--ease); }
+.job.on .br { color: #fff; }
+.job i { font-style: normal; opacity: 0; transform: translateX(-6px); transition: opacity .25s var(--ease), transform .25s var(--ease); }
+.job:hover svg { transform: translateX(3px); }
+.job:hover i, .job.on i { opacity: 1; transform: none; }
+
+/* 抽屉 */
+.scrim { position: fixed; inset: 0; z-index: 20; background: rgba(17,17,17,.28); opacity: 0; pointer-events: none; transition: opacity .35s var(--ease); }
+.scrim.on { opacity: 1; pointer-events: auto; }
+.pick { position: fixed; z-index: 21; top: 60px; right: 0; bottom: 0; display: flex; flex-direction: column; width: min(480px, 100%); padding: 28px 28px 32px; overflow-y: auto; overscroll-behavior: contain; background: var(--paper); border-left: 1px solid var(--ink); transform: translateX(100%); visibility: hidden; transition: transform .5s var(--ease), visibility 0s .5s; }
+.pick.open { transform: none; visibility: visible; transition: transform .5s var(--ease); }
+.pick .x { position: absolute; top: 20px; right: 20px; width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 0; background: none; cursor: pointer; }
+.pick .x path { stroke: var(--ink); stroke-width: 1.6; }
+.pick .x:hover { background: var(--wash); }
+.pk-name { padding-right: 40px; font-size: 40px; line-height: 1.2; }
 .pk-meta { margin: 8px 0 0; font-size: 13px; color: var(--ink-2); }
 .pk-intro { margin: 12px 0 0; font-size: 16px; }
 .minis { margin: 24px 0; }
@@ -49,7 +82,7 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .quick .chip:hover { color: var(--ink); }
 .quick .chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
 .quick .chip[aria-pressed="true"] svg { color: #fff; }
-.go { margin-top: auto; padding: 14px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 16px; font-weight: 700; text-align: center; text-decoration: none; transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
+.go { padding: 14px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 16px; font-weight: 700; text-align: center; text-decoration: none; transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
 .go:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.18); }
 
 /* 小树 */
@@ -67,30 +100,21 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 @keyframes pop { to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   .mini .e, .mini .n > g { animation: none; opacity: 1; transform: none; stroke-dashoffset: 0; }
+  .home h1, .group::before, #careers::after, .group > h2, .job { animation: none; }
 }
-
-/* 岗位列表：大方向一组，每个岗位一个按钮，图标加名字；点亮过技能的后面写进度 */
-.group + .group { margin-top: 24px; }
-.group > h2 { margin-bottom: 10px; font-size: 13px; color: var(--ink-2); }
-.jobs { display: flex; flex-wrap: wrap; gap: 8px; }
-.job { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px 9px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 16px; text-decoration: none; scroll-margin-top: 76px; transition: border-color .2s var(--ease), background .2s var(--ease); }
-.job:hover { border-color: var(--ink); }
-.job .n { font-size: 13px; color: var(--ink-3); }
-.job .n:empty { display: none; }
-.job.done .n { color: var(--ink); font-weight: 700; }
-.job.on { background: var(--ink); border-color: var(--ink); color: #fff; }
-.job.on .n { color: #fff; }
-
 
 .foot { max-width: 1200px; margin: 40px auto 0; padding: 28px 24px 48px; border-top: 1px solid var(--line-2); color: var(--ink-2); font-size: 13px; }
 .foot p { margin: 4px 0; }
 
-/* 窄屏一栏排下来；选中岗位的详情放进它那组下面 */
-@media (max-width: 860px) {
-  .home { grid-template-columns: 1fr; padding-top: 24px; }
-  .home h1 { margin-bottom: 24px; font-size: 32px; }
-  .pick { display: none; }
-  .group .pick { display: flex; margin-top: 16px; padding: 24px 0; border-top: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); }
+/* 手机：抽屉从底下升起，盖住大半屏；一句话缩小一号跟在名字后面 */
+@media (max-width: 640px) {
+  .home { padding-top: 20px; }
+  .home h1 { margin-bottom: 16px; font-size: 32px; }
+  .group { grid-template-columns: 28px 1fr; }
+  .job { grid-template-columns: 18px auto 1fr; padding: 0 10px; }
+  .job .br { font-size: 13px; }
+  .job i { display: none; }
+  .pick { top: auto; left: 0; height: 86svh; width: 100%; padding: 24px 16px 28px; border-left: 0; border-top: 1px solid var(--ink); transform: translateY(100%); }
   .pk-name { font-size: 32px; }
 }
 @media (max-width: 560px) {

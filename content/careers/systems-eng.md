@@ -1,6 +1,7 @@
 ---
 name: 嵌入式工程师
 icon: server-cog
+brief: 写贴近硬件的软件
 keywords: [单片机, 驱动, RTOS]
 requires: [rtos, driver, gdb, arch, cpp, concurrency, networking]
 bonus: [ebpf, rust, perf, compiler, llvm]

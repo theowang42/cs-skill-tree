@@ -1,6 +1,7 @@
 ---
 name: 运维 / SRE 工程师
 icon: life-buoy
+brief: 部署、监控、处理故障
 keywords: [Kubernetes, 监控, 云]
 requires: [incident, iac, shell, go, nginx, ci]
 bonus: [ebpf, virtualization]

@@ -1,6 +1,7 @@
 ---
 name: 后端开发工程师
 icon: server
+brief: 写接口和数据库
 keywords: [接口, 数据库, 缓存]
 requires: [postgres, system-design, ci]
 bonus: [go, java]

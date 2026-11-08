@@ -1,6 +1,7 @@
 ---
 name: AI 应用工程师
 icon: bot-message-square
+brief: 把大模型做成产品
 keywords: [RAG, Agent, 后端]
 requires: [mcp, eval, prompt, finetune]
 bonus: [multimodal, voice, websocket, testing, system-design]

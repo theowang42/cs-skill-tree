@@ -1,6 +1,7 @@
 ---
 name: 数据分析师
 icon: chart-pie
+brief: 用数据回答业务问题
 keywords: [SQL, 统计, A/B 实验]
 requires: [ab-test, viz]
 bonus: [feature, timeseries]
