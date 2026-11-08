@@ -37,7 +37,7 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 #careers::after { top: auto; bottom: 0; }
 @keyframes line { from { transform: scaleX(0); } }
 /* 竖排的大方向：不撑高这一组（只有一行的组也放得下），在组里上下居中 */
-.group > h2 { contain: size; display: flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; font-weight: 700; letter-spacing: .1em; color: var(--ink-2); writing-mode: vertical-rl; text-orientation: upright; animation: fade .6s var(--ease) backwards; animation-delay: calc(var(--g) * 70ms + 150ms); }
+.group > h2 { contain: size; display: flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; font-weight: 700; white-space: nowrap; color: var(--ink-2); writing-mode: vertical-rl; text-orientation: upright; animation: fade .6s var(--ease) backwards; animation-delay: calc(var(--g) * 70ms + 150ms); }
 @keyframes fade { from { opacity: 0; } }
 .job { position: relative; isolation: isolate; display: grid; grid-template-columns: 18px 10em 1fr 16px; align-items: center; column-gap: 12px; height: var(--row); padding: 0 12px; font-size: 16px; text-decoration: none; white-space: nowrap; animation: slide .55s var(--ease) backwards; animation-delay: calc(var(--i) * 28ms + 120ms); transition: color .25s var(--ease); }
 @keyframes slide { from { opacity: 0; transform: translateX(-14px); } }
