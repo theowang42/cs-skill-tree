@@ -12,10 +12,10 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 60px; padding: 0 24px; background: rgba(255,255,255,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line-2); }
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .06em; text-decoration: none; white-space: nowrap; }
 .logo .mark { width: 16px; height: 16px; border-radius: 3px; background: var(--ink); }
-.top nav { display: flex; align-items: center; gap: 22px; font-size: 14px; }
+.top nav { display: flex; align-items: center; gap: 22px; font-size: 13px; }
+.top nav a { color: var(--ink-2); text-decoration: none; }
+.top nav a:hover { color: var(--ink); }
 
-.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--ink); color: #fff; font-weight: 700; text-decoration: none; white-space: nowrap; transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
-.btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,.14); }
 
 
 /* 卡片 */
@@ -73,14 +73,13 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 /* 岗位圆环：扇形里只有图标，外面只写大方向。字都在图里，跟圆环一起缩放 */
 .ring { position: relative; align-self: start; }
 .jobs { display: block; width: 100%; height: auto; overflow: visible; }
-.cat { font-size: calc(var(--cat, 27) * 1px); font-weight: 700; fill: var(--ink-2); dominant-baseline: central; }
+.cat { font-size: calc(var(--cat, 27) * 1px); font-weight: 500; fill: var(--ink-2); dominant-baseline: central; }
 .job { outline: none; cursor: pointer; }
 .job .w { transition: transform .35s var(--ease); animation: rise .45s var(--ease) backwards; animation-delay: calc(var(--i) * 35ms); }
-.wedge { fill: var(--wash); transition: fill .25s; }
+.wedge { fill: #f7f7f7; transition: fill .25s; }
 .job .w svg { color: var(--ink); transition: color .25s; }
-.job .track { fill: none; stroke: var(--line-2); stroke-width: 7; }
 .job .prog { fill: none; stroke: var(--ink); stroke-width: 7; transition: stroke-dasharray .5s var(--ease); }
-.job:hover .wedge, .job:focus-visible .wedge { fill: var(--line); }
+.job:hover .wedge, .job:focus-visible .wedge { fill: var(--line-2); }
 .job.done .wedge { fill: var(--off-ink); }
 .job.done .w svg { color: #fff; }
 .job.on .w { transform: translate(var(--dx), var(--dy)); }
@@ -96,10 +95,10 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 
 /* 窄屏一栏排下来：圆环、岗位、小树、技能、按钮 */
 @media (max-width: 860px) {
-  .home { grid-template-columns: 1fr; padding-top: 32px; }
-  .home h1 { margin-bottom: 16px; font-size: 32px; }
-  .pick { margin-top: 24px; }
-  .pick-hint { display: none; }
+  .home { grid-template-columns: 1fr; padding-top: 24px; }
+  .home h1 { margin-bottom: 8px; font-size: 32px; }
+  .pick { margin-top: 16px; }
+  .pick-hint { margin: 0; font-size: 13px; }
   .pk-name { font-size: 32px; }
   .ring { width: min(100%, 520px); justify-self: center; }
 }

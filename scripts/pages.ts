@@ -89,7 +89,7 @@ ${p.app === undefined ? site(root, p.body) : `<div id="root">\n${p.body}\n</div>
 /** 站点的页头、正文、页脚 */
 const site = (root: string, body: string) => `<header class="top">
   <a class="logo" href="${root}"><span class="mark"></span>${NAME}</a>
-  <nav><a class="btn" href="${root}tree/">打开技能树</a></nav>
+  <nav><a href="${root}tree/">全部技能</a></nav>
 </header>
 <main>
 ${body}
@@ -114,7 +114,7 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
     const l = layoutTree(tree, { career: c.id })
     // 小树不写名字，层和层之间压紧一点（K）；横着的就是把往上长的整棵转 90°：往上变成往右，图标不转
     const K = 0.55
-    const P = (x: number, y: number) => (side ? [-y * K, x] : [x, y * K])
+    const P = (x: number, y: number) => (side ? [-y * K, x] : [x, y * K]).map(Math.round)
     const { minX, maxX } = l.bounds
     const [minY, maxY] = [l.bounds.minY * K, l.bounds.maxY * K]
     const [vx, vy, vw, vh] = (side ? [-maxY, minX, maxY - minY, maxX - minX] : [minX, minY, maxX - minX, maxY - minY]).map(Math.round)
@@ -190,7 +190,7 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
         parts.push(`<a class="job" href="career/${c.id}/" data-id="${c.id}" data-name="${esc(c.name)}" data-cat="${esc(cat.name)}" data-intro="${esc(c.intro)}" data-tx="${tx}" data-ty="${ty}" style="--i:${i++};--dx:${dx}px;--dy:${dy}px" aria-label="${esc(c.name)}">` +
           `<g class="w"><path class="wedge" d="M${ox1},${oy1} A${RO},${RO} 0 0 1 ${ox2},${oy2} L${ix2},${iy2} A${RI},${RI} 0 0 0 ${jx1},${jy1}Z"/>` +
           `<g transform="translate(${r1(ix - 26)},${r1(iy - 26)}) scale(2.17)">${icon(c.icon)}</g>` +
-          `<path class="track" d="${arc(RP, b1, b2)}"/><path class="prog" d="${arc(RP, b1, b2)}" pathLength="100" stroke-dasharray="0 100"/></g></a>`)
+          `<path class="prog" d="${arc(RP, b1, b2)}" pathLength="100" stroke-dasharray="0 100"/></g></a>`)
         pos++
       }
       pos += GAP
@@ -208,8 +208,8 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
     }
     put({
       path: '',
-      title: `${NAME}：${rm.skills.length} 个计算机技能和 ${rm.subs.length} 个职业的学习路线`,
-      description: `一棵 ${rm.skills.length} 个技能的计算机技能树：点亮你会的，看清自己的能力边界，按 ${rm.subs.length} 个职业倒推学习路线，每个技能附公开课。免费，不用注册。`,
+      title: `你想学什么？${rm.subs.length} 个计算机岗位，各要学哪些技能 | ${NAME}`,
+      description: `${rm.subs.length} 个计算机岗位，各要学哪些技能、按什么顺序学、去哪免费学。点亮你会的，看离岗位还差几个。免费，不用注册。`,
       body: `
 <script>
 /* 技能树以前在首页：旧的分享链接和技能链接（#share=… / #/skill/…）转到 tree/ */
@@ -231,7 +231,7 @@ try {
     <p class="pk-meta"></p>
     <p class="pk-intro"></p>
     <div class="minis">${rm.subs.map((c) => `<div class="mini" data-id="${c.id}">${miniTree(c, false)}${miniTree(c, true)}</div>`).join('')}</div>
-    ${rm.subs.map((c) => `<div class="has" data-id="${c.id}"><p class="pk-ask">要学这 ${c.plan.length} 个，会的点一下</p><div class="quick">${c.plan.map(({ skillId: id }) => `<button type="button" class="chip" data-s="${id}" aria-pressed="false">${icon(sk(id).icon, 14)}${esc(sk(id).name)}</button>`).join('')}</div></div>`).join('')}
+    ${rm.subs.map((c) => `<div class="has" data-id="${c.id}"><p class="pk-ask">要学这 ${c.plan.length} 个，会的点一下</p><div class="quick">${c.plan.map(({ skillId: id }) => `<button type="button" class="chip" data-s="${id}" aria-pressed="false"><svg width="14" height="14" aria-hidden="true"><use href="#i-${id}"/></svg>${esc(sk(id).name)}</button>`).join('')}</div></div>`).join('')}
     <a class="go" href="">就学这个</a>
   </aside>
 </div>
