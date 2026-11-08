@@ -20,8 +20,6 @@ import { ROUTE_KEY, SEEN_KEY } from '../src/lib/route.ts'
 export const SITE = 'https://theowang42.github.io/cs-skill-tree/'
 const REPO = 'https://github.com/theowang42/cs-skill-tree'
 const NAME = 'CS 技能树'
-/** 首页第一屏让人先点的常见技能 */
-const QUICK = ['python', 'javascript', 'java', 'linux', 'git', 'sql', 'cs61b', 'networking', 'docker', 'react', 'ml', 'pytorch']
 /** 和技能树存进度用的是同一个地方，首页点亮的进了树里也在 */
 const PROGRESS_KEY = 'cs-skill-tree:progress:v1'
 
@@ -136,11 +134,12 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
   const skillChip = (s: Skill, root: string) => `<a class="chip" href="${root}skill/${s.id}/">${icon(s.icon, 16)}${esc(s.name)}</a>`
   /**
    * 首页的岗位圆环：17 个岗位是一圈扇形按钮，同一个大方向的挨着，大方向之间空开一点；从正上方开始顺时针。
-   * 扇形中间是图标，外面一道细弧是进度；名字写在圆环外面（手机上放不下，只在圆心写正看着的那个）。
+   * 扇形中间是图标，外面一道细弧是进度，名字写在圆环外面，名字也能点。圆心写悬停或选中的那个。
+   * 电脑和手机各画一套：手机上圆环小一点、字按屏幕像素定，名字用短的。
    */
-  const careerRing = () => {
-    const [RI, RO] = [178, 300] // 扇形的内外半径
-    const RP = 316 // 进度弧
+  type Ring = { ri: number; ro: number; fs: number; lift: number; spread: number; iconS: number; pop: number; track: number; label: (c: Sub) => string; cls: string }
+  const ringSvg = (g: Ring) => {
+    const rp = g.ro + g.track * 1.6 // 进度弧
     const GAP = 0.6 // 大方向之间空出几个扇形的位置
     const PAD = 0.012 // 扇形之间的缝（弧度）
     const unit = (Math.PI * 2) / (rm.subs.length + rm.categories.length * GAP)
@@ -151,48 +150,70 @@ export function renderSite(rm: Roadmap, app = ''): Map<string, string> {
       const [x2, y2] = pt(r, a2)
       return `M${x1},${y1} A${r},${r} 0 0 1 ${x2},${y2}`
     }
-    const jobs: { c: Sub; cat: string; a1: number; a2: number; lx: number; ly: number }[] = []
+    /** 名字大概多宽：中文一个字宽，英文数字半个多一点 */
+    const width = (t: string) => [...t].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 1 : 0.58), 0) * g.fs
+    const jobs: { c: Sub; cat: string; a: number; lx: number; ly: number }[] = []
     let pos = GAP / 2
     for (const cat of rm.categories) {
       cat.subIds.forEach((id, i) => {
-        const a1 = (pos + i) * unit
-        const a = a1 + unit / 2
+        const a = (pos + i + 0.5) * unit
         // 越靠近正上方、正下方，名字（横着写）越要离圆环远一点才不压到它
-        const [lx, ly] = pt(RP + 26 + 34 * Math.cos(a) ** 2, a)
-        jobs.push({ c: subs.get(id)!, cat: cat.name, a1, a2: a1 + unit, lx, ly })
+        const [lx, ly] = pt(rp + g.fs * 0.6 + g.lift * Math.cos(a) ** 2, a)
+        jobs.push({ c: subs.get(id)!, cat: cat.name, a, lx, ly })
       })
       pos += cat.subIds.length + GAP
     }
     // 同一边上下挨得太近的名字往下错开
     for (const right of [true, false]) {
-      const half = jobs.filter((j) => Math.sin(j.a1 + unit / 2) > 0 === right).sort((p, q) => p.ly - q.ly)
-      for (let k = 1; k < half.length; k++) half[k].ly = Math.max(half[k].ly, half[k - 1].ly + 34)
+      const half = jobs.filter((j) => Math.sin(j.a) > 0 === right).sort((p, q) => p.ly - q.ly)
+      for (let k = 1; k < half.length; k++) half[k].ly = Math.max(half[k].ly, half[k - 1].ly + g.spread)
     }
-    const wedges = jobs.map(({ c, cat, a1, a2, lx, ly }, i) => {
-      const [b1, b2] = [a1 + PAD, a2 - PAD]
-      const a = (a1 + a2) / 2
-      const [ix, iy] = pt((RI + RO) / 2, a)
-      const [dx, dy] = pt(14, a)
-      const [ox1, oy1] = pt(RO, b1)
-      const [ox2, oy2] = pt(RO, b2)
-      const [ix2, iy2] = pt(RI, b2)
-      const [ix1, iy1] = pt(RI, b1)
-      const shape = `M${ox1},${oy1} A${RO},${RO} 0 0 1 ${ox2},${oy2} L${ix2},${iy2} A${RI},${RI} 0 0 0 ${ix1},${iy1}Z`
+    const box = { x1: -rp, x2: rp, y1: -rp, y2: rp }
+    const wedges = jobs.map(({ c, cat, a, lx, ly }, i) => {
+      const [b1, b2] = [a - unit / 2 + PAD, a + unit / 2 - PAD]
+      const [ix, iy] = pt((g.ri + g.ro) / 2, a)
+      const [dx, dy] = pt(g.pop, a)
+      const [ox1, oy1] = pt(g.ro, b1)
+      const [ox2, oy2] = pt(g.ro, b2)
+      const [ix2, iy2] = pt(g.ri, b2)
+      const [ix1, iy1] = pt(g.ri, b1)
+      const shape = `M${ox1},${oy1} A${g.ro},${g.ro} 0 0 1 ${ox2},${oy2} L${ix2},${iy2} A${g.ri},${g.ri} 0 0 0 ${ix1},${iy1}Z`
+      const name = g.label(c)
+      const w = width(name)
+      const right = Math.sin(a) > 0
+      const tx = right ? lx : lx - w
+      box.x1 = Math.min(box.x1, tx - 4)
+      box.x2 = Math.max(box.x2, tx + w + 4)
+      box.y1 = Math.min(box.y1, ly - g.fs)
+      box.y2 = Math.max(box.y2, ly + g.fs)
+      const h = g.iconS / 2
       return `<a class="job" href="career/${c.id}/" data-id="${c.id}" data-name="${esc(c.name)}" data-cat="${esc(cat)}" data-intro="${esc(c.intro)}" style="--i:${i};--dx:${dx}px;--dy:${dy}px">` +
-        `<g class="w"><path class="wedge" d="${shape}"/><g transform="translate(${ix - 22},${iy - 22}) scale(1.83)">${icon(c.icon)}</g>` +
-        `<path class="track" d="${arc(RP, b1, b2)}"/><path class="prog" d="${arc(RP, b1, b2)}" pathLength="100" stroke-dasharray="0 100"/></g>` +
-        `<text class="job-name" x="${lx}" y="${r1(ly)}" text-anchor="${Math.sin(a) > 0 ? 'start' : 'end'}">${esc(c.name.replace(/工程师$/, ''))}</text></a>`
+        `<g class="w"><path class="wedge" d="${shape}"/><g transform="translate(${r1(ix - h)},${r1(iy - h)}) scale(${r1(g.iconS / 24 * 100) / 100})">${icon(c.icon)}</g>` +
+        `<path class="track" d="${arc(rp, b1, b2)}" stroke-width="${g.track}"/><path class="prog" d="${arc(rp, b1, b2)}" stroke-width="${g.track}" pathLength="100" stroke-dasharray="0 100"/></g>` +
+        `<rect class="hit" x="${r1(tx - 4)}" y="${r1(ly - g.fs * 0.8)}" width="${r1(w + 8)}" height="${r1(g.fs * 1.6)}"/>` +
+        `<text class="job-name" x="${lx}" y="${r1(ly)}" font-size="${g.fs}" text-anchor="${right ? 'start' : 'end'}">${esc(name)}</text></a>`
     })
-    return `<div class="ring-wrap"><svg class="jobs" viewBox="-560 -410 1120 840">${wedges.join('')}</svg>` +
-      `<div class="ring-center"><b class="rc-name"></b><span class="rc-meta"></span><p class="rc-intro"></p></div></div>`
+    const vb = [box.x1, box.y1, box.x2 - box.x1, box.y2 - box.y1].map(Math.round).join(' ')
+    return `<svg class="jobs ${g.cls}" viewBox="${vb}">${wedges.join('')}</svg>`
   }
+  /** 手机上圆环外面放不下全名，写最短的叫法 */
+  const SHORT: Record<string, string> = {
+    backend: '后端', frontend: '前端', mobile: '客户端', gamedev: '游戏', 'product-eng': '全栈', 'test-dev': '测试', sre: '运维',
+    'systems-eng': '嵌入式', 'distributed-eng': '基础架构', security: '安全', 'data-analyst': '数据分析', data: '数据开发',
+    quant: '量化', 'ml-algo': '机器学习', 'llm-algo': '大模型', 'ai-app': 'AI 应用', inference: 'AI Infra',
+  }
+  const careerRing = () =>
+    `<div class="ring-wrap">` +
+    ringSvg({ cls: 'wide', ri: 240, ro: 350, fs: 22, lift: 34, spread: 34, iconS: 46, pop: 16, track: 7, label: (c) => c.name.replace(/工程师$/, '') }) +
+    ringSvg({ cls: 'narrow', ri: 62, ro: 106, fs: 13, lift: 10, spread: 19, iconS: 18, pop: 6, track: 3, label: (c) => SHORT[c.id] ?? c.name }) +
+    `<div class="ring-center"><b class="rc-name"></b><span class="rc-meta"></span></div></div>`
 
   // ── 首页：一个问题“你想学什么”，一圈 17 个岗位。点一个，旁边长出它的技能树；点“就学这个”记下来，进这条路线 ──
   {
-    // 首页的脚本要用的：每个岗位要学的技能，每个常见技能的全部前置（选它就算会这些）
+    // 首页的脚本要用的：每个岗位要学的技能，每个技能的全部前置（点亮它就连前置一起点亮，熄灭它就连依赖它的一起熄灭）
     const data = {
       careers: Object.fromEntries(rm.subs.map((c) => [c.id, c.plan.map((p) => p.skillId)])),
-      up: Object.fromEntries(QUICK.map((id) => [id, [...tree.ancestors(id)]])),
+      up: Object.fromEntries(rm.skills.map((s) => [s.id, [...tree.ancestors(s.id)]])),
     }
     const all = rm.areas
       .map((a) => `<section class="group"><h3>${esc(a.name)}<span>${a.skillIds.length}</span></h3><p class="muted">${esc(a.intro)}</p><div class="chips">${a.skillIds.map((id) => skillChip(sk(id), '')).join('')}</div></section>`)
@@ -224,9 +245,9 @@ try {
   <div class="pick-body">
     <h2 class="pk-name"></h2>
     <p class="pk-meta"></p>
+    <p class="pk-intro"></p>
     <div class="minis">${rm.subs.map((c) => `<div class="mini" data-id="${c.id}">${miniTree(c)}</div>`).join('')}</div>
-    <p class="pk-ask">已经会的，先点亮</p>
-    <div class="quick">${QUICK.map((id) => `<button type="button" class="chip" data-s="${id}" aria-pressed="false">${icon(sk(id).icon, 16)}${esc(sk(id).name)}</button>`).join('')}</div>
+    ${rm.subs.map((c) => `<div class="has" data-id="${c.id}"><p class="pk-ask">要学这 ${c.plan.length} 个，会的点一下</p><div class="quick">${c.plan.map(({ skillId: id }) => `<button type="button" class="chip" data-s="${id}" aria-pressed="false">${icon(sk(id).icon, 16)}${esc(sk(id).name)}</button>`).join('')}</div></div>`).join('')}
     <a class="go" href="">就学这个</a>
   </div>
 </aside>
@@ -237,16 +258,10 @@ try {
   ${all}
 </details>
 <script>
-const KEY = ${JSON.stringify(PROGRESS_KEY)}, HOME_KEY = 'cs-skill-tree:home', D = ${JSON.stringify(data)}
+const KEY = ${JSON.stringify(PROGRESS_KEY)}, D = ${JSON.stringify(data)}
 let store = null
 try { store = JSON.parse(localStorage.getItem(KEY)) } catch {}
 if (store?.format !== 'cs-skill-tree-progress') store = { format: 'cs-skill-tree-progress', version: 1, skills: {} }
-// 首页记两样：你亲手选了哪些（按钮只亮这些），以及为它们点亮了哪些原本没亮的（取消时只撤这些，树里点亮的不动）
-let home = { picks: [], added: [] }
-try {
-  const h = JSON.parse(localStorage.getItem(HOME_KEY))
-  if (Array.isArray(h?.picks) && Array.isArray(h?.added)) home = h
-} catch {}
 const lit = () => new Set(Object.keys(store.skills).filter((k) => store.skills[k].status === 'done'))
 const page = document.querySelector('.home')
 const jobs = [...document.querySelectorAll('.job')]
@@ -266,12 +281,10 @@ const job = (id) => jobs.find((j) => j.dataset.id === id)
 function show(id) {
   const name = center.querySelector('.rc-name')
   const meta = center.querySelector('.rc-meta')
-  const intro = center.querySelector('.rc-intro')
   if (!id) {
     name.textContent = '${rm.subs.length} 个岗位'
     name.style.removeProperty('--len')
     meta.textContent = '点一个看看'
-    intro.textContent = ''
     return
   }
   const j = job(id)
@@ -280,14 +293,14 @@ function show(id) {
   // 名字一行放下：中文按一个字宽，英文数字按半个多一点
   name.style.setProperty('--len', [...j.dataset.name].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 1 : 0.6), 0))
   meta.textContent = j.dataset.cat + ' · ' + (left === total ? total + ' 个技能' : left ? '还差 ' + left + ' 个' : '已达成')
-  intro.textContent = j.dataset.intro
 }
 /** 选中一个岗位：扇形弹出来，旁边换成它的小树、重新长一遍 */
 function choose(id, scroll) {
   current = id
   page.classList.add('chosen')
   for (const j of jobs) j.classList.toggle('on', j.dataset.id === id)
-  for (const m of document.querySelectorAll('.mini')) m.classList.toggle('on', m.dataset.id === id)
+  for (const m of document.querySelectorAll('.mini, .has')) m.classList.toggle('on', m.dataset.id === id)
+  pick.querySelector('.pk-intro').textContent = job(id).dataset.intro
   pick.querySelector('.pk-name').textContent = job(id).dataset.name
   const go = pick.querySelector('.go')
   go.setAttribute('href', 'career/' + id + '/index.html')
@@ -298,7 +311,7 @@ function choose(id, scroll) {
 }
 function render() {
   const l = lit()
-  for (const b of document.querySelectorAll('.quick .chip')) b.setAttribute('aria-pressed', home.picks.includes(b.dataset.s))
+  for (const b of document.querySelectorAll('.quick .chip')) b.setAttribute('aria-pressed', l.has(b.dataset.s))
   for (const n of document.querySelectorAll('.mini .n[data-s]')) n.classList.toggle('lit', l.has(n.dataset.s))
   for (const j of jobs) {
     const { total, left } = count(j.dataset.id)
@@ -311,28 +324,12 @@ function render() {
   }
   show(current)
 }
+/** 会了：连前置一起点亮。点错了再点一下：连依赖它的一起熄灭（和技能树里的规则一样） */
 function toggle(id) {
-  const picks = new Set(home.picks)
-  const added = new Set(home.added)
-  if (picks.delete(id)) {
-    // 撤掉为它点亮的，除非还有别的选择要用到
-    const keep = new Set([...picks].flatMap((p) => [p, ...D.up[p]]))
-    for (const s of added) if (!keep.has(s)) {
-      delete store.skills[s]
-      added.delete(s)
-    }
-  } else {
-    picks.add(id)
-    for (const s of [...D.up[id], id]) if (store.skills[s]?.status !== 'done') {
-      store.skills[s] = { status: 'done' }
-      added.add(s)
-    }
-  }
-  home = { picks: [...picks], added: [...added] }
-  try {
-    localStorage.setItem(KEY, JSON.stringify(store))
-    localStorage.setItem(HOME_KEY, JSON.stringify(home))
-  } catch {}
+  if (store.skills[id]?.status === 'done') {
+    for (const s of Object.keys(store.skills)) if (s === id || D.up[s]?.includes(id)) delete store.skills[s]
+  } else for (const s of [...D.up[id], id]) store.skills[s] = { status: 'done' }
+  try { localStorage.setItem(KEY, JSON.stringify(store)) } catch {}
   render()
 }
 for (const b of document.querySelectorAll('.quick .chip')) b.addEventListener('click', () => toggle(b.dataset.s))
@@ -347,11 +344,6 @@ for (const j of jobs) {
 pick.querySelector('.go').addEventListener('click', () => {
   try { localStorage.setItem(${JSON.stringify(ROUTE_KEY)}, current) } catch {}
 })
-// 手机上圆环外面放不下名字：只画圆环
-const narrow = matchMedia('(max-width: 560px)')
-const fit = () => document.querySelector('.jobs').setAttribute('viewBox', narrow.matches ? '-330 -330 660 660' : '-560 -410 1120 840')
-narrow.addEventListener('change', fit)
-fit()
 if (current) choose(current, false)
 else render()
 </script>
