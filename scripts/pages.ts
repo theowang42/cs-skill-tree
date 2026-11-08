@@ -179,6 +179,7 @@ try {
   <h2 class="pk-name"></h2>
   <p class="pk-meta"></p>
   <p class="pk-intro"></p>
+  ${rm.subs.map((c) => `<p class="dom" data-id="${c.id}"><b>技能在</b>${rm.areas.map((a) => [a, c.plan.filter((p) => sk(p.skillId).areaId === a.id).length] as const).filter(([, n]) => n).map(([a, n]) => `<a href="tree/#/area/${a.id}">${esc(a.name)} ${n}</a>`).join('')}</p>`).join('')}
   <div class="minis">${rm.subs.map((c) => `<div class="mini" data-id="${c.id}">${miniTree(c, false)}${miniTree(c, true)}</div>`).join('')}</div>
   ${rm.subs.map((c) => `<div class="has" data-id="${c.id}"><p class="pk-ask">要学这 ${c.plan.length} 个，会的点一下</p><div class="quick">${c.plan.map(({ skillId: id }) => `<button type="button" class="chip" data-s="${id}" aria-pressed="false"><svg width="14" height="14" aria-hidden="true"><use href="#i-${id}"/></svg>${esc(sk(id).name)}</button>`).join('')}</div></div>`).join('')}
   <a class="go" href="">就学这个</a>
@@ -213,7 +214,7 @@ function choose(id) {
   pick.classList.toggle('open', !!j)
   pick.inert = !j
   if (j) {
-    for (const m of pick.querySelectorAll('.mini, .has')) m.classList.toggle('on', m.dataset.id === id)
+    for (const m of pick.querySelectorAll('.mini, .has, .dom')) m.classList.toggle('on', m.dataset.id === id)
     pick.querySelector('.pk-name').textContent = j.dataset.name
     pick.querySelector('.pk-intro').textContent = j.dataset.intro
     const go = pick.querySelector('.go')
@@ -236,11 +237,11 @@ function place() {
   const dx = open && beside ? Math.min(0, Math.max(24, (free - home.offsetWidth) / 2) - home.offsetLeft) : 0
   home.style.transform = dx ? 'translateX(' + dx + 'px)' : ''
 }
-/** 小树竖着还是横着：哪个在抽屉里（一栏宽、最高 300）画得大用哪个。挑好后框按树的形状收紧 */
+/** 小树竖着还是横着：哪个在抽屉里（一栏宽、最高 210）画得大用哪个。挑好后框按树的形状收紧 */
 function layout() {
   const m = pick.querySelector('.mini.on')
   if (!m) return
-  const h = 260
+  const h = 210
   const w = minis.clientWidth
   const box = (svg) => svg.getAttribute('viewBox').split(' ').map(Number).slice(2)
   const fit = ([vw, vh]) => Math.min(w / vw, h / vh)

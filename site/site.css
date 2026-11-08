@@ -68,7 +68,12 @@ h1, h2, h3 { line-height: 1.25; margin: 0; }
 .pk-name { padding-right: 40px; font-size: 40px; line-height: 1.2; }
 .pk-meta { margin: 8px 0 0; font-size: 13px; color: var(--ink-2); }
 .pk-intro { margin: 12px 0 0; font-size: 16px; }
-.minis { margin: 24px 0; }
+/* 这个岗位的技能分在技能树的哪几个领域，点了打开那一页 */
+.dom { display: none; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 10px 0 0; font-size: 13px; }
+.dom.on { display: flex; }
+.dom a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--line); transition: color .2s var(--ease), border-color .2s var(--ease); }
+.dom a:hover { color: var(--ink); border-color: var(--ink); }
+.minis { margin: 16px 0; }
 .mini, .has { display: none; height: 100%; }
 .mini.on, .has.on { display: block; }
 .has.on { height: auto; margin-bottom: 24px; }
